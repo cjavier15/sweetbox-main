@@ -1,6 +1,6 @@
 import json
-import google.generativeai as genai
 import pandas as pd
+from google import genai
 from django.conf import settings
 from django.db.models import F
 from inventory.models import IngredientStock, ConstraintParameter, Ingredient
@@ -10,8 +10,7 @@ from datetime import timedelta
 from pos.models import Transaction
 
 # Initialize the Gemini API client
-genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-3.6-flash')
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 def generate_restock_directive(branch):
     low_stocks = IngredientStock.objects.filter(branch=branch, quantity_available__lte=F('reorder_threshold'))
@@ -41,7 +40,10 @@ def generate_restock_directive(branch):
     Do not use markdown formatting like ```json.
     """
     
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+    model='gemini-3.6-flash',
+    contents=prompt
+    )
     
     try:
         ai_data = json.loads(response.text.strip())
@@ -135,7 +137,10 @@ def generate_sales_report(branch, user, user_query):
     Answer the user's query directly based on the provided data. Factor in the External Variables if the user asks about forecasting or demand. Be concise, professional, and actionable. Calculate the totals accurately and do not hallucinate metrics.
     """
     
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+    model='gemini-3.6-flash',
+    contents=prompt
+    )
     
     ChatbotLog.objects.create(
         branch=branch, 
