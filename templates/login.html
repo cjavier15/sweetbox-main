@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweet Box Login</title>
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+</head>
+<body class="bg-light d-flex align-items-center justify-content-center" style="height: 100vh;">
+
+    <div class="card shadow-lg border-0" style="width: 100%; max-width: 400px;">
+        <div class="card-header bg-dark text-center py-4">
+            <h3 class="text-warning fw-bold mb-0">Sweet Box</h3>
+            <small class="text-light">Centralized Management</small>
+        </div>
+        <div class="card-body p-4">
+            <div id="error-message" class="alert alert-danger d-none"></div>
+            
+            <!-- Step 1: Email & Password -->
+            <form id="loginForm" onsubmit="processLogin(event)">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Email Address</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Password</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-warning w-100 fw-bold shadow-sm" id="btn-login">Secure Login</button>
+            </form>
+
+            <!-- Step 2: OTP Verification (Hidden by default) -->
+            <form id="otpForm" class="d-none" onsubmit="verifyOTP(event)">
+                <div class="mb-4 text-center">
+                    <label class="form-label fw-bold">Enter 6-Digit OTP</label>
+                    <input type="text" id="otp" class="form-control text-center fs-3 fw-bold letter-spacing-2" maxlength="6" required>
+                    <small class="text-muted mt-2 d-block">Check your terminal/email for the code.</small>
+                </div>
+                <button type="submit" class="btn btn-success w-100 fw-bold shadow-sm" id="btn-verify">Verify & Access</button>
+            </form>
+        </div>
+    </div>
+
+<script>
+    let tempEmail = "";
+
+    async function routeUser(token) {
+        const userRes = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (userRes.ok) {
+            const userData = await userRes.json();
+            const defaultLanding = {
+                'Business Owner': '/enterprise/',
+                'Admin': '/admin/',
+                'Branch Manager': '/scm/',
+                'Staff': '/pos/'
+            };
+            window.location.href = defaultLanding[userData.role] || '/login/';
+        } else {
+            window.location.href = '/login/';
+        }
+    }
+
+    async function processLogin(event) {
+        event.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorBox = document.getElementById('error-message');
+        const btn = document.getElementById('btn-login');
+        const trustedToken = localStorage.getItem('trusted_device_token'+ email);
+        
+        btn.innerText = "Authenticating...";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/auth/initiate/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, password: password, trusted_device_token: trustedToken })
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                if (data.status === "trusted_bypass") {
+                    localStorage.setItem('access_token', data.access);
+                    routeUser(data.access);
+                } else {
+                    tempEmail = data.email;
+                    errorBox.classList.add('d-none');
+                    document.getElementById('loginForm').classList.add('d-none');
+                    document.getElementById('otpForm').classList.remove('d-none');
+                }
+            } else {
+                errorBox.classList.remove('d-none');
+                errorBox.innerText = data.error || "Invalid credentials.";
+                btn.innerText = "Secure Login";
+                btn.disabled = false;
+            }
+        } catch (error) {
+            errorBox.classList.remove('d-none');
+            errorBox.innerText = "Network error. Is the server running?";
+            btn.innerText = "Secure Login";
+            btn.disabled = false;
+        }
+    }
+
+    async function verifyOTP(event) {
+        event.preventDefault();
+        const otp = document.getElementById('otp').value;
+        const errorBox = document.getElementById('error-message');
+        const btn = document.getElementById('btn-verify');
+        
+        btn.innerText = "Verifying...";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/auth/verify/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: tempEmail, otp: otp })
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                localStorage.setItem('access_token', data.access);
+                if (data.trusted_device_token) {
+                    localStorage.setItem('trusted_device_token' + tempEmail, data.trusted_device_token);
+                }
+                routeUser(data.access);
+            } else {
+                errorBox.classList.remove('d-none');
+                errorBox.innerText = data.error || "Invalid OTP.";
+                btn.innerText = "Verify & Access";
+                btn.disabled = false;
+            }
+        } catch (error) {
+            errorBox.classList.remove('d-none');
+            errorBox.innerText = "Network error processing OTP.";
+            btn.innerText = "Verify & Access";
+            btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>

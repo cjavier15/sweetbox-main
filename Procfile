@@ -1,0 +1,1 @@
+web: gunicorn sweetbox_backend.wsgi --log-file -

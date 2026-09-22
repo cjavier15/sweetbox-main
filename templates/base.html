@@ -1,0 +1,184 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweet Box Analytics Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Fallback styling in case style.css 404s again -->
+    <style>
+        :root { --sweetbox-dark: #3E2723; --sweetbox-primary: #D84315; }
+        .bg-dark { background-color: var(--sweetbox-dark) !important; }
+        .btn-warning { background-color: #FFC107; color: #000; }
+    </style>
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+<link href="{% static 'css/style.css' %}" rel="stylesheet">
+<script src="{% static 'js/chart.js' %}"></script>
+<script src="{% static 'js/axios.min.js' %}"></script>
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+
+    <!-- Mobile Top Navigation -->
+    <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm">
+        <span class="navbar-brand fw-bold text-warning">Sweet Box</span>
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </nav>
+
+    <div class="d-flex flex-grow-1">
+        <!-- Persistent Offcanvas Sidebar -->
+        <div class="offcanvas-md offcanvas-start bg-dark text-white shadow" tabindex="-1" id="sidebarMenu" style="width: 260px;">
+            <div class="offcanvas-header d-md-none border-bottom border-secondary">
+                <h5 class="offcanvas-title text-warning fw-bold">Menu</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close" onclick="document.getElementById('sidebarMenu').classList.remove('show');"></button>
+            </div>
+            
+            <div class="d-none d-md-block p-4 border-bottom border-secondary">
+                <h4 class="fw-bold text-warning mb-0">Sweet Box</h4>
+                <!-- CRITICAL ID REQUIRED FOR JS -->
+                <small class="text-light" id="user-profile-display">Loading User...</small>
+            </div>
+
+            <div class="d-flex flex-column justify-content-between flex-grow-1 p-3">
+                <!-- CRITICAL IDs REQUIRED FOR JS -->
+                <ul class="nav nav-pills flex-column mb-auto gap-2" id="sidebar-links" style="display: none;">
+                    <li class="nav-item" id="nav-enterprise"><a href="/enterprise/" class="nav-link text-white">Enterprise Analytics</a></li>
+                    <li class="nav-item" id="nav-pos"><a href="/pos/" class="nav-link text-white">POS System</a></li>
+                    <li class="nav-item" id="nav-scm"><a href="/scm/" class="nav-link text-white">Inventory & BOM</a></li>
+                    <li class="nav-item" id="nav-admin"><a href="/admin/login/" class="nav-link text-white">Admin Panel</a></li>
+                </ul>
+                
+                <div class="mt-4 border-top border-secondary pt-3">
+                    <button id="btn-ai" class="btn btn-warning w-100 fw-bold mb-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#chatbotModal">
+                        AI Assistant
+                    </button>
+                    <button class="btn btn-outline-light w-100" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Module Injector -->
+        <main class="flex-grow-1 p-3 p-md-4 overflow-auto" style="height: 100vh;">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Global AI Chatbot Modal -->
+    <div class="modal fade" id="chatbotModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold text-warning">Gemini Prescriptive Analyst</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body bg-light" id="chat-box" style="height: 400px; overflow-y: auto;">
+                    <p class="text-muted text-center mt-3">Ask about sales forecasting or restock alerts...</p>
+                </div>
+                <div class="modal-footer border-0 bg-white d-flex">
+                    <input type="text" id="user-input" class="form-control me-2" placeholder="e.g., What was the highest revenue product today?">
+                    <button class="btn btn-warning fw-bold" onclick="askGemini()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <script>
+        async function enforceRBAC() {
+            const token = localStorage.getItem('access_token');
+            if (!token) { window.location.href = '/login/'; return; }
+
+            try {
+                const response = await fetch('/api/analytics/current-user/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) throw new Error("Backend rejected token");
+                
+                const data = await response.json();
+                const role = data.role;
+                const path = window.location.pathname;
+
+                const accessMap = {
+                    'Business Owner': ['/enterprise/', '/scm/'],
+                    'Admin': ['/admin/'],
+                    'Branch Manager': ['/scm/'],
+                    'Staff': ['/pos/']
+                };
+
+                const uiMap = {
+                    'Business Owner': ['nav-enterprise', 'nav-scm', 'nav-admin', 'btn-ai'],
+                    'Admin': ['nav-admin'],
+                    'Branch Manager': ['nav-scm', 'btn-ai'],
+                    'Staff': ['nav-pos']
+                };
+
+                const allowedPaths = accessMap[role] || [];
+                const allowedUI = uiMap[role] || [];
+                
+                if (!allowedPaths.some(p => path.includes(p)) && path !== '/' && path !== '/login/') {
+                    window.location.href = allowedPaths[0] || '/login/';
+                    return;
+                }
+
+                // Process UI Removals
+                const allUIElements = ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin', 'btn-ai'];
+                allUIElements.forEach(elementId => {
+                    if (!allowedUI.includes(elementId)) {
+                        const el = document.getElementById(elementId);
+                        if (el) el.remove();
+                    }
+                });
+
+                // Display authorized profile
+                document.getElementById('sidebar-links').style.display = 'flex';
+                document.getElementById('user-profile-display').innerText = `${data.name} | ${role}`;
+
+            } catch (error) {
+                console.error("RBAC Security Error:", error);
+                localStorage.removeItem('access_token');
+                window.location.href = '/login/';
+            }
+        }
+
+        async function askGemini() {
+            const inputField = document.getElementById('user-input');
+            const chatBox = document.getElementById('chat-box');
+            const query = inputField.value;
+            if (!query) return;
+            
+            chatBox.innerHTML += `<div class="mb-3 text-end"><span class="badge bg-secondary p-2 fs-6 text-wrap shadow-sm">${query}</span></div>`;
+            inputField.value = '';
+            
+            const token = localStorage.getItem('access_token');
+            try {
+                const response = await fetch('/api/analytics/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ branch_id: 1, query: query })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    chatBox.innerHTML += `<div class="mb-3 text-start"><div class="alert alert-info border-info d-inline-block shadow-sm">${data.reply}</div></div>`;
+                } else {
+                    chatBox.innerHTML += `<div class="mb-3 text-start"><div class="alert alert-danger shadow-sm">Error: ${data.error || "Unknown error"}</div></div>`;
+                }
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (error) {
+                chatBox.innerHTML += `<div class="mb-3 text-start"><div class="alert alert-danger shadow-sm">Network Error</div></div>`;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            window.location.href = '/login/'; 
+        }
+
+        document.addEventListener("DOMContentLoaded", enforceRBAC);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

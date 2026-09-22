@@ -1,0 +1,562 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<!-- Include html2pdf for receipt generation -->
+<script src="{% static 'js/html2pdf.bundle.min.js' %}"></script>
+
+<style>
+    .pos-theme { background-color: #795548; color: white; }
+    .item-card:hover { border-color: #795548; cursor: pointer; transform: translateY(-2px); transition: 0.2s; }
+    .qty-btn { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
+</style>
+
+<!-- Top Navigation Bar -->
+<div class="pos-theme rounded p-3 mb-3 d-flex justify-content-between align-items-center shadow-sm">
+    <div>
+        <h4 class="mb-0 fw-bold">Sweet Box POS</h4>
+        <small id="branch-display">Loading Branch...</small>
+    </div>
+    <div class="d-flex align-items-center gap-4">
+        <button class="btn btn-warning fw-bold" onclick="fetchHistory()" data-bs-toggle="modal" data-bs-target="#historyModal">
+            Transaction History
+        </button>
+        <div class="text-end">
+            <div class="fw-bold">Cashier: <span id="cashier-name">Loading...</span></div>
+            <div id="live-clock" class="text-light">00:00:00</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Panel: Product Grid -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <input type="text" class="form-control mb-3" placeholder="Search menu..." id="search-input" onkeyup="filterProducts()">
+                <div class="row g-3 overflow-auto" id="product-catalog-container" style="max-height: 65vh;">
+                    <!-- Products dynamically injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Cart & Billing -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100 d-flex flex-column">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0 fw-bold">Current Order</h5>
+                <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">Clear All</button>
+            </div>
+            
+            <!-- Cart Items -->
+            <div class="card-body overflow-auto flex-grow-1 p-2" id="cart-list">
+                <p class="text-muted text-center mt-4">Cart is empty</p>
+            </div>
+
+            <!-- Billing Section -->
+            <div class="card-footer bg-white border-top">
+                <div class="mb-2">
+                    <label class="form-label text-muted small mb-1">Discount</label>
+                    <select class="form-select form-select-sm" id="discount-selector" onchange="updateCartUI()">
+                        <option value="none">Standard Pricing</option>
+                        <option value="pwd">Senior / PWD (20%)</option>
+                    </select>
+                </div>
+                <div class="d-flex justify-content-between small mb-1 text-muted">
+                    <span>Subtotal</span>
+                    <span id="bill-subtotal">₱0.00</span>
+                </div>
+                <div class="d-flex justify-content-between small mb-1 text-danger d-none" id="discount-row">
+                    <span>Discount (20%)</span>
+                    <span id="bill-discount">-₱0.00</span>
+                </div>
+                <div class="d-flex justify-content-between small mb-2 text-muted">
+                    <span>VAT (12% Inclusive)</span>
+                    <span id="bill-vat">₱0.00</span>
+                </div>
+                <button class="btn pos-theme w-100 fw-bold fs-5 py-2 mb-2 d-flex justify-content-between" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                    <span>TOTAL</span>
+                    <span id="bill-total">₱0.00</span>
+                </button>
+                <button class="btn btn-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#paymentModal">Proceed to Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 1. Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-dark">Process Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="pos-theme text-white rounded py-3 mb-4">
+                    <small>Amount Due</small>
+                    <h2 class="fw-bold mb-0" id="payment-amount-due">₱0.00</h2>
+                </div>
+                
+                <h6 class="text-start text-muted mb-3">Payment Method</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-6"><button class="btn btn-outline-success w-100 pay-method-btn" onclick="selectPayment('Cash')">Cash</button></div>
+                    <div class="col-6"><button class="btn btn-outline-primary w-100 pay-method-btn" onclick="selectPayment('E-Wallet')">E-Wallet</button></div>
+                    <div class="col-12"><button class="btn btn-outline-warning w-100 pay-method-btn" onclick="selectPayment('Split Payment')">Split Payment</button></div>
+                </div>
+
+                <!-- Cash Tendered Section -->
+                <div id="cash-payment-section" class="d-none text-start mb-3">
+                    <label class="form-label text-muted small">Amount Tendered (₱)</label>
+                    <input type="number" id="cash-tendered" class="form-control" placeholder="Enter cash received" oninput="calculateChange()">
+                    <div class="mt-2 small text-success fw-bold" id="cash-change-display">Change: ₱0.00</div>
+                </div>
+
+                <!-- E-Wallet Section -->
+                <div id="ewallet-payment-section" class="d-none text-start mb-3">
+                    <label class="form-label text-muted small">Reference Number (GCash / Maya)</label>
+                    <input type="text" id="ewallet-reference" class="form-control" placeholder="Enter reference number">
+                </div>
+
+                <!-- Split Payment Section -->
+                <div id="split-payment-section" class="d-none text-start mb-3">
+                    <label class="form-label text-muted small">Cash Portion (₱)</label>
+                    <input type="number" id="cash-portion" class="form-control" placeholder="Enter cash amount" oninput="calculateSplit()">
+                    <div class="mt-2 small text-primary fw-bold" id="ewallet-portion-display">E-Wallet Portion: ₱0.00</div>
+                </div>
+
+                <button class="btn pos-theme w-100 fw-bold py-2 mt-2" onclick="processCheckout()">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Digital Receipt Modal -->
+<div class="modal fade" id="receiptModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">Payment Successful</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <div id="receipt-container" class="bg-white p-4 rounded shadow-sm border">
+                    <div class="text-center mb-3">
+                        <h4 class="fw-bold pos-theme text-white py-2 rounded">Sweet Box</h4>
+                        <small class="text-muted" id="receipt-date"></small>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 pb-2 border-bottom small">
+                        <div><span class="text-muted">TXN ID:</span><br><strong id="receipt-txn"></strong></div>
+                        <div class="text-end"><span class="text-muted">Cashier:</span><br><strong id="receipt-cashier"></strong></div>
+                    </div>
+                    <div id="receipt-items" class="mb-3 border-bottom pb-2"></div>
+                    <div class="d-flex justify-content-between small mb-1"><span class="text-muted">Subtotal</span><strong id="receipt-subtotal"></strong></div>
+                    <div class="d-flex justify-content-between small mb-1 text-danger"><span class="text-muted">Discount</span><strong id="receipt-discount"></strong></div>
+                    <div class="d-flex justify-content-between small mb-2"><span class="text-muted">VAT (12%)</span><strong id="receipt-vat"></strong></div>
+                    <div class="d-flex justify-content-between fs-5 fw-bold mt-2 pt-2 border-top">
+                        <span>TOTAL</span><span id="receipt-total"></span>
+                    </div>
+                    <div class="text-center mt-3 small text-muted" id="receipt-payment-method"></div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-outline-dark w-100" onclick="printReceipt()">Print</button>
+                    <button class="btn btn-outline-danger w-100" onclick="downloadPDF()">Save PDF</button>
+                </div>
+                <button class="btn pos-theme w-100 mt-2 fw-bold" data-bs-dismiss="modal" onclick="clearCart()">New Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Transaction History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header pos-theme text-white">
+                <h5 class="modal-title fw-bold">Transaction History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>TXN ID</th>
+                            <th>Branch</th>
+                            <th>Total Amount</th>
+                            <th>Discount</th>
+                            <th>Payment</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <tr><td colspan="7" class="text-center text-muted">Loading transactions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let cart = [];
+    let currentPaymentMethod = 'Cash';
+    let splitCash = 0;
+    let splitEwallet = 0;
+    let cashChange = 0;
+    
+    // Live Clock functionality
+    setInterval(() => {
+        document.getElementById('live-clock').innerText = new Date().toLocaleTimeString('en-US', { hour12: true });
+    }, 1000);
+
+    // Initial Load
+    document.addEventListener("DOMContentLoaded", async () => {
+        await fetchUserContext();
+        await loadProducts();
+    });
+
+    async function fetchUserContext() {
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/analytics/current-user/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            document.getElementById('cashier-name').innerText = data.name;
+            document.getElementById('receipt-cashier').innerText = data.name;
+            document.getElementById('branch-display').innerText = data.branch;
+        } catch (e) {}
+    }
+
+    async function loadProducts() {
+        const catalog = document.getElementById('product-catalog-container');
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/pos/products/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const products = await response.json();
+            
+            catalog.innerHTML = products.map(p => {
+                // Determine stock limits
+                const stock = p.quantity_available ?? p.stock ?? p.quantity ?? 0;
+                const isOutOfStock = stock <= 0;
+                
+                // Safely build the click action outside the HTML string
+                // We also escape any apostrophes in the product name (e.g. "Chef's Cake") to prevent quotes breaking the HTML
+                const safeName = p.product_name.replace(/'/g, "\\'");
+                const clickAction = isOutOfStock 
+                    ? "alert('Item out of stock!')" 
+                    : `addToCart(${p.product_ID}, '${safeName}', ${parseFloat(p.price)}, ${stock})`;
+                
+                return `
+                <div class="col-md-4 product-card" data-name="${p.product_name.toLowerCase()}">
+                    <div class="card h-100 shadow-sm item-card border-1 ${isOutOfStock ? 'opacity-50' : ''}" 
+                         onclick="${clickAction}">
+                        <div class="card-body text-center p-3">
+                            <span class="badge bg-warning text-dark mb-2">${p.category_name}</span>
+                            <h6 class="card-title fw-bold mb-1">${p.product_name}</h6>
+                            <p class="card-text text-danger fw-bold mb-1">₱${parseFloat(p.price).toFixed(2)}</p>
+                            <small class="${isOutOfStock ? 'text-danger fw-bold' : 'text-success'}">Stock: ${stock}</small>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch (error) { 
+            catalog.innerHTML = '<p class="text-danger">Failed to load products.</p>'; 
+        }
+    }
+
+    function filterProducts() {
+        const query = document.getElementById('search-input').value.toLowerCase();
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.style.display = card.getAttribute('data-name').includes(query) ? 'block' : 'none';
+        });
+    }
+
+    function addToCart(id, name, price, maxStock) {
+        const existing = cart.find(i => i.product_id === id);
+        const currentQty = existing ? existing.quantity : 0;
+        
+        if (currentQty + 1 > maxStock) {
+            return alert(`Cannot add more ${name}. Only ${maxStock} left in stock!`);
+        }
+        
+        if (existing) { 
+            existing.quantity += 1; 
+        } else { 
+            cart.push({ product_id: id, name, price, quantity: 1, maxStock: maxStock }); 
+        }
+        
+        updateCartUI();
+    }
+
+    function updateQty(id, delta) {
+        const item = cart.find(i => i.product_id === id);
+        if (item) {
+            if (delta > 0 && item.quantity + delta > item.maxStock) {
+                return alert(`Cannot add more ${item.name}. Only ${item.maxStock} left in stock!`);
+            }
+            item.quantity += delta;
+            if (item.quantity <= 0) cart = cart.filter(i => i.product_id !== id);
+            updateCartUI();
+        }
+    }
+
+    function clearCart() { cart = []; updateCartUI(); }
+
+    function updateCartUI() {
+        const list = document.getElementById('cart-list');
+        list.innerHTML = cart.length === 0 ? '<p class="text-muted text-center mt-4">Cart is empty</p>' : '';
+        
+        let subtotal = 0;
+        cart.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            subtotal += itemTotal;
+            list.innerHTML += `
+                <div class="d-flex justify-content-between align-items-center bg-light p-2 mb-2 rounded border">
+                    <div style="flex: 1;">
+                        <div class="fw-bold text-dark lh-sm">${item.name}</div>
+                        <small class="text-muted">₱${item.price.toFixed(2)} each</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-outline-secondary qty-btn" onclick="updateQty(${item.product_id}, -1)">-</button>
+                        <span class="fw-bold">${item.quantity}</span>
+                        <button class="btn btn-outline-secondary qty-btn" onclick="updateQty(${item.product_id}, 1)">+</button>
+                    </div>
+                    <div class="fw-bold text-danger text-end ms-3" style="width: 70px;">₱${itemTotal.toFixed(2)}</div>
+                </div>`;
+        });
+
+        const isPwd = document.getElementById('discount-selector').value === 'pwd';
+        const discount = isPwd ? subtotal * 0.20 : 0;
+        const total = subtotal - discount;
+        const vat = total - (total / 1.12);
+
+        document.getElementById('bill-subtotal').innerText = `₱${subtotal.toFixed(2)}`;
+        document.getElementById('bill-discount').innerText = `-₱${discount.toFixed(2)}`;
+        document.getElementById('discount-row').classList.toggle('d-none', !isPwd);
+        document.getElementById('bill-vat').innerText = `₱${vat.toFixed(2)}`;
+        document.getElementById('bill-total').innerText = `₱${total.toFixed(2)}`;
+        document.getElementById('payment-amount-due').innerText = `₱${total.toFixed(2)}`;
+    }
+
+    function selectPayment(method) {
+        currentPaymentMethod = method;
+        document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active', 'text-white'));
+        event.target.classList.add('active', 'text-white');
+        
+        document.getElementById('split-payment-section').classList.toggle('d-none', method !== 'Split Payment');
+        document.getElementById('cash-payment-section').classList.toggle('d-none', method !== 'Cash');
+        document.getElementById('ewallet-payment-section').classList.toggle('d-none', method === 'Cash');
+    }
+
+    function calculateChange() {
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const discountAmount = document.getElementById('discount-selector').value === 'pwd' ? subtotal * 0.20 : 0;
+        const total = subtotal - discountAmount;
+        
+        const tendered = parseFloat(document.getElementById('cash-tendered').value) || 0;
+        cashChange = tendered - total;
+        
+        const display = document.getElementById('cash-change-display');
+        if (cashChange < 0) {
+            display.innerText = "Insufficient Amount";
+            display.classList.replace('text-success', 'text-danger');
+        } else {
+            display.innerText = `Change: ${cashChange.toFixed(2)}`;
+            display.classList.replace('text-danger', 'text-success');
+        }
+    }
+
+    function calculateSplit() {
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const discountAmount = document.getElementById('discount-selector').value === 'pwd' ? subtotal * 0.20 : 0;
+        const total = subtotal - discountAmount;
+        
+        splitCash = parseFloat(document.getElementById('cash-portion').value) || 0;
+        splitEwallet = total - splitCash;
+        
+        const display = document.getElementById('ewallet-portion-display');
+        if (splitEwallet < 0) {
+            display.innerText = "Error: Cash exceeds total";
+            display.classList.replace('text-primary', 'text-danger');
+        } else {
+            display.innerText = `E-Wallet Portion: ${splitEwallet.toFixed(2)}`;
+            display.classList.replace('text-danger', 'text-primary');
+        }
+    }
+
+    async function processCheckout() {
+        if (cart.length === 0) return alert("Cart is empty!");
+        
+        const isPwd = document.getElementById('discount-selector').value === 'pwd';
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const discountAmount = isPwd ? subtotal * 0.20 : 0;
+        const totalAmount = subtotal - discountAmount;
+        
+        // STRICT STRING for the Backend Database
+        let finalPaymentMethod = currentPaymentMethod; 
+        
+        // DETAILED STRING for the Frontend Digital Receipt
+        let receiptPaymentDetails = currentPaymentMethod;
+        
+        if (currentPaymentMethod === 'Cash') {
+            const tendered = parseFloat(document.getElementById('cash-tendered').value) || 0;
+            if (tendered < totalAmount) return alert("Insufficient cash tendered.");
+            receiptPaymentDetails = `Cash (Tendered: ₱${tendered.toFixed(2)} | Change: ₱${cashChange.toFixed(2)})`;
+            
+        } else if (currentPaymentMethod === 'E-Wallet') {
+            const refNumber = document.getElementById('ewallet-reference').value;
+            if (!refNumber) return alert("Please enter the E-Wallet reference number.");
+            receiptPaymentDetails = `E-Wallet (Ref: ${refNumber})`;
+            
+        } else if (currentPaymentMethod === 'Split Payment') {
+            const refNumber = document.getElementById('ewallet-reference').value;
+            if (!refNumber) return alert("Please enter the E-Wallet reference number for the split payment.");
+            if (splitEwallet < 0 || splitCash <= 0) return alert("Invalid split amounts.");
+            
+            receiptPaymentDetails = `Split (Cash: ₱${splitCash.toFixed(2)} | E-Wallet: ₱${splitEwallet.toFixed(2)} - Ref: ${refNumber})`;
+        }
+        
+        const token = localStorage.getItem('access_token');
+        
+        try {
+            const response = await fetch('/api/pos/checkout/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ 
+                    total_amount: totalAmount,
+                    discount_type: isPwd ? "Senior / PWD (20%)" : "",
+                    discount_amount: discountAmount,
+                    payment_method: finalPaymentMethod, // Send strictly "Split Payment" to avoid DB crash
+                    items: cart.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.price }))
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('paymentModal')).hide();
+                
+                // Pass the DETAILED string to the receipt UI
+                generateReceipt(data.transaction_ID, subtotal, discountAmount, totalAmount, receiptPaymentDetails);
+                new bootstrap.Modal(document.getElementById('receiptModal')).show();
+                
+                // Reset Cart & UI
+                cart = [];
+                updateCartUI();
+                
+                // Reset all payment inputs cleanly for the next customer
+                document.getElementById('cash-tendered').value = '';
+                document.getElementById('cash-change-display').innerText = 'Change: ₱0.00';
+                document.getElementById('cash-change-display').classList.replace('text-danger', 'text-success');
+                
+                document.getElementById('ewallet-reference').value = '';
+                
+                document.getElementById('cash-portion').value = '';
+                document.getElementById('ewallet-portion-display').innerText = 'E-Wallet Portion: ₱0.00';
+                document.getElementById('ewallet-portion-display').classList.replace('text-danger', 'text-primary');
+            } else {
+                // Catch any future backend rejections so the UI doesn't silently freeze
+                alert(`Transaction Failed: ${data.error || "Unknown database error"}`);
+            }
+        } catch (error) { 
+            alert("Network Error Processing Payment. Please check connection."); 
+        }
+    }
+
+    function generateReceipt(txnId, subtotal, discount, total, method) {
+        document.getElementById('receipt-txn').innerText = `TXN-${txnId}`;
+        document.getElementById('receipt-date').innerText = new Date().toLocaleString();
+        
+        const itemsContainer = document.getElementById('receipt-items');
+        itemsContainer.innerHTML = cart.map(i => `
+            <div class="d-flex justify-content-between small text-muted">
+                <span>${i.quantity} x ${i.name}</span>
+                <span>₱${(i.price * i.quantity).toFixed(2)}</span>
+            </div>`).join('');
+
+        document.getElementById('receipt-subtotal').innerText = `₱${subtotal.toFixed(2)}`;
+        document.getElementById('receipt-discount').innerText = discount > 0 ? `-₱${discount.toFixed(2)}` : '₱0.00';
+        document.getElementById('receipt-vat').innerText = `₱${(total - (total / 1.12)).toFixed(2)}`;
+        document.getElementById('receipt-total').innerText = `₱${total.toFixed(2)}`;
+        document.getElementById('receipt-payment-method').innerText = `Paid via: ${method}`;
+    }
+
+    function printReceipt() {
+        const receiptHtml = document.getElementById('receipt-container').innerHTML;
+        const originalHtml = document.body.innerHTML;
+        document.body.innerHTML = `<div style="max-width: 300px; margin: auto;">${receiptHtml}</div>`;
+        window.print();
+        document.body.innerHTML = originalHtml;
+        window.location.reload(); 
+    }
+
+    function downloadPDF() {
+        const element = document.getElementById('receipt-container');
+        html2pdf().from(element).save('SweetBox_Receipt.pdf');
+    }
+
+    async function fetchHistory() {
+        const token = localStorage.getItem('access_token');
+        const tbody = document.getElementById('history-table-body');
+        
+        // Added Action column to the table header dynamically if not present
+        const theadRow = tbody.previousElementSibling.querySelector('tr');
+        if (!theadRow.innerHTML.includes('Action')) {
+            theadRow.innerHTML += '<th>Action</th>';
+        }
+
+        try {
+            const response = await fetch('/api/pos/transactions/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await response.json();
+            
+            tbody.innerHTML = data.map(t => {
+                const isCompleted = t.transaction_status === 'Completed';
+                const badgeClass = isCompleted ? 'bg-success' : 'bg-danger';
+                const actionBtn = isCompleted 
+                    ? `<button class="btn btn-sm btn-outline-danger" onclick="processRefund(${t.transaction_ID})">Refund</button>`
+                    : `<span class="text-muted small">Refunded</span>`;
+
+                return `
+                <tr>
+                    <td class="fw-bold text-muted">TXN-${t.transaction_ID}</td>
+                    <td>Branch ID: ${t.branch}</td>
+                    <td class="fw-bold">₱${parseFloat(t.total_amount).toFixed(2)}</td>
+                    <td class="text-danger">${parseFloat(t.discount_amount) > 0 ? `-₱${t.discount_amount}` : '-'}</td>
+                    <td><span class="badge bg-secondary">${t.payment_method || 'Logged'}</span></td>
+                    <td class="small text-muted">${new Date(t.transaction_date).toLocaleString()}</td>
+                    <td><span class="badge ${badgeClass}">${t.transaction_status}</span></td>
+                    <td>${actionBtn}</td>
+                </tr>`;
+            }).join('');
+        } catch (error) { tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center">Failed to load history</td></tr>'; }
+    }
+
+    async function processRefund(txnId) {
+        if (!confirm(`CRITICAL WARNING:\n\nAre you sure you want to refund TXN-${txnId}?\nThis action will permanently delete the transaction and restock the inventory ingredients. This cannot be undone.`)) {
+            return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch(`/api/pos/refund/${txnId}/`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                alert(`TXN-${txnId} has been successfully refunded and removed from the database.`);
+                fetchHistory(); // Refresh table
+            } else {
+                const data = await response.json();
+                alert(`Refund Error: ${data.error}`);
+            }
+        } catch (error) {
+            alert("Network Error during refund processing.");
+        }
+    }
+</script>
+{% endblock %}

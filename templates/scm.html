@@ -1,0 +1,781 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .nav-tabs .nav-link { color: #795548; font-weight: 500; border: none; padding: 10px 20px; }
+    .nav-tabs .nav-link.active { background-color: #795548; color: white; border-radius: 20px; }
+    .status-badge { padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+    .status-instock { background-color: #d4edda; color: #155724; }
+    .status-low { background-color: #fff3cd; color: #856404; }
+    .status-critical { background-color: #f8d7da; color: #721c24; }
+    .status-expiring { background-color: #ffeeba; color: #fd7e14; }
+    .action-card { border-left: 4px solid; }
+    .border-critical { border-color: #dc3545 !important; }
+    .border-high { border-color: #fd7e14 !important; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Inventory Monitor & SCM</h3>
+        <small class="text-muted">Centralized Inventory Management</small>
+    </div>
+    <div class="d-flex gap-2">
+        <select id="branch-filter" class="form-select bg-light d-none" onchange="loadSCMData()">
+            <option value="all">All Branches</option>
+            <option value="1">Ibaan (Main Hub)</option>
+            <option value="2">Padre Garcia</option>
+            <option value="3">San Jose</option>
+            <option value="4">Sampaguita</option>
+            <option value="5">South Supermarket Lipa</option>
+            <option value="6">San Antonio Quezon</option>
+            <option value="7">Cuenca</option>
+        </select>
+        <button class="btn btn-warning fw-bold px-4 text-dark" onclick="loadSCMData()">Refresh Data</button>
+    </div>
+</div>
+
+<!-- Tabs Navigation -->
+<ul class="nav nav-tabs mb-4 border-0" id="scmTabs" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tracker">Stock Tracker</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#product-watch">Product Watch</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bom">Bill-of-Materials</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#prescriptive">Prescriptive Actions</button></li>
+</ul>
+
+<div class="tab-content" id="scmTabContent">
+    <!-- TAB 1: Stock Tracker -->
+    <div class="tab-pane fade show active" id="tracker">
+        <!-- KPIs -->
+        <div class="row mb-4" id="kpi-container">
+            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-success"><i class="fas fa-check-circle"></i> In Stock</h6><h3 class="fw-bold mb-0" id="kpi-in">0</h3><small class="text-muted">items tracked</small></div></div></div>
+            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-warning"><i class="fas fa-exclamation-triangle"></i> Low Stock</h6><h3 class="fw-bold mb-0" id="kpi-low">0</h3><small class="text-muted">items tracked</small></div></div></div>
+            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-danger"><i class="fas fa-times-circle"></i> Critical</h6><h3 class="fw-bold mb-0" id="kpi-crit">0</h3><small class="text-muted">items tracked</small></div></div></div>
+            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-orange" style="color: #fd7e14;"><i class="fas fa-clock"></i> Expiring Soon</h6><h3 class="fw-bold mb-0" id="kpi-exp">0</h3><small class="text-muted">items tracked</small></div></div></div>
+        </div>
+        
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0 table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-muted small">
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Unit</th>
+                            <th>Stock Level</th>
+                            <th>Threshold</th>
+                            <th>Branch</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-tbody">
+                        <tr>
+                            <td colspan="9" class="text-center py-4">Loading stock data...</td>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- TAB 1.5: Product Watch -->
+    <div class="tab-pane fade" id="product-watch">
+        <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="fw-bold mb-1"><i class="fas fa-eye text-warning me-2"></i> Pre-made Product Watch</h5>
+                    <small class="text-light">Monitor live display stock across branches</small>
+                </div>
+                <button class="btn btn-warning px-4 py-2 fw-bold text-dark fs-6 text-nowrap" data-bs-toggle="modal" data-bs-target="#produceModal">
+                    <i class="fas fa-hammer me-2"></i> Produce Items
+                </button>
+            </div>
+        </div>
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0 table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-muted small">
+                        <tr>
+                            <th>Product Name</th><th>Category</th><th>Selling Price</th>
+                            <th>Display Stock</th><th>Threshold</th><th>Branch</th><th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-watch-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center py-4">Loading product watch data...</td>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: Bill of Materials -->
+    <div class="tab-pane fade" id="bom">
+        <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold mb-1"><i class="fas fa-cube text-warning me-2"></i> Bill-of-Materials Configuration</h5>
+                    <small class="text-light">Configure automatic ingredient deduction for each menu item</small>
+                </div>
+                <button class="btn btn-warning px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addBomModal">
+                    <i class="fas fa-plus me-2"></i> Add Product
+                </button>
+            </div>
+        </div>
+        <div id="bom-container"></div>
+    </div>
+
+    <!-- TAB 3: Prescriptive Actions -->
+    <div class="tab-pane fade" id="prescriptive">
+        <!-- Prescriptive KPIs -->
+        <div class="row mb-4">
+            <div class="col-md-4"><div class="card bg-danger text-white border-0 shadow-sm text-center py-3"><h2 class="fw-bold mb-0" id="kpi-pa-crit">0</h2><small>Critical Actions</small></div></div>
+            <div class="col-md-4"><div class="card bg-warning text-dark border-0 shadow-sm text-center py-3"><h2 class="fw-bold mb-0" id="kpi-pa-high">0</h2><small>High Priority</small></div></div>
+            <div class="col-md-4"><div class="card bg-success text-white border-0 shadow-sm text-center py-3"><h2 class="fw-bold mb-0" id="kpi-pa-loss">₱0</h2><small>Est. Loss Prevented If Action is Taken</small></div></div>
+        </div>
+
+        <!-- AI Recommendations Grid -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-muted mb-0">Recommended Actions</h6>
+            <button class="btn btn-sm btn-warning fw-bold text-dark shadow-sm" id="btn-run-ai" onclick="generatePrescriptions()">
+                <i class="fas fa-magic me-2"></i>Run AI Analysis
+            </button>
+        </div>
+        <div class="row g-3 mb-5" id="prescriptive-actions-container">
+        </div>
+
+        <!-- Restock Queue -->
+        <h6 class="fw-bold mb-3 text-warning"><i class="fas fa-exclamation-triangle"></i> Restock Action Queue</h6>
+        <div class="card shadow-sm border-0">
+            <div
+            class="card-body p-0" id="restock-queue-container">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOM Modal -->
+<div class="modal fade" id="addBomModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold">Configure Product & BOM</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <form id="bomForm" onsubmit="submitNewBOM(event)">
+                    <h6 class="fw-bold text-muted mb-3">1. Product Details</h6>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-6"><input type="text" id="bom-prod-name" class="form-control" placeholder="Product Name (e.g., Mango Cake)" required></div>
+                        <div class="col-md-3"><input type="text" id="bom-prod-cat" class="form-control" placeholder="Category (e.g., Cakes)" required></div>
+                        <div class="col-md-3"><input type="number" id="bom-prod-price" step="0.01" class="form-control" placeholder="Selling Price (₱)" required></div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-muted mb-0">2. Ingredient Deductions</h6>
+                        <button type="button" class="btn btn-sm btn-outline-dark" onclick="addIngredientRow()">+ Add Ingredient</button>
+                    </div>
+                    
+                    <!-- CRITICAL FIX: This wrapper was missing! -->
+                    <div id="bom-ingredients-list" class="mb-4">
+                        <div class="row g-2 mb-2 ingredient-row align-items-center">
+                            <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" placeholder="Name (e.g., Sugar)" required></div>
+                            <div class="col-2">
+                                <select class="form-select ing-unit" required>
+                                    <optgroup label="Weight">
+                                        <option value="kg">kg</option>
+                                        <option value="g">g</option>
+                                    </optgroup>
+                                    <optgroup label="Volume">
+                                        <option value="L">L</option>
+                                        <option value="ml">ml</option>
+                                    </optgroup>
+                                    <optgroup label="Count">
+                                        <option value="pcs">pcs</option>
+                                        <option value="tray">tray</option>
+                                        <option value="box">box</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <!-- Widened to col-3 so the placeholder text fits -->
+                            <div class="col-3"><input type="number" step="0.01" class="form-control ing-deduct" placeholder="Deduction per Sale" required></div>
+                            <div class="col-2 text-end">
+                                <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.ingredient-row').remove()">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">Save Configuration</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Kitchen Production Modal -->
+<div class="modal fade" id="produceModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold text-warning">Kitchen Production</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <form id="produceForm" onsubmit="submitProduction(event)">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">Select Product to Make</label>
+                        <select id="produce-product-id" class="form-select" required>
+                            <!-- Injected dynamically via JS -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">Quantity to Produce</label>
+                        <input type="number" id="produce-quantity" class="form-control" min="1" placeholder="e.g., 10" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning text-dark w-100 fw-bold py-2">Execute Production & Deduct Ingredients</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Adjustment Modal -->
+<div class="modal fade" id="stockAdjustModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold text-warning">Manual Stock Adjustment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <form id="adjustForm" onsubmit="submitStockAdjustment(event)">
+                    <input type="hidden" id="adj-item-type">
+                    <input type="hidden" id="adj-item-id">
+                    
+                    <div class="mb-3 text-center">
+                        <h4 class="fw-bold mb-0 text-dark" id="adj-item-name">Item Name</h4>
+                        <small class="text-muted" id="adj-current-qty">Current Stock: 0</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">Adjustment Type</label>
+                        <select id="adj-type" class="form-select" required>
+                            <option value="Stock-in">Stock-In (Add to Inventory)</option>
+                            <option value="Stock-out">Stock-Out (Deduct Inventory)</option>
+                            <option value="Spoilage">Spoilage (Damage/Expired)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">Quantity Change</label>
+                        <input type="number" id="adj-qty" class="form-control" step="0.01" min="0.01" placeholder="e.g., 5" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small">Reason (Mandatory)</label>
+                        <textarea id="adj-reason" class="form-control" rows="2" placeholder="e.g., Late delivery, dropped box, routine audit..." required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning text-dark w-100 fw-bold py-2">Confirm Adjustment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Override Modal -->
+<div class="modal fade" id="overrideModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold">AI Override Justification</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <form id="overrideForm" onsubmit="submitOverride(event)">
+                    <input type="hidden" id="override-output-id">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted small">Mandatory Reason for Future Calibration</label>
+                        <textarea id="override-reason" class="form-control" rows="3" placeholder="e.g., Supplier is closed for the holidays, ignoring min-order limit..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100 fw-bold py-2">Confirm Override</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        await initializeRBACUI();
+        loadSCMData();
+        setInterval(loadSCMData, 10000);
+    });
+
+    window.currentUserRole = '';
+    async function initializeRBACUI() {
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const user = await response.json();
+            window.currentUserRole = user.role;
+            
+            if (user.role === 'Business Owner') {
+                document.getElementById('branch-filter').classList.remove('d-none');
+            }
+        } catch (e) { console.error("RBAC check failed", e); }
+    }
+
+    window.addIngredientRow = function() {
+        const row = `
+            <div class="row g-2 mb-2 ingredient-row align-items-center">
+                <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" placeholder="Name" required></div>
+                <div class="col-2">
+                    <select class="form-select ing-unit" required>
+                        <option value="kg">kg</option><option value="g">g</option>
+                        <option value="L">L</option><option value="ml">ml</option>
+                        <option value="pcs">pcs</option><option value="tray">tray</option><option value="box">box</option>
+                    </select>
+                </div>
+                <div class="col-3"><input type="number" step="0.01" class="form-control ing-deduct" placeholder="Deduct" required></div>
+                <div class="col-2 text-end"><button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.ingredient-row').remove()">Remove</button></div>
+            </div>`;
+        document.getElementById('bom-ingredients-list').insertAdjacentHTML('beforeend', row);
+    };
+
+    window.submitNewBOM = async function(event) {
+        event.preventDefault();
+        
+        const payload = {
+            product_name: document.getElementById('bom-prod-name').value,
+            category: document.getElementById('bom-prod-cat').value,
+            price: parseFloat(document.getElementById('bom-prod-price').value),
+            ingredients: Array.from(document.querySelectorAll('.ingredient-row')).map(row => ({
+                name: row.querySelector('.ing-name').value,
+                unit: row.querySelector('.ing-unit').value,
+                deduction: parseFloat(row.querySelector('.ing-deduct').value)
+            }))
+        };
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/inventory/bom/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            
+            if (response.ok) {
+                alert("Product and BOM configured successfully!");
+                bootstrap.Modal.getInstance(document.getElementById('addBomModal')).hide();
+                document.getElementById('bomForm').reset();
+                
+                // Clear any extra rows besides the first one
+                const rows = document.querySelectorAll('.ingredient-row');
+                for (let i = 1; i < rows.length; i++) { rows[i].remove(); }
+                
+                loadSCMData(); 
+            } else {
+                const err = await response.json();
+                alert(`Configuration Failed: ${err.error}`);
+            }
+        } catch (error) { 
+            alert("Network Error: Could not connect to API."); 
+        }
+    };
+
+    async function loadSCMData() {
+        const token = localStorage.getItem('access_token');
+        const branchId = document.getElementById('branch-filter').value;
+        
+        try {
+            const response = await fetch(`/api/inventory/stock/?branch=${branchId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await response.json();
+            const uniqueIngs = [...new Map(data.inventory.map(item => [item.ingredient_name, item])).values()];
+            document.getElementById('existing-ingredients').innerHTML = uniqueIngs.map(i => `<option value="${i.ingredient_name}" data-unit="${i.unit}" data-cost="${i.cost_per_unit}">`).join('');
+            
+            renderKPIs(data.kpis);
+            renderInventory(data.inventory);
+            
+            if (data.product_watch) renderProductWatch(data.product_watch);
+            renderBOM(data.bom);
+            renderRestockQueue(data.restock_queue, data.pending_restocks);
+            populateProduceDropdown(data.bom); 
+            
+            if (data.prescriptive_actions) renderPrescriptiveActions(data.prescriptive_actions);
+            
+        } catch (error) { console.error("Failed to load SCM data", error); }
+    }
+
+    function renderPrescriptiveActions(actions) {
+        const container = document.getElementById('prescriptive-actions-container');
+        
+        if (actions.length === 0) {
+            container.innerHTML = '<div class="col-12 p-4 text-center text-muted bg-light rounded border">No pending AI prescriptions require review.</div>';
+            return;
+        }
+        
+        container.innerHTML = actions.map(a => `
+            <div class="col-md-6">
+                <div class="card shadow-sm border-0 action-card border-${a.color} h-100 p-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong class="text-${a.color}">${a.title}</strong>
+                        <span class="badge bg-${a.color} ${a.color === 'warning' ? 'text-dark' : ''}">${a.status}</span>
+                    </div>
+                    <p class="fw-bold mb-1">${a.description}</p>
+                    <p class="small text-muted mb-3">${a.impact}</p>
+                    <div class="mt-auto d-flex justify-content-end gap-2">
+                        <button class="btn btn-sm btn-success fw-bold px-3" onclick="executePrescription(${a.id}, 'Approve')">Approve</button>
+                        <button class="btn btn-sm btn-outline-danger fw-bold px-3" onclick="openOverrideModal(${a.id})">Override</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    window.generatePrescriptions = async function() {
+        const btn = document.getElementById('btn-run-ai');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing Data...';
+        btn.disabled = true;
+
+        const token = localStorage.getItem('access_token');
+        const filterVal = document.getElementById('branch-filter').value;
+        const payload = filterVal === 'all' ? { branch_id: 1 } : { branch_id: filterVal };
+
+        try {
+            const response = await fetch('/api/analytics/restock-directive/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            if (response.ok) {
+                alert("AI Analysis Complete! " + (data.outputs ? data.outputs.length : 0) + " prescriptions generated.");
+                loadSCMData(); 
+            } else {
+                alert(`AI Error: ${data.error || data.message}`);
+            }
+        } catch (error) {
+            alert("Network Error during AI execution.");
+        } finally {
+            btn.innerHTML = '<i class="fas fa-magic me-2"></i>Run AI Analysis';
+            btn.disabled = false;
+        }
+    };
+
+    window.executePrescription = async function(id, action, reason = '') {
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch(`/api/analytics/process-prescription/${id}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ action: action, override_reason: reason })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                loadSCMData();
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (error) {
+            alert("Network Error Processing AI Output.");
+        }
+    };
+
+    window.openOverrideModal = function(id) {
+        document.getElementById('override-output-id').value = id;
+        document.getElementById('overrideForm').reset();
+        new bootstrap.Modal(document.getElementById('overrideModal')).show();
+    };
+
+    window.submitOverride = function(event) {
+        event.preventDefault();
+        const id = document.getElementById('override-output-id').value;
+        const reason = document.getElementById('override-reason').value;
+        bootstrap.Modal.getInstance(document.getElementById('overrideModal')).hide();
+        executePrescription(id, 'Override', reason);
+    };
+
+    function renderKPIs(kpis) {
+        // Stock Tracker KPIs
+        document.getElementById('kpi-in').innerText = kpis.in_stock;
+        document.getElementById('kpi-low').innerText = kpis.low_stock;
+        document.getElementById('kpi-crit').innerText = kpis.critical;
+        document.getElementById('kpi-exp').innerText = kpis.expiring;
+
+        // Dynamic Prescriptive KPIs
+        document.getElementById('kpi-pa-crit').innerText = kpis.critical;
+        document.getElementById('kpi-pa-high').innerText = kpis.low_stock;
+        
+        // Estimated Loss Prevented formula: Critical items * ₱5000 risk + Low items * ₱1500 risk
+        const lossPrevented = (kpis.critical * 5000) + (kpis.low_stock * 1500);
+        document.getElementById('kpi-pa-loss').innerText = `₱${lossPrevented.toLocaleString()}`;
+    }
+
+    // Auto-fill existing unit and cost when an ingredient is selected from the dropdown
+    window.autofillIngredient = function(input) {
+        const option = document.querySelector(`#existing-ingredients option[value="${input.value}"]`);
+        if(option) {
+            const row = input.closest('.ingredient-row');
+            row.querySelector('.ing-unit').value = option.getAttribute('data-unit');
+            row.querySelector('.ing-cost').value = option.getAttribute('data-cost');
+        }
+    };
+
+    function renderInventory(items) {
+        const tbody = document.getElementById('inventory-tbody');
+        if(items.length === 0) return tbody.innerHTML = '<tr><td colspan="8" class="text-center">No records found.</td></tr>';
+        
+        tbody.innerHTML = items.map(i => {
+            let badgeClass = 'status-instock';
+            if (i.status === 'Low Stock') badgeClass = 'status-low';
+            if (i.status === 'Critical') badgeClass = 'status-critical';
+            if (i.status === 'Expiring Soon') badgeClass = 'status-expiring';
+            
+            // REMOVED Redundant Action Buttons to align with 8-column header
+            return `
+            <tr>
+                <td class="fw-bold text-dark">${i.ingredient_name}</td>
+                <td><span class="badge bg-light text-dark border">${i.category}</span></td>
+                <td class="text-muted small">${i.unit}</td>
+                <td class="fw-bold">${i.quantity}</td>
+                <td class="text-muted">${i.threshold}</td>
+                <td>${i.branch}</td>
+                <td class="text-muted small">${i.expiry}</td>
+                <td><span class="status-badge ${badgeClass}">${i.status}</span></td>
+                <td class="text-end pe-4"><button class="btn btn-sm btn-outline-dark fw-bold" onclick="openAdjustModal('ingredient', ${i.id}, '${i.ingredient_name}', ${i.quantity})">Adjust</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderProductWatch(products) {
+        const tbody = document.getElementById('product-watch-tbody');
+        if(!products || products.length === 0) return tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No products currently tracked on display.</td></tr>';
+
+        tbody.innerHTML = products.map(p => {
+            let badgeClass = p.status === 'Low Stock' ? 'status-low' : p.status === 'Critical' ? 'status-critical' : 'status-instock';
+            return `<tr>
+                <td class="fw-bold text-dark">${p.product_name}</td>
+                <td><span class="badge bg-light text-dark border">${p.category}</span></td>
+                <td class="text-muted">₱${p.price.toFixed(2)}</td>
+                <td class="fw-bold">${p.quantity}</td>
+                <td class="text-muted">${p.threshold}</td>
+                <td>${p.branch}</td>
+                <td><span class="status-badge ${badgeClass}">${p.status}</span></td>
+                <td class="text-end pe-4"><button class="btn btn-sm btn-outline-dark fw-bold" onclick="openAdjustModal('product', ${p.id}, '${p.product_name}', ${p.quantity})">Adjust</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderBOM(boms) {
+        const container = document.getElementById('bom-container');
+        
+        if (boms.length === 0) {
+            container.innerHTML = '<div class="p-4 text-center text-muted bg-white shadow-sm rounded border">No products configured.</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="table-responsive bg-white shadow-sm rounded border">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small">
+                        <tr>
+                            <th>Product</th>
+                            <th>Ingredients</th>
+                            <th>Deduction per Unit</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${boms.map(b => `
+                        <tr>
+                            <td class="fw-bold text-dark ps-3">${b.product}</td>
+                            <td class="text-muted small">${b.ingredients}</td>
+                            <td class="text-danger small">${b.deductions}</td>
+                            <td><span class="badge bg-success text-white">Active</span></td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-danger fw-bold" onclick="deleteProduct(${b.id}, '${b.product}')">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    }
+
+    async function deleteProduct(productId, productName) {
+        if (!confirm(`Are you sure you want to delete ${productName}?`)) {
+            return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch(`/api/inventory/bom/delete/${productId}/`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                alert(`${productName} successfully removed.`);
+                loadSCMData(); // Instantly reload tables to remove the item from the UI
+            } else {
+                const data = await response.json();
+                alert(`Error: ${data.error}`);
+            }
+        } catch (error) {
+            alert("Network Error: Could not delete product.");
+        }
+    }
+
+    function renderRestockQueue(queue, pendingRequests) {
+        const container = document.getElementById('restock-queue-container');
+        
+        let pendingHtml = '';
+        if (pendingRequests && pendingRequests.length > 0) {
+            pendingHtml = pendingRequests.map(p => {
+                const actionButtons = (window.currentUserRole === 'Business Owner') 
+                    ? `<button class="btn btn-sm btn-success fw-bold" onclick="processRestock(${p.id}, 'Approve')">Approve</button>
+                       <button class="btn btn-sm btn-danger fw-bold" onclick="processRestock(${p.id}, 'Reject')">Reject</button>`
+                    : `<span class="badge bg-warning text-dark">Awaiting Owner Approval</span>`;
+                    
+                return `
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white mb-1 rounded border-start border-warning border-4">
+                    <div>
+                        <span class="badge bg-warning text-dark mb-1">Pending Approval</span>
+                        <h6 class="fw-bold mb-0">${p.item}</h6>
+                        <small class="text-muted">Requested by: ${p.user} for ${p.destination}</small>
+                    </div>
+                    <div class="text-end me-4"><div class="fw-bold text-dark">Qty: ${p.qty}</div></div>
+                    <div class="d-flex gap-2">${actionButtons}</div>
+                </div>`;
+            }).join('');
+        }
+
+        let suggestHtml = '';
+        if (queue && queue.length > 0 && window.currentUserRole === 'Branch Manager') {
+            suggestHtml = queue.map(q => {
+                return `
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light mb-1 rounded">
+                    <div>
+                        <h6 class="fw-bold mb-0">${q.item}</h6>
+                        <small class="text-muted">${q.branch} | Supplier: ${q.supplier}</small>
+                    </div>
+                    <div class="text-end me-4"><div class="fw-bold text-dark">Suggest: ${q.order_amount}</div></div>
+                    <button class="btn btn-warning text-dark fw-bold" onclick="submitRestock('${q.item}', ${parseFloat(q.order_amount)}, '${q.branch_id}')">Submit Request</button>
+                </div>`;
+            }).join('');
+        }
+
+        container.innerHTML = (pendingHtml || suggestHtml) ? (pendingHtml + suggestHtml) : '<div class="p-4 text-center text-muted">No pending restocks or suggestions.</div>';
+    }
+
+    window.submitRestock = async function(itemName, qty, branchId) {
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/inventory/restock/submit/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ ingredient_name: itemName, quantity: qty, branch_id: branchId })
+            });
+            const data = await response.json();
+            if (response.ok) { alert(data.message); loadSCMData(); }
+            else { alert(`Failed: ${data.error}`); }
+        } catch (e) { alert("Network error."); }
+    };
+
+    window.processRestock = async function(id, action) {
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch(`/api/inventory/restock/process/${id}/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ action: action })
+            });
+            const data = await response.json();
+            if (response.ok) { alert(data.message); loadSCMData(); }
+            else { alert(`Failed: ${data.error}`); }
+        } catch (e) { alert("Network error."); }
+    };
+
+    function populateProduceDropdown(boms) {
+        const select = document.getElementById('produce-product-id');
+        select.innerHTML = '<option value="">-- Choose Product --</option>' + 
+            boms.map(b => `<option value="${b.id}">${b.product}</option>`).join('');
+    }
+
+    window.submitProduction = async function(event) {
+        event.preventDefault();
+        const payload = {
+            product_id: document.getElementById('produce-product-id').value,
+            quantity: document.getElementById('produce-quantity').value,
+            branch_id: document.getElementById('branch-filter').value === 'all' ? 1 : document.getElementById('branch-filter').value
+        };
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/inventory/produce/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                bootstrap.Modal.getInstance(document.getElementById('produceModal')).hide();
+                document.getElementById('produceForm').reset();
+                loadSCMData(); // Reload all tables
+            } else {
+                alert(`Production Failed: ${data.error}`);
+            }
+        } catch (error) { 
+            alert("Network Error: Could not execute production."); 
+        }
+    };
+    window.openAdjustModal = function(type, id, name, currentQty) {
+        document.getElementById('adj-item-type').value = type;
+        document.getElementById('adj-item-id').value = id;
+        document.getElementById('adj-item-name').innerText = name;
+        document.getElementById('adj-current-qty').innerText = `Current Stock: ${currentQty}`;
+        document.getElementById('adjustForm').reset();
+        new bootstrap.Modal(document.getElementById('stockAdjustModal')).show();
+    };
+
+    window.submitStockAdjustment = async function(event) {
+        event.preventDefault();
+        const payload = {
+            item_type: document.getElementById('adj-item-type').value,
+            item_id: document.getElementById('adj-item-id').value,
+            adjustment_type: document.getElementById('adj-type').value,
+            quantity_change: document.getElementById('adj-qty').value,
+            reason: document.getElementById('adj-reason').value
+        };
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/inventory/adjust/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                bootstrap.Modal.getInstance(document.getElementById('stockAdjustModal')).hide();
+                loadSCMData(); // Refresh tables instantly
+            } else {
+                alert(`Adjustment Failed: ${data.error}`);
+            }
+        } catch (error) {
+            alert("Network Error: Could not execute adjustment.");
+        }
+    };
+</script>
+<datalist id="existing-ingredients"></datalist>
+{% endblock %}

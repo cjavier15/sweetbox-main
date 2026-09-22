@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                Gemini Sales Analyst
+            </div>
+            <div class="card-body" id="chat-box" style="height: 400px; overflow-y: auto; background-color: #f1f3f5;">
+                <p class="text-muted text-center mt-3">Ask a question about your recent sales...</p>
+            </div>
+            <div class="card-footer d-flex">
+                <input type="text" id="user-input" class="form-control me-2" placeholder="e.g., What was the highest revenue product?">
+                <button class="btn btn-primary" onclick="askGemini()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function askGemini() {
+        const inputField = document.getElementById('user-input');
+        const chatBox = document.getElementById('chat-box');
+        const query = inputField.value;
+        if (!query) return;
+
+        // Append User Message
+        chatBox.innerHTML += `<div class="mb-3 text-end"><span class="badge bg-secondary p-2 fs-6 text-wrap">${query}</span></div>`;
+        inputField.value = '';
+
+        const token = localStorage.getItem('access_token');
+
+        try {
+            const response = await fetch('/api/analytics/chat/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ branch_id: 1, query: query })
+            });
+
+            const data = await response.json();
+            
+            // Append AI Response
+            if (response.ok) {
+                chatBox.innerHTML += `<div class="mb-3 text-start"><div class="alert alert-info d-inline-block shadow-sm">${data.reply}</div></div>`;
+            } else {
+                // Check for standard errors or JWT token expiration details
+                const errorMessage = data.error || data.detail || "An unknown error occurred.";
+                chatBox.innerHTML += `<div class="mb-3 text-start"><div class="alert alert-danger d-inline-block">Error: ${errorMessage}</div></div>`;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+        } catch (error) {
+            console.error("AI Request Failed", error);
+        }
+    }
+</script>
+{% endblock %}

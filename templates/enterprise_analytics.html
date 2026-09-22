@@ -1,0 +1,482 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .kpi-trend { font-size: 0.85rem; font-weight: bold; padding: 3px 8px; border-radius: 12px; }
+    .trend-up { background-color: #d4edda; color: #155724; }
+    .trend-down { background-color: #f8d7da; color: #721c24; }
+    .theme-text { color: #8B4513; }
+    .rank-bar-bg { background-color: #fef0d9; height: 12px; border-radius: 6px; width: 100%; position: relative; }
+    .rank-bar-fill { background-color: #d2691e; height: 100%; border-radius: 6px; position: absolute; left: 0; top: 0; }
+    .filter-btn.active { background-color: #d2691e !important; color: white !important; border-color: #d2691e !important; }
+</style>
+
+<!-- Top Controls -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="btn-group shadow-sm" role="group">
+        <button type="button" class="btn btn-outline-warning text-dark fw-bold filter-btn" onclick="applyFilter('this_week', this)">This Week</button>
+        <button type="button" class="btn btn-outline-warning text-dark fw-bold filter-btn active" onclick="applyFilter('this_month', this)">This Month</button>
+        <button type="button" class="btn btn-outline-warning text-dark fw-bold filter-btn" onclick="applyFilter('last_7_months', this)">Last 7 Months</button>
+    </div>
+    <button class="btn btn-warning fw-bold text-dark shadow-sm" onclick="exportKPIs()"><i class="fas fa-download me-2"></i> Export Report</button>
+</div>
+
+<!-- Scorecards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="bg-warning text-dark rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-chart-line fs-5"></i></div>
+                <span class="kpi-trend" id="kpi-rev-trend">+0.0%</span>
+            </div>
+            <h3 class="fw-bold theme-text mb-0" id="kpi-revenue">₱0.00</h3>
+            <small class="text-muted fw-bold">Total Revenue</small>
+            <small class="text-muted" style="font-size: 0.75rem;" id="kpi-rev-prev">vs. ₱0.00 previous period</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="bg-warning text-dark rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-shopping-cart fs-5"></i></div>
+                <span class="kpi-trend" id="kpi-txn-trend">+0.0%</span>
+            </div>
+            <h3 class="fw-bold theme-text mb-0" id="kpi-transactions">0</h3>
+            <small class="text-muted fw-bold">Total Transactions</small>
+            <small class="text-muted" style="font-size: 0.75rem;">All branches combined</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="bg-warning text-dark rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-box fs-5"></i></div>
+                <span class="kpi-trend trend-up">Current</span>
+            </div>
+            <h3 class="fw-bold theme-text mb-0" id="kpi-turnover">0.0x</h3>
+            <small class="text-muted fw-bold">Inventory Turnover</small>
+            <small class="text-muted" style="font-size: 0.75rem;" id="kpi-gmroi">GMROI: 0.0</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="bg-dark text-white rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-store fs-5"></i></div>
+                <span class="kpi-trend trend-down" id="kpi-offline-badge">0 offline</span>
+            </div>
+            <h3 class="fw-bold theme-text mb-0" id="kpi-branches">0 / 0</h3>
+            <small class="text-muted fw-bold">Active Branches</small>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <h6 class="fw-bold theme-text mb-0">Sales Overview</h6>
+            <small class="text-muted mb-3 d-block">Enterprise-wide revenue progression</small>
+            <div style="height: 250px;"><canvas id="dailySalesChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <h6 class="fw-bold theme-text mb-0">Payment Methods</h6>
+            <small class="text-muted mb-3 d-block">Transaction distribution</small>
+            <div style="height: 250px;" class="d-flex justify-content-center align-items-center">
+                <canvas id="paymentMethodChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <h6 class="fw-bold theme-text mb-0">Branch Sales vs Target</h6>
+            <small class="text-muted mb-3 d-block">Actual revenue against algorithmic baseline</small>
+            <div style="height: 280px;"><canvas id="branchTargetChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- Branch Ranking & Products -->
+<div class="row g-3 mb-4">
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <h6 class="fw-bold theme-text mb-3">Branch Performance Ranking</h6>
+            <div id="branch-ranking-container" class="d-flex flex-column gap-3 overflow-auto" style="max-height: 400px;">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0 h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold theme-text mb-0">Top Selling Products</h6>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-warning text-dark active" onclick="filterProducts('All', this)">All</button>
+                    <button class="btn btn-outline-warning text-dark" onclick="filterProducts('Cakes', this)">Cakes</button>
+                    <button class="btn btn-outline-warning text-dark" onclick="filterProducts('Pastries', this)">Pastries</button>
+                    <button class="btn btn-outline-warning text-dark" onclick="filterProducts('Coffee', this)">Drinks</button>
+                </div>
+            </div>
+            <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+                <table class="table table-borderless table-hover align-middle small">
+                    <thead class="text-muted border-bottom">
+                        <tr><th>#</th><th>Product Name</th><th>Category</th><th>Units Sold</th><th>Revenue</th><th>Est. Trend</th></tr>
+                    </thead>
+                    <tbody id="top-products-body">
+                        <!-- Injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RESTORED: AI Context & Local Events -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-bold"><i class="fas fa-calendar-alt text-warning me-2"></i> AI Context: Local Events & Variables</span>
+                <button class="btn btn-sm btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#eventModal">+ Add Event</button>
+            </div>
+            <div class="card-body p-0 table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small">
+                        <tr><th>Event Name</th><th>Type</th><th>Impact</th><th>Date Range</th><th class="text-end pe-4">Action</th></tr>
+                    </thead>
+                    <tbody id="event-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RESTORED: System Maintenance & ETL -->
+<div class="row mt-4 mb-5">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 border-start border-primary border-4">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="fw-bold mb-1 text-dark"><i class="fas fa-server text-primary me-2"></i> System Maintenance & ETL</h5>
+                    <small class="text-muted">Batch process daily KPIs and compress legacy database records into secure JSON archives.</small>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary fw-bold px-4 py-2" onclick="runETLPipeline()" id="btn-etl">Execute ETL Pipeline</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RESTORED: Event Creation Modal -->
+<div class="modal fade" id="eventModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold">Log External Variable</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body bg-light">
+                <form id="eventForm" onsubmit="submitEvent(event)">
+                    <div class="mb-3">
+                        <input type="text" id="ev-name" class="form-control" placeholder="Event Name (e.g., 15th Payday, Town Fiesta)" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <select id="ev-type" class="form-select" required>
+                                <option value="Payday Cycle">Payday Cycle</option>
+                                <option value="Holiday">Holiday</option>
+                                <option value="Weather Seasonality">Weather Seasonality</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select id="ev-impact" class="form-select" required>
+                                <option value="High">High Impact</option>
+                                <option value="Medium">Medium Impact</option>
+                                <option value="Low">Low Impact</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-4">
+                        <div class="col-6">
+                            <label class="small text-muted fw-bold">Start Date</label>
+                            <input type="date" id="ev-start" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted fw-bold">End Date</label>
+                            <input type="date" id="ev-end" class="form-control" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">Save for AI Context</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/chart.js' %}"></script>
+<script src="{% static 'js/axios.min.js' %}"></script>
+<script>
+    let currentFilter = 'this_month';
+    let charts = { daily: null, payment: null, target: null };
+    
+    // Theme Colors
+    const brandColor = '#8B4513';
+    const accentColor = '#D2691E';
+    const lightBg = '#fef0d9';
+
+    async function applyFilter(filterString, btnElement) {
+        currentFilter = filterString;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+        await renderEnterpriseCharts();
+    }
+
+    async function renderEnterpriseCharts() {
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await axios.get(`/api/analytics/dashboard-data/?filter=${currentFilter}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = response.data;
+
+            // 1. Populate Scorecards
+            document.getElementById('kpi-revenue').innerText = `₱${data.scorecards.revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('kpi-rev-prev').innerText = `vs. ₱${data.scorecards.prev_revenue.toLocaleString()} prev period`;
+            updateTrendBadge('kpi-rev-trend', data.scorecards.revenue_trend);
+
+            document.getElementById('kpi-transactions').innerText = data.scorecards.transactions.toLocaleString();
+            updateTrendBadge('kpi-txn-trend', data.scorecards.transactions_trend);
+
+            document.getElementById('kpi-turnover').innerText = `${data.scorecards.turnover}x`;
+            document.getElementById('kpi-gmroi').innerText = `GMROI: ${data.scorecards.gmroi}`;
+
+            document.getElementById('kpi-branches').innerText = `${data.scorecards.active_branches} / ${data.scorecards.total_branches}`;
+            const offline = data.scorecards.total_branches - data.scorecards.active_branches;
+            const badge = document.getElementById('kpi-offline-badge');
+            badge.innerText = `${offline} offline`;
+            badge.className = offline > 0 ? 'kpi-trend trend-down' : 'kpi-trend trend-up';
+            if(offline === 0) badge.innerText = "All Active";
+
+            // 2. Render Charts
+            destroyCharts();
+
+            charts.daily = new Chart(document.getElementById('dailySalesChart'), {
+                type: 'line',
+                data: {
+                    labels: data.time_series.labels,
+                    datasets: [{
+                        label: 'Revenue', data: data.time_series.data,
+                        borderColor: brandColor, backgroundColor: 'rgba(139, 69, 19, 0.1)',
+                        borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+
+            charts.payment = new Chart(document.getElementById('paymentMethodChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data.payment_methods),
+                    datasets: [{ data: Object.values(data.payment_methods), backgroundColor: [brandColor, accentColor, '#e6a86c', '#CD853F'], borderWidth: 2 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+            });
+
+            const branchLabels = data.branch_performance.map(b => b.branch);
+            const actualData = data.branch_performance.map(b => b.actual);
+            const targetData = data.branch_performance.map(b => b.target);
+
+            charts.target = new Chart(document.getElementById('branchTargetChart'), {
+                type: 'bar',
+                data: {
+                    labels: branchLabels,
+                    datasets: [
+                        { label: 'Actual Sales', data: actualData, backgroundColor: brandColor, borderRadius: 4 },
+                        { label: 'Target', data: targetData, backgroundColor: '#f2c57c', borderRadius: 4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            // 3. Render Rankings & Products
+            renderRankings(data.branch_performance);
+            window.topProductsCache = data.top_products; 
+            renderTopProducts('All');
+
+        } catch (error) { console.error("Error loading dashboard visuals:", error); }
+    }
+
+    function updateTrendBadge(elementId, value) {
+        const el = document.getElementById(elementId);
+        el.innerText = value > 0 ? `↗ +${value}%` : value < 0 ? `↘ ${value}%` : '0%';
+        el.className = `kpi-trend ${value >= 0 ? 'trend-up' : 'trend-down'}`;
+    }
+
+    function destroyCharts() {
+        if (charts.daily) charts.daily.destroy();
+        if (charts.payment) charts.payment.destroy();
+        if (charts.target) charts.target.destroy();
+    }
+
+    function renderRankings(branches) {
+        const container = document.getElementById('branch-ranking-container');
+        if(!branches.length) return container.innerHTML = '<p class="text-muted">No data available.</p>';
+        
+        const maxVal = Math.max(...branches.map(b => b.actual));
+        
+        container.innerHTML = branches.map((b, idx) => {
+            const width = maxVal > 0 ? (b.actual / maxVal) * 100 : 0;
+            const badgeClass = b.status === 'On Target' ? 'bg-success bg-opacity-25 text-success' : 'bg-danger bg-opacity-25 text-danger';
+            return `
+            <div>
+                <div class="d-flex justify-content-between align-items-end mb-1">
+                    <span class="fw-bold theme-text"><span class="text-muted me-2">${idx + 1}</span> ${b.branch}</span>
+                    <div class="text-end">
+                        <span class="badge ${badgeClass} rounded-pill me-2">${b.status}</span>
+                        <span class="fw-bold">₱${(b.actual/1000).toFixed(1)}k</span>
+                    </div>
+                </div>
+                <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: ${width}%"></div></div>
+            </div>`;
+        }).join('');
+    }
+
+    window.filterProducts = function(category, btnElement) {
+        btnElement.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btnElement.classList.add('active');
+        renderTopProducts(category);
+    };
+
+    function renderTopProducts(categoryFilter) {
+        const tbody = document.getElementById('top-products-body');
+        let products = window.topProductsCache || [];
+        
+        if (categoryFilter !== 'All') {
+            products = products.filter(p => p.category === categoryFilter);
+        }
+
+        if(!products.length) return tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No products found for this period.</td></tr>';
+
+        tbody.innerHTML = products.map((p, idx) => {
+            const trendClass = p.trend >= 0 ? 'text-success' : 'text-danger';
+            const arrow = p.trend >= 0 ? '↗' : '↘';
+            return `
+            <tr>
+                <td class="text-muted fw-bold">${idx + 1}</td>
+                <td class="fw-bold theme-text">${p.name}</td>
+                <td><span class="badge bg-warning text-dark bg-opacity-50 border">${p.category}</span></td>
+                <td>${p.units.toLocaleString()}</td>
+                <td class="fw-bold">₱${p.revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                <td class="${trendClass} fw-bold">${arrow} ${p.trend}%</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // RESTORED JS FUNCTIONS
+    async function loadEvents() {
+        const token = localStorage.getItem('access_token');
+        try {
+            const res = await fetch('/api/analytics/external-variables/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            const tbody = document.getElementById('event-tbody');
+            
+            tbody.innerHTML = data.length === 0 ? '<tr><td colspan="5" class="text-center text-muted py-4">No active events logged.</td></tr>' : data.map(e => `
+                <tr>
+                    <td class="fw-bold text-dark ps-3">${e.name}</td>
+                    <td><span class="badge bg-light text-dark border">${e.variable_type}</span></td>
+                    <td class="text-${e.impact_level === 'High' ? 'danger' : (e.impact_level === 'Medium' ? 'warning' : 'success')} fw-bold">${e.impact_level}</td>
+                    <td class="small text-muted">${e.start_date} to ${e.end_date}</td>
+                    <td class="text-end pe-4">
+                        <button class="btn btn-sm btn-outline-danger fw-bold" onclick="deleteEvent(${e.variable_ID})">Remove</button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) { console.error("Failed to load events."); }
+    }
+
+    async function submitEvent(e) {
+        e.preventDefault();
+        const payload = {
+            name: document.getElementById('ev-name').value,
+            variable_type: document.getElementById('ev-type').value,
+            impact_level: document.getElementById('ev-impact').value,
+            start_date: document.getElementById('ev-start').value,
+            end_date: document.getElementById('ev-end').value
+        };
+        const token = localStorage.getItem('access_token');
+        await fetch('/api/analytics/external-variables/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(payload)
+        });
+        
+        bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+        document.getElementById('eventForm').reset();
+        loadEvents();
+    }
+
+    async function deleteEvent(id) {
+        if (!confirm("Are you sure you want to remove this event from the AI context?")) return;
+        const token = localStorage.getItem('access_token');
+        await fetch(`/api/analytics/external-variables/${id}/`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+        loadEvents();
+    }
+
+    async function runETLPipeline() {
+        if (!confirm("Are you sure you want to run the ETL job? This will archive transactions older than 180 days and calculate today's KPIs.")) return;
+        
+        const btn = document.getElementById('btn-etl');
+        btn.innerText = "Processing Data...";
+        btn.disabled = true;
+        const token = localStorage.getItem('access_token');
+        try {
+            const res = await fetch('/api/analytics/etl/run/', { 
+                method: 'POST', 
+                headers: { 'Authorization': `Bearer ${token}` } 
+            });
+            const data = await res.json();
+            
+            if (res.ok) alert(data.message);
+            else alert(`ETL Error: ${data.error}`);
+        } catch (error) {
+            alert("Network Error: Could not execute ETL pipeline.");
+        } finally {
+            btn.innerText = "Execute ETL Pipeline";
+            btn.disabled = false;
+        }
+    }
+
+    function exportKPIs() {
+        const token = localStorage.getItem('access_token');
+        fetch('/api/analytics/etl/export/', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'SweetBox_KPI_Report.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        })
+        .catch(err => alert("Error downloading report."));
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        renderEnterpriseCharts();
+        loadEvents();
+        setInterval(renderEnterpriseCharts, 60000); 
+    });
+</script>
+{% endblock %}
