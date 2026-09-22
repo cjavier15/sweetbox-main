@@ -35,6 +35,7 @@ SECRET_KEY = 'django-insecure-u+z=l912(mw!f#r(=0%+psa2^1$a(xtuy%#vp(io$kr6fp(as^
 DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.1.15', '*']
+CSRF_TRUSTED_ORIGINS = ['https://*.up.railway.app']
 
 
 # Application definition
@@ -57,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware'
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -64,7 +66,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', 
 ]
 
 ROOT_URLCONF = 'sweetbox_backend.urls'
@@ -93,7 +94,7 @@ WSGI_APPLICATION = 'sweetbox_backend.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        # This fallback uses your exact local credentials shown in your screenshot
+        env='MYSQL_URL',
         default='mysql://root:Javier_15@localhost:3306/sweetbox_db',
         conn_max_age=600
     )
