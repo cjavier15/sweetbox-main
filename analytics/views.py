@@ -1,5 +1,7 @@
 import json
 import csv
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django.db.models import Sum, Count, F
 from django.views.generic import TemplateView
 from pos.models import Transaction, PaymentRecord, TransactionItem
@@ -113,6 +115,7 @@ class SalesChatbotView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@method_decorator(cache_page(21600), name='dispatch')
 class EnterpriseDashboardDataView(APIView):
     permission_classes = [IsAuthenticated]
     
