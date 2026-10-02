@@ -1,0 +1,87 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#FFFFFF',
+    'primaryTextColor': '#000000',
+    'primaryBorderColor': '#000000',
+    'lineColor': '#000000',
+    'secondaryColor': '#FFFFFF',
+    'tertiaryColor': '#FFFFFF',
+    'mainBkg': '#FFFFFF',
+    'nodeBorder': '#000000',
+    'clusterBkg': '#FFFFFF',
+    'clusterBorder': '#000000',
+    'edgeLabelBackground': '#FFFFFF',
+    'textColor': '#000000'
+  }
+}}%%
+flowchart TD
+    %% 4 Official External Entities
+    E_STAFF["<b>Front Staff</b>"]
+    E_MGR["<b>Branch Manager</b>"]
+    E_OWNER["<b>Business Owner</b>"]
+    E_ADMIN["<b>System Administrator</b>"]
+
+    %% Data Stores
+    D1[("D1: User Accounts & Branches")]
+    D2[("D2: Inventory Stock Levels<br/>(IngredientStock & ProductStock)")]
+    D3[("D3: Branch Sales Records<br/>(Transactions & Items)")]
+    D4[("D4: Prescriptive Analytics & KPI Records")]
+    D6[("D6: Cold Archive Storage")]
+
+    %% Processes (1.0 - 7.0)
+    P1["<b>1.0</b><br/>Manage Accounts & Branches"]
+    P2["<b>2.0</b><br/>User Authentication & 2FA"]
+    P3["<b>3.0</b><br/>Process Inventory & BOM Events"]
+    P4["<b>4.0</b><br/>Process Point-of-Sale Transactions"]
+    P5["<b>5.0</b><br/>Gemini AI Prescriptive Engine"]
+    P6["<b>6.0</b><br/>Generate Analytics Dashboards"]
+    P7["<b>7.0</b><br/>Execute ETL & Cold Archiving"]
+
+    %% Explicit Black and White Styling
+    classDef default fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    classDef entityNode fill:#FFFFFF,stroke:#000000,stroke-width:2px,color:#000000;
+    classDef processNode fill:#FFFFFF,stroke:#000000,stroke-width:2px,color:#000000;
+    classDef storeNode fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+
+    class E_STAFF,E_MGR,E_OWNER,E_ADMIN entityNode;
+    class P1,P2,P3,P4,P5,P6,P7 processNode;
+    class D1,D2,D3,D4,D6 storeNode;
+
+    %% 1.0 Accounts & Branches Management
+    E_ADMIN -->|"Account credentials & branch assignments"| P1
+    P1 <-->|"Read / Write user profiles & branch data"| D1
+
+    %% 2.0 User Authentication & 2FA Verification
+    E_STAFF & E_MGR & E_OWNER & E_ADMIN -->|"Login credentials"| P2
+    P2 <-->|"Validate credentials & issue 6-digit OTP"| D1
+    P2 -->|"JWT access token & 7-day trusted device bypass"| E_STAFF & E_MGR & E_OWNER & E_ADMIN
+
+    %% 4.0 Point-of-Sale Transactions
+    E_STAFF -->|"Submit customer orders & payment tender"| P4
+    P4 -->|"Deduct sold finished goods (ProductStock)"| D2
+    P4 -->|"Persist completed transactions & line items"| D3
+    P4 -->|"Digital receipts & shift sales history"| E_STAFF
+
+    %% 3.0 Inventory & Kitchen Production (BOM) Management
+    E_MGR -->|"Stock adjustments (stock-in/spoilage), kitchen production, transfers, restock requests"| P3
+    E_OWNER -->|"Restock approvals/rejections, recipe BOM configurations, master ingredients"| P3
+    P3 <-->|"Update IngredientStock, ProductStock, BOM, & Transfers"| D2
+    P3 -->|"Inventory alerts & stock levels"| E_MGR & E_OWNER
+
+    %% 5.0 Gemini AI Prescriptive Analytics Engine
+    D2 & D3 & D4 -->|"Low stock triggers, 180-day sales, constraints, events"| P5
+    P5 -->|"Persist bounded restock directives & production targets"| D4
+    P5 -->|"Prescriptive recommendations & chatbot replies"| E_OWNER & E_MGR
+    E_OWNER -->|"Submit AI overrides with reasons & conversational queries"| P5
+
+    %% 6.0 Enterprise Analytics & Dashboard Generation
+    D2 & D3 & D4 -->|"Aggregate sales, stock costs, & KPI metrics"| P6
+    P6 -->|"Enterprise dashboards, comparative rankings, & CSV reports"| E_OWNER
+    P6 -->|"Branch operational history & stock levels"| E_MGR
+
+    %% 7.0 ETL Maintenance & Cold Archiving
+    E_OWNER & E_ADMIN -->|"Trigger ETL maintenance execution"| P7
+    P7 -->|"Compute & record daily KPIs & product classifications"| D4
+    D3 -->|"Extract historical transactions older than 180 days"| P7
+    P7 -->|"Persist compressed JSON archive records"| D6

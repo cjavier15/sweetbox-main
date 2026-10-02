@@ -10,7 +10,50 @@ from datetime import timedelta
 from pos.models import Transaction
 
 # Initialize the Gemini API client
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
+api_key = getattr(settings, 'GEMINI_API_KEY', None) or 'placeholder_key'
+client = genai.Client(api_key=api_key)
+
+def _clean_json_text(raw_text):
+    text = raw_text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return text
+
+def _generate_rule_based_prescriptions(branch, low_stocks):
+    output_ids = []
+    for stock in low_stocks:
+        ingredient = stock.ingredient
+        constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).first()
+        min_qty = float(constraint.min_order_quantity) if constraint else 0.0
+        max_supplier_qty = float(constraint.max_order_quantity) if constraint else 9999.0
+        capacity_limit = float(constraint.capacity_limit) if constraint else 9999.0
+        current_stock = float(stock.quantity_available)
+        threshold = float(stock.reorder_threshold)
+        
+        target_reorder = max(min_qty, (threshold * 2.0) - current_stock)
+        room_available = max(0.0, capacity_limit - current_stock)
+        bounded_qty = min(target_reorder, min(max_supplier_qty, room_available))
+        if bounded_qty <= 0:
+            bounded_qty = max(min_qty, 1.0)
+            
+        cost_per_unit = float(ingredient.cost_per_unit)
+        estimated_cost = round(bounded_qty * cost_per_unit, 2)
+        justification = f"Automated algorithmic replenishment: current stock ({current_stock} {ingredient.measurement_unit}) is at or below reorder threshold ({threshold})."
+        
+        record = PrescriptiveOutput.objects.create(
+            branch=branch, ingredient=ingredient, constraint=constraint,
+            output_type='Restock Prescription',
+            recommendation=f"Order {bounded_qty} {ingredient.measurement_unit} of {ingredient.ingredient_name}",
+            justification=justification, recommended_quantity=bounded_qty,
+            estimated_cost=estimated_cost, status="Pending Review"
+        )
+        output_ids.append(record.prescriptive_output_ID)
+    return {"status": "generated", "outputs": output_ids, "fallback": True}
 
 def generate_restock_directive(branch):
     low_stocks = IngredientStock.objects.filter(branch=branch, quantity_available__lte=F('reorder_threshold'))
@@ -40,13 +83,17 @@ def generate_restock_directive(branch):
     Do not use markdown formatting like ```json.
     """
     
-    response = client.models.generate_content(
-    model='gemini-3.6-flash',
-    contents=prompt
-    )
-    
     try:
-        ai_data = json.loads(response.text.strip())
+        if not getattr(settings, 'GEMINI_API_KEY', None):
+            return _generate_rule_based_prescriptions(branch, low_stocks)
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        
+        clean_text = _clean_json_text(response.text)
+        ai_data = json.loads(clean_text)
         output_ids = []
         
         for item in ai_data:
@@ -82,8 +129,9 @@ def generate_restock_directive(branch):
             output_ids.append(record.prescriptive_output_ID)
             
         return {"status": "generated", "outputs": output_ids}
-    except json.JSONDecodeError:
-        return {"status": "error", "message": "AI failed to return structured data."}
+    except Exception:
+        # Graceful fallback to deterministic rule-based replenishment on AI quota/network failure
+        return _generate_rule_based_prescriptions(branch, low_stocks)
 
 def generate_sales_report(branch, user, user_query):
     recent_date = timezone.now() - timedelta(days=180)
@@ -137,16 +185,23 @@ def generate_sales_report(branch, user, user_query):
     Answer the user's query directly based on the provided data. Factor in the External Variables if the user asks about forecasting or demand. Be concise, professional, and actionable. Calculate the totals accurately and do not hallucinate metrics.
     """
     
-    response = client.models.generate_content(
-    model='gemini-3.6-flash',
-    contents=prompt
-    )
+    try:
+        if not getattr(settings, 'GEMINI_API_KEY', None):
+            reply = f"Recent sales data for {branch.name}:\n{summary_data}"
+        else:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
+            reply = response.text
+    except Exception:
+        reply = f"Sales intelligence summary for {branch.name}:\n{summary_data}"
     
     ChatbotLog.objects.create(
         branch=branch, 
         user=user, 
         query_text=user_query, 
-        response_text=response.text
+        response_text=reply
     )
     
-    return response.text
+    return reply

@@ -1,0 +1,19 @@
+flowchart TD
+    START([Start of Day]) --> COUNT[Manual Ingredient Count at Branches]
+    COUNT --> SUFF{Sufficient Stock?}
+    SUFF -- No --> MANUAL_RESTOCK[Restock Reactively via Phone Calls]
+    MANUAL_RESTOCK --> COUNT
+    SUFF -- Yes --> EST_PROD[Estimate Production Targets Subjectively]
+    EST_PROD --> BATCH[Batch Kitchen Production]
+    BATCH --> DISPATCH{For Dispatch to Satellites?}
+    DISPATCH -- Yes --> PACK[Pack & Dispatch to Other Branches]
+    DISPATCH -- No --> STORE_HUB[Stock at Ibaan Main Hub]
+    PACK --> POS_SALE[Record Sales via Loyverse POS]
+    STORE_HUB --> POS_SALE
+    POS_SALE --> EXTRACTION[Manual Sales Data Extraction]
+    EXTRACTION --> MANUAL_DEDUCT[Manual Ingredient Consumption Deduction]
+    MANUAL_DEDUCT --> EOD_COUNT[End-of-Day Physical Inventory Count]
+    EOD_COUNT --> RECONCILE[Manual Cross-Referencing & Discrepancy Reconciliation]
+    RECONCILE --> NEXT_DAY{Restock Needed for Next Day?}
+    NEXT_DAY -- Yes --> MANUAL_RESTOCK
+    NEXT_DAY -- No --> FINISH([End of Daily Operation])

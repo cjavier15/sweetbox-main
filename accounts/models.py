@@ -48,7 +48,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 class OTPRecord(models.Model):
     otp_ID = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    otp_code = models.CharField(max_length=6, unique=True)
+    otp_code = models.CharField(max_length=6)
     is_used = models.BooleanField(default=False)
     created_time = models.DateTimeField(auto_now_add=True)
     expiration_time = models.DateTimeField()

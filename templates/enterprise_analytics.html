@@ -2,87 +2,91 @@
 {% load static %}
 
 {% block content %}
-<style>
-    .kpi-trend { font-size: 0.85rem; font-weight: bold; padding: 3px 8px; border-radius: 12px; }
-    .trend-up { background-color: #d4edda; color: #155724; }
-    .trend-down { background-color: #f8d7da; color: #721c24; }
-    .theme-text { color: #8B4513; }
-    .rank-bar-bg { background-color: #fef0d9; height: 12px; border-radius: 6px; width: 100%; position: relative; }
-    .rank-bar-fill { background-color: #d2691e; height: 100%; border-radius: 6px; position: absolute; left: 0; top: 0; }
-    .filter-btn.active { background-color: #d2691e !important; color: white !important; border-color: #d2691e !important; }
-</style>
-
 <!-- Top Controls -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div class="btn-group shadow-sm" role="group">
-        <button type="button" class="btn btn-outline-warning text-dark fw-bold filter-btn" onclick="applyFilter('this_week', this)">This Week</button>
-        <button type="button" class="btn btn-outline-warning text-dark fw-bold filter-btn active" onclick="applyFilter('this_month', this)">This Month</button>
-        <button type="button" class="btn btn-outline-warning text-dark fw-bold filter-btn" onclick="applyFilter('last_7_months', this)">Last 7 Months</button>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h3 class="fw-bold mb-1 text-espresso">Enterprise Analytics</h3>
+        <p class="text-muted-warm small mb-0">Multi-Branch Real-Time Performance & Algorithmic Insights</p>
     </div>
-    <button class="btn btn-warning fw-bold text-dark shadow-sm" onclick="exportKPIs()"><i class="fas fa-download me-2"></i> Export Report</button>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="btn-group bg-white p-1 rounded-3 shadow-xs border" role="group" style="border-color: var(--sb-border-subtle) !important;">
+            <button type="button" class="btn btn-sm filter-btn" onclick="applyFilter('this_week', this)">This Week</button>
+            <button type="button" class="btn btn-sm filter-btn active" onclick="applyFilter('this_month', this)">This Month</button>
+            <button type="button" class="btn btn-sm filter-btn" onclick="applyFilter('last_7_months', this)">Last 7 Months</button>
+        </div>
+        <button class="btn btn-warning fw-bold text-dark shadow-sm d-inline-flex align-items-center gap-2" onclick="exportKPIs()">
+            <i class="fas fa-file-arrow-down"></i> Export Report
+        </button>
+    </div>
 </div>
 
 <!-- Scorecards -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0 h-100 p-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="sb-kpi-card h-100">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="bg-warning text-dark rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-chart-line fs-5"></i></div>
-                <span class="kpi-trend" id="kpi-rev-trend">+0.0%</span>
+                <div class="sb-kpi-icon"><i class="fas fa-chart-line"></i></div>
+                <span class="kpi-trend trend-up" id="kpi-rev-trend">+0.0%</span>
             </div>
-            <h3 class="fw-bold theme-text mb-0" id="kpi-revenue">₱0.00</h3>
-            <small class="text-muted fw-bold">Total Revenue</small>
-            <small class="text-muted" style="font-size: 0.75rem;" id="kpi-rev-prev">vs. ₱0.00 previous period</small>
+            <div class="sb-kpi-label">Total Revenue</div>
+            <div class="sb-kpi-value tabular-nums" id="kpi-revenue">₱0.00</div>
+            <div class="sb-kpi-subtext" id="kpi-rev-prev">vs. ₱0.00 previous period</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0 h-100 p-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="sb-kpi-card h-100">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="bg-warning text-dark rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-shopping-cart fs-5"></i></div>
-                <span class="kpi-trend" id="kpi-txn-trend">+0.0%</span>
+                <div class="sb-kpi-icon"><i class="fas fa-receipt"></i></div>
+                <span class="kpi-trend trend-up" id="kpi-txn-trend">+0.0%</span>
             </div>
-            <h3 class="fw-bold theme-text mb-0" id="kpi-transactions">0</h3>
-            <small class="text-muted fw-bold">Total Transactions</small>
-            <small class="text-muted" style="font-size: 0.75rem;">All branches combined</small>
+            <div class="sb-kpi-label">Total Transactions</div>
+            <div class="sb-kpi-value tabular-nums" id="kpi-transactions">0</div>
+            <div class="sb-kpi-subtext">All 7 branches combined</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0 h-100 p-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="sb-kpi-card h-100">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="bg-warning text-dark rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-box fs-5"></i></div>
+                <div class="sb-kpi-icon"><i class="fas fa-arrows-rotate"></i></div>
                 <span class="kpi-trend trend-up">Current</span>
             </div>
-            <h3 class="fw-bold theme-text mb-0" id="kpi-turnover">0.0x</h3>
-            <small class="text-muted fw-bold">Inventory Turnover</small>
-            <small class="text-muted" style="font-size: 0.75rem;" id="kpi-gmroi">GMROI: 0.0</small>
+            <div class="sb-kpi-label">Inventory Turnover</div>
+            <div class="sb-kpi-value tabular-nums" id="kpi-turnover">0.0x</div>
+            <div class="sb-kpi-subtext" id="kpi-gmroi">GMROI: 0.0</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0 h-100 p-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="sb-kpi-card h-100">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="bg-dark text-white rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;"><i class="fas fa-store fs-5"></i></div>
-                <span class="kpi-trend trend-down" id="kpi-offline-badge">0 offline</span>
+                <div class="sb-kpi-icon" style="background: rgba(44, 24, 16, 0.08); color: var(--sb-espresso);"><i class="fas fa-store"></i></div>
+                <span class="kpi-trend trend-up" id="kpi-offline-badge">All Active</span>
             </div>
-            <h3 class="fw-bold theme-text mb-0" id="kpi-branches">0 / 0</h3>
-            <small class="text-muted fw-bold">Active Branches</small>
+            <div class="sb-kpi-label">Active Branches</div>
+            <div class="sb-kpi-value tabular-nums" id="kpi-branches">0 / 0</div>
+            <div class="sb-kpi-subtext">Live synchronization</div>
         </div>
     </div>
 </div>
 
 <!-- Charts Row 1 -->
 <div class="row g-3 mb-4">
-    <div class="col-md-8">
+    <div class="col-lg-8">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <h6 class="fw-bold theme-text mb-0">Sales Overview</h6>
-            <small class="text-muted mb-3 d-block">Enterprise-wide revenue progression</small>
-            <div style="height: 250px;"><canvas id="dailySalesChart"></canvas></div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <h6 class="fw-bold text-espresso mb-0">Sales Overview</h6>
+                    <small class="text-muted-warm">Enterprise-wide revenue progression</small>
+                </div>
+                <span class="badge bg-warning text-dark"><i class="fas fa-signal me-1"></i> Live Metric</span>
+            </div>
+            <div style="height: 260px;" class="mt-2"><canvas id="dailySalesChart"></canvas></div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-lg-4">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <h6 class="fw-bold theme-text mb-0">Payment Methods</h6>
-            <small class="text-muted mb-3 d-block">Transaction distribution</small>
-            <div style="height: 250px;" class="d-flex justify-content-center align-items-center">
+            <h6 class="fw-bold text-espresso mb-0">Payment Methods</h6>
+            <small class="text-muted-warm mb-3 d-block">Transaction tender distribution</small>
+            <div style="height: 260px;" class="d-flex justify-content-center align-items-center">
                 <canvas id="paymentMethodChart"></canvas>
             </div>
         </div>
@@ -91,29 +95,37 @@
 
 <!-- Charts Row 2 -->
 <div class="row g-3 mb-4">
-    <div class="col-md-12">
+    <div class="col-12">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <h6 class="fw-bold theme-text mb-0">Branch Sales vs Target</h6>
-            <small class="text-muted mb-3 d-block">Actual revenue against algorithmic baseline</small>
-            <div style="height: 280px;"><canvas id="branchTargetChart"></canvas></div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <h6 class="fw-bold text-espresso mb-0">Branch Sales vs Target</h6>
+                    <small class="text-muted-warm">Actual revenue against algorithmic baseline</small>
+                </div>
+            </div>
+            <div style="height: 290px;" class="mt-2"><canvas id="branchTargetChart"></canvas></div>
         </div>
     </div>
 </div>
 
 <!-- Branch Ranking & Products -->
 <div class="row g-3 mb-4">
-    <div class="col-md-5">
+    <div class="col-lg-5">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <h6 class="fw-bold theme-text mb-3">Branch Performance Ranking</h6>
+            <h6 class="fw-bold text-espresso mb-1">Branch Performance Ranking</h6>
+            <small class="text-muted-warm mb-3 d-block">Volume & target accomplishment</small>
             <div id="branch-ranking-container" class="d-flex flex-column gap-3 overflow-auto" style="max-height: 400px;">
                 <!-- Injected via JS -->
             </div>
         </div>
     </div>
-    <div class="col-md-7">
+    <div class="col-lg-7">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="fw-bold theme-text mb-0">Top Selling Products</h6>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h6 class="fw-bold text-espresso mb-0">Top Selling Products</h6>
+                    <small class="text-muted-warm">High-velocity items by gross revenue</small>
+                </div>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-warning text-dark active" onclick="filterProducts('All', this)">All</button>
                     <button class="btn btn-outline-warning text-dark" onclick="filterProducts('Cakes', this)">Cakes</button>
@@ -122,8 +134,8 @@
                 </div>
             </div>
             <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
-                <table class="table table-borderless table-hover align-middle small">
-                    <thead class="text-muted border-bottom">
+                <table class="table table-hover align-middle small mb-0">
+                    <thead>
                         <tr><th>#</th><th>Product Name</th><th>Category</th><th>Units Sold</th><th>Revenue</th><th>Est. Trend</th></tr>
                     </thead>
                     <tbody id="top-products-body">
@@ -226,10 +238,12 @@
     let currentFilter = 'this_month';
     let charts = { daily: null, payment: null, target: null };
     
-    // Theme Colors
-    const brandColor = '#8B4513';
-    const accentColor = '#D2691E';
-    const lightBg = '#fef0d9';
+    // Sweet Box Brand Theme Colors
+    const brandColor = '#3E2419';      // Rich Espresso
+    const accentColor = '#D49A3D';     // Radiant Gold
+    const accentLight = '#EBBF6D';     // Warm Honey
+    const accentSubtle = 'rgba(212, 154, 61, 0.15)'; // Soft Gold Glow
+    const lightBg = '#FAF7F2';         // Warm Cream
 
     async function applyFilter(filterString, btnElement) {
         currentFilter = filterString;
@@ -273,20 +287,67 @@
                     labels: data.time_series.labels,
                     datasets: [{
                         label: 'Revenue', data: data.time_series.data,
-                        borderColor: brandColor, backgroundColor: 'rgba(139, 69, 19, 0.1)',
-                        borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0
+                        borderColor: accentColor, backgroundColor: accentSubtle,
+                        borderWidth: 2.5, fill: true, tension: 0.35,
+                        pointBackgroundColor: brandColor, pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2, pointRadius: 3, pointHoverRadius: 6
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: brandColor,
+                            titleColor: accentLight,
+                            bodyColor: '#ffffff',
+                            padding: 10,
+                            cornerRadius: 8
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(232, 220, 203, 0.4)' },
+                            ticks: { font: { family: 'Plus Jakarta Sans' }, color: '#735E52' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Plus Jakarta Sans' }, color: '#735E52' }
+                        }
+                    }
+                }
             });
 
             charts.payment = new Chart(document.getElementById('paymentMethodChart'), {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(data.payment_methods),
-                    datasets: [{ data: Object.values(data.payment_methods), backgroundColor: [brandColor, accentColor, '#e6a86c', '#CD853F'], borderWidth: 2 }]
+                    datasets: [{
+                        data: Object.values(data.payment_methods),
+                        backgroundColor: [brandColor, accentColor, accentLight, '#7A5038', '#A98467'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                boxHeight: 12,
+                                font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' },
+                                color: '#3E2419',
+                                padding: 14
+                            }
+                        }
+                    }
+                }
             });
 
             const branchLabels = data.branch_performance.map(b => b.branch);
@@ -298,11 +359,35 @@
                 data: {
                     labels: branchLabels,
                     datasets: [
-                        { label: 'Actual Sales', data: actualData, backgroundColor: brandColor, borderRadius: 4 },
-                        { label: 'Target', data: targetData, backgroundColor: '#f2c57c', borderRadius: 4 }
+                        { label: 'Actual Sales', data: actualData, backgroundColor: brandColor, borderRadius: 6, maxBarThickness: 32 },
+                        { label: 'Target', data: targetData, backgroundColor: accentLight, borderRadius: 6, maxBarThickness: 32 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' },
+                                color: '#3E2419',
+                                boxWidth: 12,
+                                boxHeight: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(232, 220, 203, 0.4)' },
+                            ticks: { font: { family: 'Plus Jakarta Sans' }, color: '#735E52' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Plus Jakarta Sans' }, color: '#735E52' }
+                        }
+                    }
+                }
             });
 
             // 3. Render Rankings & Products
@@ -335,15 +420,15 @@
             const width = maxVal > 0 ? (b.actual / maxVal) * 100 : 0;
             const badgeClass = b.status === 'On Target' ? 'bg-success bg-opacity-25 text-success' : 'bg-danger bg-opacity-25 text-danger';
             return `
-            <div>
+            <div class="mb-3">
                 <div class="d-flex justify-content-between align-items-end mb-1">
-                    <span class="fw-bold theme-text"><span class="text-muted me-2">${idx + 1}</span> ${b.branch}</span>
+                    <span class="fw-bold theme-text"><span class="badge rounded-circle bg-light text-muted me-2" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;">${idx + 1}</span> ${b.branch}</span>
                     <div class="text-end">
                         <span class="badge ${badgeClass} rounded-pill me-2">${b.status}</span>
-                        <span class="fw-bold">₱${(b.actual/1000).toFixed(1)}k</span>
+                        <span class="fw-bold tabular-nums">₱${(b.actual/1000).toFixed(1)}k</span>
                     </div>
                 </div>
-                <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: ${width}%"></div></div>
+                <div class="sb-progress-track"><div class="sb-progress-fill" style="width: ${width}%"></div></div>
             </div>`;
         }).join('');
     }
@@ -371,10 +456,10 @@
             <tr>
                 <td class="text-muted fw-bold">${idx + 1}</td>
                 <td class="fw-bold theme-text">${p.name}</td>
-                <td><span class="badge bg-warning text-dark bg-opacity-50 border">${p.category}</span></td>
-                <td>${p.units.toLocaleString()}</td>
-                <td class="fw-bold">₱${p.revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                <td class="${trendClass} fw-bold">${arrow} ${p.trend}%</td>
+                <td><span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212, 154, 61, 0.4);">${p.category}</span></td>
+                <td class="tabular-nums">${p.units.toLocaleString()}</td>
+                <td class="fw-bold tabular-nums">₱${p.revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                <td class="${trendClass} fw-bold tabular-nums">${arrow} ${p.trend}%</td>
             </tr>`;
         }).join('');
     }

@@ -1,0 +1,50 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#FFFFFF',
+    'primaryTextColor': '#000000',
+    'primaryBorderColor': '#000000',
+    'lineColor': '#000000',
+    'secondaryColor': '#FFFFFF',
+    'tertiaryColor': '#FFFFFF',
+    'mainBkg': '#FFFFFF',
+    'nodeBorder': '#000000',
+    'clusterBkg': '#FFFFFF',
+    'clusterBorder': '#000000',
+    'edgeLabelBackground': '#FFFFFF',
+    'textColor': '#000000'
+  }
+}}%%
+flowchart TD
+    %% Center System Context Process (0.0)
+    SYS["<b>0.0</b><br/><b>Sweet Box Multi-Branch Enterprise System</b><br/>(Centralized POS, Inventory & Prescriptive Analytics)"]
+
+    %% 4 Official External Entities
+    FS["<b>Front Staff</b><br/>(Cashier / Point of Sale)"]
+    BM["<b>Branch Manager</b><br/>(Store & Inventory Custodian)"]
+    BO["<b>Business Owner</b><br/>(Executive & Strategic Governance)"]
+    SA["<b>System Administrator</b><br/>(Technical & Security Auditor)"]
+
+    %% Explicit Black and White Styling
+    classDef default fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    classDef sysNode fill:#FFFFFF,stroke:#000000,stroke-width:2.5px,color:#000000;
+    classDef entityNode fill:#FFFFFF,stroke:#000000,stroke-width:2px,color:#000000;
+
+    class SYS sysNode;
+    class FS,BM,BO,SA entityNode;
+
+    %% Data Flows: Front Staff
+    FS -->|"Transaction line items, payment tenders (cash/e-wallet), discounts, refund requests"| SYS
+    SYS -->|"Transaction confirmations, digital receipts, product catalogue, shift sales history"| FS
+
+    %% Data Flows: Branch Manager (Handles branch operations and all branch inventory management)
+    BM -->|"Manual stock adjustments (stock-in/spoilage), kitchen batch production orders, transfers, restock requests"| SYS
+    SYS -->|"Branch inventory stock levels, low-stock threshold alerts, restock statuses, shift history"| BM
+
+    %% Data Flows: Business Owner (Executive oversight, restock approvals, BOM, full analytics, chatbot)
+    BO -->|"Restock approvals/rejections, BOM recipe configurations, master ingredients, external variables, AI overrides, ETL triggers"| SYS
+    SYS -->|"Enterprise KPI dashboard, prescriptive action cards, chatbot insights, consolidated multi-branch stock, KPI CSV exports"| BO
+
+    %% Data Flows: System Administrator (User management, security audit, technical maintenance)
+    SA -->|"User account profiles, branch assignments, credential resets, system operational parameters"| SYS
+    SYS -->|"Immutable system audit trail logs, active session statuses, database archival reports"| SA

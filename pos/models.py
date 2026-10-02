@@ -63,5 +63,10 @@ class PaymentRecord(models.Model):
     payment_method = models.CharField(max_length=50) # e.g., 'Cash', 'GCash', 'Split Payment'
     payment_time = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        if self.reference_number == '':
+            self.reference_number = None
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Payment {self.payment_ID} - {self.payment_method}"

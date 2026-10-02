@@ -4,24 +4,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sweet Box Analytics Hub</title>
+    <title>Sweet Box Enterprise Hub</title>
+    <!-- Google Fonts & Font Awesome 6 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Bootstrap & Sweet Box Theme -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Fallback styling in case style.css 404s again -->
-    <style>
-        :root { --sweetbox-dark: #3E2723; --sweetbox-primary: #D84315; }
-        .bg-dark { background-color: var(--sweetbox-dark) !important; }
-        .btn-warning { background-color: #FFC107; color: #000; }
-    </style>
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
-<link href="{% static 'css/style.css' %}" rel="stylesheet">
-<script src="{% static 'js/chart.js' %}"></script>
-<script src="{% static 'js/axios.min.js' %}"></script>
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <script src="{% static 'js/chart.js' %}"></script>
+    <script src="{% static 'js/axios.min.js' %}"></script>
 </head>
-<body class="d-flex flex-column min-vh-100 bg-light">
+<body class="d-flex flex-column min-vh-100" style="background-color: var(--sb-bg-app);">
 
     <!-- Mobile Top Navigation -->
-    <nav class="navbar navbar-dark bg-dark d-md-none px-3 shadow-sm">
-        <span class="navbar-brand fw-bold text-warning">Sweet Box</span>
+    <nav class="navbar navbar-dark sb-sidebar d-md-none px-3 shadow-sm">
+        <div class="d-flex align-items-center gap-2">
+            <div class="sb-brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;"><i class="fas fa-cookie-bite"></i></div>
+            <span class="navbar-brand fw-bold text-gold mb-0">Sweet Box</span>
+        </div>
         <button class="navbar-toggler border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -29,38 +33,60 @@
 
     <div class="d-flex flex-grow-1">
         <!-- Persistent Offcanvas Sidebar -->
-        <div class="offcanvas-md offcanvas-start bg-dark text-white shadow" tabindex="-1" id="sidebarMenu" style="width: 260px;">
+        <div class="offcanvas-md offcanvas-start sb-sidebar text-white shadow" tabindex="-1" id="sidebarMenu" style="width: 260px;">
             <div class="offcanvas-header d-md-none border-bottom border-secondary">
-                <h5 class="offcanvas-title text-warning fw-bold">Menu</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="sb-brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;"><i class="fas fa-cookie-bite"></i></div>
+                    <h5 class="offcanvas-title text-gold fw-bold mb-0">Sweet Box</h5>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close" onclick="document.getElementById('sidebarMenu').classList.remove('show');"></button>
             </div>
             
-            <div class="d-none d-md-block p-4 border-bottom border-secondary">
-                <h4 class="fw-bold text-warning mb-0">Sweet Box</h4>
-                <!-- CRITICAL ID REQUIRED FOR JS -->
-                <small class="text-light" id="user-profile-display">Loading User...</small>
+            <div class="d-none d-md-flex align-items-center gap-3 p-4 sb-brand-header">
+                <div class="sb-brand-logo"><i class="fas fa-cookie-bite fs-5"></i></div>
+                <div>
+                    <h4 class="fw-bold text-gold mb-0">Sweet Box</h4>
+                    <small class="text-light opacity-75" id="user-profile-display" style="font-size: 0.78rem;">Loading User...</small>
+                </div>
             </div>
 
             <div class="d-flex flex-column justify-content-between flex-grow-1 p-3">
-                <!-- CRITICAL IDs REQUIRED FOR JS -->
-                <ul class="nav nav-pills flex-column mb-auto gap-2" id="sidebar-links" style="display: none;">
-                    <li class="nav-item" id="nav-enterprise"><a href="/enterprise/" class="nav-link text-white">Enterprise Analytics</a></li>
-                    <li class="nav-item" id="nav-pos"><a href="/pos/" class="nav-link text-white">POS System</a></li>
-                    <li class="nav-item" id="nav-scm"><a href="/scm/" class="nav-link text-white">Inventory & BOM</a></li>
-                    <li class="nav-item" id="nav-admin"><a href="/admin/login/" class="nav-link text-white">Admin Panel</a></li>
+                <ul class="nav flex-column mb-auto gap-2" id="sidebar-links" style="display: none;">
+                    <li class="nav-item" id="nav-enterprise">
+                        <a href="/enterprise/" class="nav-link">
+                            <i class="fas fa-chart-pie"></i> Enterprise Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item" id="nav-pos">
+                        <a href="/pos/" class="nav-link">
+                            <i class="fas fa-cash-register"></i> POS System
+                        </a>
+                    </li>
+                    <li class="nav-item" id="nav-scm">
+                        <a href="/scm/" class="nav-link">
+                            <i class="fas fa-boxes-stacked"></i> Inventory & BOM
+                        </a>
+                    </li>
+                    <li class="nav-item" id="nav-admin">
+                        <a href="/admin/login/" class="nav-link">
+                            <i class="fas fa-shield-halved"></i> Admin Panel
+                        </a>
+                    </li>
                 </ul>
                 
                 <div class="mt-4 border-top border-secondary pt-3">
-                    <button id="btn-ai" class="btn btn-warning w-100 fw-bold mb-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#chatbotModal">
-                        AI Assistant
+                    <button id="btn-ai" class="btn btn-warning w-100 fw-bold mb-2 shadow-sm d-flex align-items-center justify-content-center gap-2" data-bs-toggle="modal" data-bs-target="#chatbotModal">
+                        <i class="fas fa-wand-magic-sparkles"></i> AI Assistant
                     </button>
-                    <button class="btn btn-outline-light w-100" onclick="logout()">Logout</button>
+                    <button class="btn btn-outline-light w-100 d-flex align-items-center justify-content-center gap-2" onclick="logout()" style="border-color: rgba(250, 247, 242, 0.25);">
+                        <i class="fas fa-arrow-right-from-bracket"></i> Logout
+                    </button>
                 </div>
             </div>
         </div>
 
         <!-- Dynamic Module Injector -->
-        <main class="flex-grow-1 p-3 p-md-4 overflow-auto" style="height: 100vh;">
+        <main class="flex-grow-1 p-3 p-md-4 overflow-auto" style="height: 100vh; background-color: var(--sb-bg-app);">
             {% block content %}{% endblock %}
         </main>
     </div>
@@ -70,15 +96,23 @@
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold text-warning">Gemini Prescriptive Analyst</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="sb-brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;"><i class="fas fa-robot"></i></div>
+                        <h5 class="modal-title fw-bold text-gold mb-0">Gemini Prescriptive Analyst</h5>
+                    </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body bg-light" id="chat-box" style="height: 400px; overflow-y: auto;">
-                    <p class="text-muted text-center mt-3">Ask about sales forecasting or restock alerts...</p>
+                    <div class="text-center py-5">
+                        <i class="fas fa-sparkles text-gold fs-1 mb-3"></i>
+                        <p class="text-muted fw-semibold">Ask about revenue forecasting, restock suggestions, or branch performance...</p>
+                    </div>
                 </div>
-                <div class="modal-footer border-0 bg-white d-flex">
-                    <input type="text" id="user-input" class="form-control me-2" placeholder="e.g., What was the highest revenue product today?">
-                    <button class="btn btn-warning fw-bold" onclick="askGemini()">Send</button>
+                <div class="modal-footer border-0 bg-white d-flex gap-2">
+                    <input type="text" id="user-input" class="form-control" placeholder="e.g., What was the highest revenue product this week?" onkeypress="if(event.key==='Enter') askGemini()">
+                    <button class="btn btn-warning fw-bold px-4" onclick="askGemini()">
+                        <i class="fas fa-paper-plane me-1"></i> Send
+                    </button>
                 </div>
             </div>
         </div>
@@ -86,6 +120,8 @@
 
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script>
+        let currentBranchId = 1;
+
         async function enforceRBAC() {
             const token = localStorage.getItem('access_token');
             if (!token) { window.location.href = '/login/'; return; }
@@ -99,24 +135,28 @@
                 
                 const data = await response.json();
                 const role = data.role;
+                currentBranchId = data.branch_id || 1;
+                window.currentBranchId = currentBranchId;
                 const path = window.location.pathname;
 
                 const accessMap = {
+                    'System Administrator': ['/enterprise/', '/scm/', '/admin/'],
                     'Business Owner': ['/enterprise/', '/scm/'],
-                    'Admin': ['/admin/'],
+                    'Admin': ['/admin/', '/enterprise/', '/scm/'],
                     'Branch Manager': ['/scm/'],
                     'Staff': ['/pos/']
                 };
 
                 const uiMap = {
-                    'Business Owner': ['nav-enterprise', 'nav-scm', 'nav-admin', 'btn-ai'],
-                    'Admin': ['nav-admin'],
+                    'System Administrator': ['nav-enterprise', 'nav-scm', 'nav-admin', 'btn-ai'],
+                    'Business Owner': ['nav-enterprise', 'nav-scm', 'btn-ai'],
+                    'Admin': ['nav-admin', 'nav-enterprise', 'nav-scm', 'btn-ai'],
                     'Branch Manager': ['nav-scm', 'btn-ai'],
                     'Staff': ['nav-pos']
                 };
 
-                const allowedPaths = accessMap[role] || [];
-                const allowedUI = uiMap[role] || [];
+                const allowedPaths = accessMap[role] || (data.is_superuser ? ['/enterprise/', '/scm/', '/pos/', '/admin/'] : []);
+                const allowedUI = uiMap[role] || (data.is_superuser ? ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin', 'btn-ai'] : []);
                 
                 if (!allowedPaths.some(p => path.includes(p)) && path !== '/' && path !== '/login/') {
                     window.location.href = allowedPaths[0] || '/login/';
@@ -132,9 +172,19 @@
                     }
                 });
 
-                // Display authorized profile
+                // Highlight active navigation link
+                document.querySelectorAll('#sidebar-links a').forEach(a => {
+                    const href = a.getAttribute('href');
+                    if (href && (path === href || (href !== '/' && path.startsWith(href)))) {
+                        a.classList.add('active');
+                    } else {
+                        a.classList.remove('active');
+                    }
+                });
+
+                // Display authorized profile with badge
                 document.getElementById('sidebar-links').style.display = 'flex';
-                document.getElementById('user-profile-display').innerText = `${data.name} | ${role}`;
+                document.getElementById('user-profile-display').innerHTML = `<i class="fas fa-circle-user text-gold me-1"></i> ${data.name} &bull; <span class="badge bg-warning text-dark px-2 py-0" style="font-size: 0.68rem;">${role}</span>`;
 
             } catch (error) {
                 console.error("RBAC Security Error:", error);
@@ -153,11 +203,12 @@
             inputField.value = '';
             
             const token = localStorage.getItem('access_token');
+            const branchToQuery = window.currentBranchId || 1;
             try {
                 const response = await fetch('/api/analytics/chat/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ branch_id: 1, query: query })
+                    body: JSON.stringify({ branch_id: branchToQuery, query: query })
                 });
                 const data = await response.json();
                 

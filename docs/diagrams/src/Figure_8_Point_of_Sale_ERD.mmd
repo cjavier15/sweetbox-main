@@ -1,0 +1,71 @@
+erDiagram
+    BRANCHES ||--o{ USERS : assigns
+    BRANCHES ||--o{ TRANSACTIONS : records
+    USERS ||--o{ TRANSACTIONS : processes
+    PRODUCT_CATEGORIES ||--o{ PRODUCTS : categorizes
+    TRANSACTIONS ||--|{ TRANSACTION_ITEMS : contains
+    PRODUCTS ||--o{ TRANSACTION_ITEMS : "sold as"
+    TRANSACTIONS ||--|{ PAYMENT_RECORDS : settles
+
+    BRANCHES {
+        int branch_ID PK
+        string name
+        text address
+        bool main_hub
+    }
+
+    USERS {
+        int user_ID PK
+        int branch_ID FK
+        string name
+        string email UK
+        string password
+        string role
+        datetime create_date
+        bool is_active
+        bool is_staff
+    }
+
+    PRODUCT_CATEGORIES {
+        int category_ID PK
+        string category_name
+        text description
+    }
+
+    PRODUCTS {
+        int product_ID PK
+        int category_ID FK
+        string product_name
+        decimal price
+        bool is_active
+    }
+
+    TRANSACTIONS {
+        int transaction_ID PK
+        int branch_ID FK
+        int user_ID FK
+        decimal subtotal_amount
+        string discount_type
+        decimal discount_amount
+        decimal total_amount
+        string transaction_status
+        datetime transaction_date
+    }
+
+    TRANSACTION_ITEMS {
+        int item_ID PK
+        int transaction_ID FK
+        int product_ID FK
+        int quantity
+        decimal unit_price
+        decimal subtotal
+    }
+
+    PAYMENT_RECORDS {
+        int payment_ID PK
+        int transaction_ID FK
+        string reference_number UK
+        decimal amount_paid
+        string payment_method
+        datetime payment_time
+    }

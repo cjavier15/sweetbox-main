@@ -1,0 +1,116 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#FFFFFF',
+    'primaryTextColor': '#000000',
+    'primaryBorderColor': '#000000',
+    'lineColor': '#000000',
+    'secondaryColor': '#FFFFFF',
+    'tertiaryColor': '#FFFFFF',
+    'mainBkg': '#FFFFFF',
+    'nodeBorder': '#000000',
+    'clusterBkg': '#FFFFFF',
+    'clusterBorder': '#000000',
+    'edgeLabelBackground': '#FFFFFF',
+    'textColor': '#000000'
+  }
+}}%%
+flowchart LR
+    subgraph ACTORS["System Actors (4 Official Roles)"]
+        FS["<svg width='32' height='46' viewBox='0 0 32 46'><circle cx='16' cy='8' r='6' fill='none' stroke='black' stroke-width='2'/><line x1='16' y1='14' x2='16' y2='28' stroke='black' stroke-width='2'/><line x1='4' y1='19' x2='28' y2='19' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='8' y2='42' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='24' y2='42' stroke='black' stroke-width='2'/></svg><br/><b>Front Staff</b>"]
+        BM["<svg width='32' height='46' viewBox='0 0 32 46'><circle cx='16' cy='8' r='6' fill='none' stroke='black' stroke-width='2'/><line x1='16' y1='14' x2='16' y2='28' stroke='black' stroke-width='2'/><line x1='4' y1='19' x2='28' y2='19' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='8' y2='42' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='24' y2='42' stroke='black' stroke-width='2'/></svg><br/><b>Branch Manager</b>"]
+        BO["<svg width='32' height='46' viewBox='0 0 32 46'><circle cx='16' cy='8' r='6' fill='none' stroke='black' stroke-width='2'/><line x1='16' y1='14' x2='16' y2='28' stroke='black' stroke-width='2'/><line x1='4' y1='19' x2='28' y2='19' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='8' y2='42' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='24' y2='42' stroke='black' stroke-width='2'/></svg><br/><b>Business Owner</b>"]
+        SA["<svg width='32' height='46' viewBox='0 0 32 46'><circle cx='16' cy='8' r='6' fill='none' stroke='black' stroke-width='2'/><line x1='16' y1='14' x2='16' y2='28' stroke='black' stroke-width='2'/><line x1='4' y1='19' x2='28' y2='19' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='8' y2='42' stroke='black' stroke-width='2'/><line x1='16' y1='28' x2='24' y2='42' stroke='black' stroke-width='2'/></svg><br/><b>System Administrator</b>"]
+    end
+
+    subgraph POS_CASES["Point-of-Sale Module"]
+        UC_TXN(["Process Sale Transaction"])
+        UC_PAY(["Record Payment (Cash/E-Wallet/Split)"])
+        UC_DISC(["Apply Transaction Discount"])
+        UC_HIST(["View Branch Transaction History"])
+        UC_REFUND(["Process Transaction Refund"])
+        UC_RCPT(["Print / Download Digital Receipt"])
+    end
+
+    subgraph SCM_CASES["Inventory Management & Kitchen Production (BOM)"]
+        UC_LIVE(["View Live Multi-Branch Stock"])
+        UC_ADJ(["Record Manual Stock Adjustment"])
+        UC_PROD(["Execute Kitchen Batch Production (BOM)"])
+        UC_TRANS(["Perform Inter-Branch Product Transfer"])
+        UC_REQ_SUB(["Submit Restock Request"])
+        UC_REQ_APP(["Approve / Reject Restock Request"])
+        UC_BOM_MGT(["Manage BOM Recipe Configurations"])
+        UC_ING_ADD(["Register New Master Ingredient"])
+    end
+
+    subgraph AI_CASES["Prescriptive Analytics & Decision Support"]
+        UC_DASH(["View Enterprise KPI Dashboard"])
+        UC_PRESC_VIEW(["View Prescriptive Action Cards"])
+        UC_PRESC_DEC(["Approve / Override AI Recommendations"])
+        UC_CHAT(["Consult AI Sales Analyst Chatbot"])
+        UC_EXT_VAR(["Manage Contextual External Variables"])
+        UC_ETL(["Execute ETL Pipeline & Data Archival"])
+        UC_CSV(["Export Enterprise KPI CSV Report"])
+    end
+
+    subgraph ADMIN_CASES["System Administration & Security"]
+        UC_USER(["Manage User Accounts & Branches"])
+        UC_AUDIT(["Inspect System Audit Logs"])
+        UC_2FA(["Verify Two-Factor Auth (OTP/Trusted Token)"])
+    end
+
+    %% Explicit Black and White Styling
+    classDef default fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    classDef actorNode fill:#FFFFFF,stroke:none,color:#000000;
+    classDef usecaseNode fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+
+    class FS,BM,BO,SA actorNode;
+    class UC_TXN,UC_PAY,UC_DISC,UC_HIST,UC_REFUND,UC_RCPT,UC_LIVE,UC_ADJ,UC_PROD,UC_TRANS,UC_REQ_SUB,UC_REQ_APP,UC_BOM_MGT,UC_ING_ADD,UC_DASH,UC_PRESC_VIEW,UC_PRESC_DEC,UC_CHAT,UC_EXT_VAR,UC_ETL,UC_CSV,UC_USER,UC_AUDIT,UC_2FA usecaseNode;
+
+    style ACTORS fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    style POS_CASES fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    style SCM_CASES fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    style AI_CASES fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    style ADMIN_CASES fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+
+    %% Front Staff Associations
+    FS --> UC_TXN
+    FS --> UC_PAY
+    FS --> UC_DISC
+    FS --> UC_HIST
+    FS --> UC_REFUND
+    FS --> UC_RCPT
+    FS --> UC_2FA
+
+    %% Branch Manager Associations (Handles store operations, shift history, and all branch inventory management)
+    BM --> UC_HIST
+    BM --> UC_LIVE
+    BM --> UC_ADJ
+    BM --> UC_PROD
+    BM --> UC_TRANS
+    BM --> UC_REQ_SUB
+    BM --> UC_PRESC_VIEW
+    BM --> UC_2FA
+
+    %% Business Owner Associations (Executive oversight, restock approvals, BOM recipes, full analytics, chatbot)
+    BO --> UC_DASH
+    BO --> UC_LIVE
+    BO --> UC_REQ_APP
+    BO --> UC_PROD
+    BO --> UC_TRANS
+    BO --> UC_BOM_MGT
+    BO --> UC_ING_ADD
+    BO --> UC_PRESC_VIEW
+    BO --> UC_PRESC_DEC
+    BO --> UC_CHAT
+    BO --> UC_EXT_VAR
+    BO --> UC_ETL
+    BO --> UC_CSV
+    BO --> UC_2FA
+
+    %% System Administrator Associations (User management, audit trails, and system maintenance)
+    SA --> UC_USER
+    SA --> UC_AUDIT
+    SA --> UC_EXT_VAR
+    SA --> UC_ETL
+    SA --> UC_2FA

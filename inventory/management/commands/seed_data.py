@@ -100,7 +100,70 @@ class Command(BaseCommand):
             ing, _ = Ingredient.objects.get_or_create(ingredient_name=i_name, defaults={'measurement_unit': unit, 'cost_per_unit': cost})
             ingredients[i_name] = ing
 
-        # 5. Distribute Dynamic Inventory & Constraints
+        # 5. Bill of Materials (BOM) Recipes
+        recipes = {
+            "Chocolate Truffle Cake": [
+                ("All-Purpose Flour", 0.50, "kg"), ("Cocoa Powder", 0.20, "kg"),
+                ("Refined Sugar", 0.30, "kg"), ("Unsalted Butter", 0.20, "kg"),
+                ("Fresh Eggs", 0.20, "tray"), ("Chocolate Chips", 0.15, "kg")
+            ],
+            "Ube Chiffon Cake": [
+                ("All-Purpose Flour", 0.50, "kg"), ("Refined Sugar", 0.25, "kg"),
+                ("Unsalted Butter", 0.15, "kg"), ("Fresh Eggs", 0.25, "tray"),
+                ("Vanilla Extract", 0.02, "L")
+            ],
+            "Mango Bravo": [
+                ("All-Purpose Flour", 0.40, "kg"), ("Fresh Mangoes", 0.50, "kg"),
+                ("Cream Cheese", 0.30, "kg"), ("Refined Sugar", 0.30, "kg"),
+                ("Fresh Eggs", 0.20, "tray")
+            ],
+            "Red Velvet Cake": [
+                ("All-Purpose Flour", 0.50, "kg"), ("Cocoa Powder", 0.10, "kg"),
+                ("Cream Cheese", 0.35, "kg"), ("Refined Sugar", 0.30, "kg"),
+                ("Unsalted Butter", 0.20, "kg"), ("Fresh Eggs", 0.20, "tray")
+            ],
+            "Classic Ensaymada": [
+                ("All-Purpose Flour", 0.15, "kg"), ("Refined Sugar", 0.05, "kg"),
+                ("Unsalted Butter", 0.08, "kg"), ("Cream Cheese", 0.05, "kg"),
+                ("Fresh Eggs", 0.07, "tray")
+            ],
+            "Leche Flan": [
+                ("Fresh Eggs", 0.33, "tray"), ("Refined Sugar", 0.20, "kg"),
+                ("Vanilla Extract", 0.02, "L"), ("Caramel Syrup", 0.05, "L")
+            ],
+            "Cheese Crinkles": [
+                ("All-Purpose Flour", 0.20, "kg"), ("Refined Sugar", 0.10, "kg"),
+                ("Cream Cheese", 0.10, "kg"), ("Unsalted Butter", 0.05, "kg")
+            ],
+            "Fudge Brownies": [
+                ("All-Purpose Flour", 0.20, "kg"), ("Cocoa Powder", 0.15, "kg"),
+                ("Chocolate Chips", 0.15, "kg"), ("Refined Sugar", 0.20, "kg"),
+                ("Unsalted Butter", 0.15, "kg"), ("Fresh Eggs", 0.10, "tray")
+            ],
+            "Cafe Latte": [
+                ("Coffee Beans", 0.02, "kg"), ("Milk", 0.25, "L")
+            ],
+            "Iced Caramel Macchiato": [
+                ("Coffee Beans", 0.02, "kg"), ("Milk", 0.25, "L"),
+                ("Caramel Syrup", 0.03, "L"), ("Vanilla Extract", 0.01, "L")
+            ],
+            "Americano": [
+                ("Coffee Beans", 0.025, "kg")
+            ]
+        }
+
+        for p_name, ing_list in recipes.items():
+            prod = products.get(p_name)
+            if prod:
+                for ing_name, req_qty, req_unit in ing_list:
+                    ing_obj = ingredients.get(ing_name)
+                    if ing_obj:
+                        BillOfMaterial.objects.update_or_create(
+                            product=prod, ingredient=ing_obj,
+                            defaults={'quantity_required': req_qty, 'measurement_unit': req_unit}
+                        )
+
+        # 6. Distribute Dynamic Inventory & Constraints
         now = timezone.now()
         
         for branch_name, branch in branches.items():
@@ -134,10 +197,10 @@ class Command(BaseCommand):
                 qty = random.choice([0, 2, 8, 15])
                 ProductStock.objects.update_or_create(
                     branch=branch, product=prod,
-                    defaults={'quantity_available': qty, 'low_stock_threshold': 5, 'total_cost': 0, 'reorder_threshold': 5}
+                    defaults={'quantity_available': qty, 'total_cost': 0, 'reorder_threshold': 5}
                 )
 
-        # 6. Generate Mock POS Transactions for Charts
+        # 7. Generate Mock POS Transactions for Charts
         payment_methods = ['Cash', 'GCash', 'Maya', 'Split Payment']
         for branch in branches.values():
             staff = User.objects.filter(branch=branch, role='Staff').first()

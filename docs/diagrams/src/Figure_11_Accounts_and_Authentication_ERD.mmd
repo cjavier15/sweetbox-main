@@ -1,0 +1,41 @@
+erDiagram
+    BRANCHES ||--o{ USERS : employs
+    USERS ||--o{ OTP_RECORD : receives
+    USERS ||--o{ AUDIT_LOGS : performs
+
+    BRANCHES {
+        int branch_ID PK
+        string name
+        text address
+        bool main_hub
+    }
+
+    USERS {
+        int user_ID PK
+        int branch_ID FK
+        string name
+        string email UK
+        string password
+        string role
+        datetime create_date
+        bool is_active
+        bool is_staff
+    }
+
+    OTP_RECORD {
+        int otp_ID PK
+        int user_ID FK
+        string otp_code
+        bool is_used
+        datetime created_time
+        datetime expiration_time
+    }
+
+    AUDIT_LOGS {
+        int audit_ID PK
+        int user_ID FK
+        string action
+        string module
+        text details
+        datetime action_time
+    }

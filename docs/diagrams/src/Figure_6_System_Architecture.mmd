@@ -1,0 +1,57 @@
+flowchart TD
+    subgraph L1["1. PRESENTATION LAYER (Client Tier)"]
+        direction LR
+        UI_POS["<b>POS Cashier Terminal</b><br/>Product selection, Cart,<br/>Split tenders, Digital receipt"]
+        UI_ENT["<b>Enterprise Dashboard</b><br/>KPI scorecards, Timeframes,<br/>Chart.js, Prescriptions, Events"]
+        UI_SCM["<b>Inventory & SCM Hub</b><br/>Stock Tracker, Product Watch,<br/>BOM Config, Kitchen Production"]
+        UI_MOB["<b>Mobile Responsive Web</b><br/>Bootstrap offcanvas, dynamic cards,<br/>Touch-friendly modal interfaces"]
+    end
+
+    subgraph L2["2. SECURITY & API LAYER (Gateway Tier)"]
+        direction LR
+        SEC_TLS["<b>HTTPS / TLS Encryption</b><br/>Let's Encrypt certificates"]
+        SEC_JWT["<b>SimpleJWT Authentication</b><br/>7-Day Trusted Device Bypass"]
+        SEC_2FA["<b>Two-Factor Auth (2FA)</b><br/>SMTP Email OTP delivery"]
+        SEC_RBAC["<b>Role-Based Access Control</b><br/>Enforced via DRF Permissions"]
+        API_ROUT["<b>URL Routing & Dispatch</b><br/>`/api/pos/`, `/api/inventory/`, `/api/analytics/`"]
+    end
+
+    subgraph L3["3. CORE APPLICATION & LOGIC LAYER (Django Service Tier)"]
+        direction TB
+        subgraph MODS["Core Functional Modules"]
+            direction LR
+            M_POS["<b>POS Module:</b><br/>• TransactionCreateView<br/>• Finished goods deduction<br/>• TransactionRefundView"]
+            M_INV["<b>Inventory Module:</b><br/>• ProduceProductView (BOM)<br/>• ProductTransferView<br/>• RestockRequest Workflow<br/>• Manual Stock Adjustments"]
+            M_ANA["<b>Analytics & ETL Module:</b><br/>• EnterpriseDashboardDataView<br/>• RunETLPipelineView (KPIs)<br/>• Product Classification Matrix<br/>• ExportKPIReportView (CSV)"]
+        end
+        
+        subgraph AI_PIPELINE["AI & Prescriptive Pipeline"]
+            direction LR
+            P_EXTRACT["<b>Data Extraction & Prep:</b><br/>Pandas aggregation of 180-day sales & active ExternalVariables"]
+            P_GEMINI["<b>Google GenAI SDK:</b><br/>`google-genai` client invoking `gemini-2.5-flash`"]
+            P_BOUND["<b>Feasibility Bounding:</b><br/>Mathematical clamping against warehouse capacity & supplier MOQ"]
+            P_FALLBACK["<b>Deterministic Fallback:</b><br/>Rule-based replenishment on API/network outage"]
+        end
+        
+        MODS <--> AI_PIPELINE
+    end
+
+    subgraph L4["4. DATA STORAGE LAYER (Persistence Tier)"]
+        direction LR
+        subgraph ACTIVE_DB["Active Relational Database (MySQL 8.0)"]
+            T_AUTH["<b>Accounts:</b><br/>User • Branch • OTPRecord • AuditLog"]
+            T_POS["<b>POS:</b><br/>ProductCategory • Product • Transaction • TransactionItem • PaymentRecord"]
+            T_INV["<b>Inventory:</b><br/>Ingredient • IngredientStock • ProductStock • BillOfMaterial • StockAdjustment • RestockRequest • ProductTransfer • ConstraintParameter"]
+            T_ANA["<b>Analytics:</b><br/>PrescriptiveOutput • ChatbotLog • ProductClassification • ExternalVariable • KPIRecord"]
+        end
+        
+        subgraph COLD_DB["Cold Archive Storage"]
+            T_ARCH["<b>ArchiveStorage:</b><br/>Serialized JSON records of transactions & logs older than 180 days"]
+        end
+        
+        ACTIVE_DB -->|ETL Batch Archival| COLD_DB
+    end
+
+    L1 <-->|JSON / Axios Requests| L2
+    L2 <-->|Dispatched API Views| L3
+    L3 <-->|Django ORM / Strict SQL Mode| L4

@@ -5,35 +5,118 @@
 <script src="{% static 'js/html2pdf.bundle.min.js' %}"></script>
 
 <style>
-    .pos-theme { background-color: #795548; color: white; }
-    .item-card:hover { border-color: #795548; cursor: pointer; transform: translateY(-2px); transition: 0.2s; }
-    .qty-btn { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .pos-header {
+        background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);
+        color: #FAF7F2;
+        border: 1px solid rgba(212, 154, 61, 0.25);
+        border-radius: var(--sb-radius-lg);
+        box-shadow: var(--sb-shadow-sm);
+    }
+    .pos-theme {
+        background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);
+        color: var(--sb-gold-light);
+    }
+    .item-card {
+        border: 1.5px solid var(--sb-border-subtle);
+        border-radius: var(--sb-radius-lg);
+        background: #FFFFFF;
+        transition: var(--sb-transition);
+        cursor: pointer;
+    }
+    .item-card:hover {
+        border-color: var(--sb-gold);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(212, 154, 61, 0.18);
+    }
+    .qty-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-weight: 700;
+        font-size: 0.85rem;
+        border: 1px solid var(--sb-border-subtle);
+        background: #FFFFFF;
+        color: var(--sb-espresso);
+        transition: var(--sb-transition);
+    }
+    .qty-btn:hover {
+        background: var(--sb-gold-subtle);
+        border-color: var(--sb-gold);
+        color: var(--sb-espresso-dark);
+    }
+    .cart-item-row {
+        background: var(--sb-bg-app);
+        border: 1px solid var(--sb-border-subtle);
+        border-radius: var(--sb-radius-md);
+        padding: 10px 12px;
+        transition: var(--sb-transition);
+    }
+    .cart-item-row:hover {
+        background: #FFFFFF;
+        border-color: var(--sb-gold-light);
+    }
+    .pay-method-btn {
+        border: 1.5px solid var(--sb-border-subtle);
+        color: var(--sb-espresso);
+        background: #FFFFFF;
+        font-weight: 600;
+        border-radius: var(--sb-radius-md);
+        padding: 10px;
+        transition: var(--sb-transition);
+    }
+    .pay-method-btn:hover {
+        border-color: var(--sb-gold);
+        background: var(--sb-gold-subtle);
+        color: var(--sb-espresso-dark);
+    }
+    .pay-method-btn.active {
+        background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%) !important;
+        border-color: var(--sb-gold) !important;
+        color: var(--sb-gold-light) !important;
+        box-shadow: var(--sb-shadow-xs);
+    }
 </style>
 
 <!-- Top Navigation Bar -->
-<div class="pos-theme rounded p-3 mb-3 d-flex justify-content-between align-items-center shadow-sm">
-    <div>
-        <h4 class="mb-0 fw-bold">Sweet Box POS</h4>
-        <small id="branch-display">Loading Branch...</small>
+<div class="pos-header p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <span class="sb-brand-logo"><i class="fas fa-cookie-bite"></i></span>
+        <div>
+            <h4 class="mb-0 fw-bold text-white d-flex align-items-center gap-2">
+                Sweet Box POS
+                <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-size: 0.75rem;">Cashier Terminal</span>
+            </h4>
+            <small class="d-flex align-items-center gap-2" style="color: var(--sb-text-subtle);">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:#10B981;"></span>
+                <span id="branch-display">Loading Branch...</span>
+            </small>
+        </div>
     </div>
-    <div class="d-flex align-items-center gap-4">
-        <button class="btn btn-warning fw-bold" onclick="fetchHistory()" data-bs-toggle="modal" data-bs-target="#historyModal">
-            Transaction History
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <button class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" onclick="fetchHistory()" data-bs-toggle="modal" data-bs-target="#historyModal">
+            <i class="fas fa-clock-rotate-left"></i> Transaction History
         </button>
-        <div class="text-end">
-            <div class="fw-bold">Cashier: <span id="cashier-name">Loading...</span></div>
-            <div id="live-clock" class="text-light">00:00:00</div>
+        <div class="text-end ps-3 border-start" style="border-color: rgba(232,220,203,0.2) !important;">
+            <div class="fw-bold small text-white">Cashier: <span id="cashier-name" class="text-gold">Loading...</span></div>
+            <div id="live-clock" class="small tabular-nums text-white-50">00:00:00</div>
         </div>
     </div>
 </div>
 
-<div class="row">
+<div class="row g-3">
     <!-- Left Panel: Product Grid -->
     <div class="col-md-8">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body">
-                <input type="text" class="form-control mb-3" placeholder="Search menu..." id="search-input" onkeyup="filterProducts()">
-                <div class="row g-3 overflow-auto" id="product-catalog-container" style="max-height: 65vh;">
+        <div class="card sb-card border-0 h-100 shadow-sm">
+            <div class="card-body p-3">
+                <div class="input-group mb-3">
+                    <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0" placeholder="Search menu items..." id="search-input" onkeyup="filterProducts()">
+                </div>
+                <div class="row g-3 overflow-auto" id="product-catalog-container" style="max-height: 65vh; padding-right: 4px;">
                     <!-- Products dynamically injected here -->
                 </div>
             </div>
@@ -42,43 +125,47 @@
 
     <!-- Right Panel: Cart & Billing -->
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 h-100 d-flex flex-column">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                <h5 class="mb-0 fw-bold">Current Order</h5>
-                <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">Clear All</button>
+        <div class="card sb-card border-0 h-100 shadow-sm d-flex flex-column">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom" style="border-color: var(--sb-border-subtle) !important;">
+                <h5 class="mb-0 fw-bold text-title d-flex align-items-center gap-2">
+                    <i class="fas fa-cart-shopping text-gold"></i> Current Order
+                </h5>
+                <button class="btn btn-sm btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash-can me-1"></i>Clear All</button>
             </div>
             
             <!-- Cart Items -->
-            <div class="card-body overflow-auto flex-grow-1 p-2" id="cart-list">
+            <div class="card-body overflow-auto flex-grow-1 p-3" id="cart-list" style="max-height: 38vh;">
                 <p class="text-muted text-center mt-4">Cart is empty</p>
             </div>
 
             <!-- Billing Section -->
-            <div class="card-footer bg-white border-top">
-                <div class="mb-2">
-                    <label class="form-label text-muted small mb-1">Discount</label>
+            <div class="card-footer bg-white border-top p-3" style="border-color: var(--sb-border-subtle) !important;">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold mb-1">Discount Apply</label>
                     <select class="form-select form-select-sm" id="discount-selector" onchange="updateCartUI()">
-                        <option value="none">Standard Pricing</option>
-                        <option value="pwd">Senior / PWD (20%)</option>
+                        <option value="none">Standard Pricing (No Discount)</option>
+                        <option value="pwd">Senior Citizen / PWD (20%)</option>
                     </select>
                 </div>
                 <div class="d-flex justify-content-between small mb-1 text-muted">
                     <span>Subtotal</span>
-                    <span id="bill-subtotal">₱0.00</span>
+                    <span id="bill-subtotal" class="tabular-nums fw-bold">₱0.00</span>
                 </div>
                 <div class="d-flex justify-content-between small mb-1 text-danger d-none" id="discount-row">
                     <span>Discount (20%)</span>
-                    <span id="bill-discount">-₱0.00</span>
+                    <span id="bill-discount" class="tabular-nums fw-bold">-₱0.00</span>
                 </div>
-                <div class="d-flex justify-content-between small mb-2 text-muted">
+                <div class="d-flex justify-content-between small mb-3 text-muted">
                     <span>VAT (12% Inclusive)</span>
-                    <span id="bill-vat">₱0.00</span>
+                    <span id="bill-vat" class="tabular-nums">₱0.00</span>
                 </div>
-                <button class="btn pos-theme w-100 fw-bold fs-5 py-2 mb-2 d-flex justify-content-between" data-bs-toggle="modal" data-bs-target="#paymentModal">
-                    <span>TOTAL</span>
-                    <span id="bill-total">₱0.00</span>
+                <div class="p-3 mb-3 rounded d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1.5px solid var(--sb-gold);">
+                    <span class="fw-bold small tracking-wider" style="color: var(--sb-gold-light); text-transform: uppercase;">Total Due</span>
+                    <span id="bill-total" class="fs-4 fw-bold tabular-nums text-white">₱0.00</span>
+                </div>
+                <button class="btn btn-sb-gold w-100 fw-bold py-2 shadow d-flex align-items-center justify-content-center gap-2 fs-6" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                    <i class="fas fa-credit-card"></i> Proceed to Payment
                 </button>
-                <button class="btn btn-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#paymentModal">Proceed to Payment</button>
             </div>
         </div>
     </div>
@@ -87,45 +174,49 @@
 <!-- 1. Payment Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold text-dark">Process Payment</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-cash-register text-gold"></i> Process Payment
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center">
-                <div class="pos-theme text-white rounded py-3 mb-4">
-                    <small>Amount Due</small>
-                    <h2 class="fw-bold mb-0" id="payment-amount-due">₱0.00</h2>
+            <div class="modal-body text-center p-4" style="background-color: var(--sb-bg-app);">
+                <div class="rounded py-3 mb-4" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1.5px solid var(--sb-gold);">
+                    <small class="text-uppercase tracking-wider" style="color: var(--sb-gold-light); font-weight: 600;">Amount Due</small>
+                    <h2 class="fw-bold mb-0 tabular-nums text-white" id="payment-amount-due">₱0.00</h2>
                 </div>
                 
-                <h6 class="text-start text-muted mb-3">Payment Method</h6>
+                <h6 class="text-start text-title fw-bold mb-2">Select Payment Method</h6>
                 <div class="row g-2 mb-3">
-                    <div class="col-6"><button class="btn btn-outline-success w-100 pay-method-btn" onclick="selectPayment('Cash')">Cash</button></div>
-                    <div class="col-6"><button class="btn btn-outline-primary w-100 pay-method-btn" onclick="selectPayment('E-Wallet')">E-Wallet</button></div>
-                    <div class="col-12"><button class="btn btn-outline-warning w-100 pay-method-btn" onclick="selectPayment('Split Payment')">Split Payment</button></div>
+                    <div class="col-4"><button class="btn pay-method-btn w-100 active" onclick="selectPayment('Cash')"><i class="fas fa-money-bill-wave d-block mb-1"></i> Cash</button></div>
+                    <div class="col-4"><button class="btn pay-method-btn w-100" onclick="selectPayment('E-Wallet')"><i class="fas fa-mobile-screen-button d-block mb-1"></i> E-Wallet</button></div>
+                    <div class="col-4"><button class="btn pay-method-btn w-100" onclick="selectPayment('Split Payment')"><i class="fas fa-arrows-split-up-and-left d-block mb-1"></i> Split</button></div>
                 </div>
 
                 <!-- Cash Tendered Section -->
-                <div id="cash-payment-section" class="d-none text-start mb-3">
-                    <label class="form-label text-muted small">Amount Tendered (₱)</label>
+                <div id="cash-payment-section" class="text-start mb-3 p-3 bg-white rounded border">
+                    <label class="form-label text-title fw-bold small">Amount Tendered (₱)</label>
                     <input type="number" id="cash-tendered" class="form-control" placeholder="Enter cash received" oninput="calculateChange()">
-                    <div class="mt-2 small text-success fw-bold" id="cash-change-display">Change: ₱0.00</div>
+                    <div class="mt-2 small text-success fw-bold tabular-nums" id="cash-change-display">Change: ₱0.00</div>
                 </div>
 
                 <!-- E-Wallet Section -->
-                <div id="ewallet-payment-section" class="d-none text-start mb-3">
-                    <label class="form-label text-muted small">Reference Number (GCash / Maya)</label>
-                    <input type="text" id="ewallet-reference" class="form-control" placeholder="Enter reference number">
+                <div id="ewallet-payment-section" class="d-none text-start mb-3 p-3 bg-white rounded border">
+                    <label class="form-label text-title fw-bold small">Reference Number (GCash / Maya)</label>
+                    <input type="text" id="ewallet-reference" class="form-control" placeholder="Enter transaction reference #">
                 </div>
 
                 <!-- Split Payment Section -->
-                <div id="split-payment-section" class="d-none text-start mb-3">
-                    <label class="form-label text-muted small">Cash Portion (₱)</label>
+                <div id="split-payment-section" class="d-none text-start mb-3 p-3 bg-white rounded border">
+                    <label class="form-label text-title fw-bold small">Cash Portion (₱)</label>
                     <input type="number" id="cash-portion" class="form-control" placeholder="Enter cash amount" oninput="calculateSplit()">
-                    <div class="mt-2 small text-primary fw-bold" id="ewallet-portion-display">E-Wallet Portion: ₱0.00</div>
+                    <div class="mt-2 small text-primary fw-bold tabular-nums" id="ewallet-portion-display">E-Wallet Portion: ₱0.00</div>
                 </div>
 
-                <button class="btn pos-theme w-100 fw-bold py-2 mt-2" onclick="processCheckout()">Confirm Payment</button>
+                <button class="btn btn-sb-gold w-100 fw-bold py-2 mt-2 shadow d-flex align-items-center justify-content-center gap-2 fs-6" onclick="processCheckout()">
+                    <i class="fas fa-check-circle"></i> Confirm Payment
+                </button>
             </div>
         </div>
     </div>
@@ -134,35 +225,42 @@
 <!-- 2. Digital Receipt Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold">Payment Successful</h5>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-receipt text-gold"></i> Payment Successful
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body bg-light">
+            <div class="modal-body p-4" style="background-color: var(--sb-bg-app);">
                 <div id="receipt-container" class="bg-white p-4 rounded shadow-sm border">
                     <div class="text-center mb-3">
-                        <h4 class="fw-bold pos-theme text-white py-2 rounded">Sweet Box</h4>
+                        <div class="d-inline-flex align-items-center justify-content-center p-2 rounded mb-2" style="background: var(--sb-espresso); color: var(--sb-gold); width: 44px; height: 44px;">
+                            <i class="fas fa-cookie-bite fs-4"></i>
+                        </div>
+                        <h4 class="fw-bold mb-0 text-title">Sweet Box</h4>
                         <small class="text-muted" id="receipt-date"></small>
                     </div>
                     <div class="d-flex justify-content-between mb-3 pb-2 border-bottom small">
-                        <div><span class="text-muted">TXN ID:</span><br><strong id="receipt-txn"></strong></div>
+                        <div><span class="text-muted">TXN ID:</span><br><strong id="receipt-txn" class="tabular-nums"></strong></div>
                         <div class="text-end"><span class="text-muted">Cashier:</span><br><strong id="receipt-cashier"></strong></div>
                     </div>
                     <div id="receipt-items" class="mb-3 border-bottom pb-2"></div>
-                    <div class="d-flex justify-content-between small mb-1"><span class="text-muted">Subtotal</span><strong id="receipt-subtotal"></strong></div>
-                    <div class="d-flex justify-content-between small mb-1 text-danger"><span class="text-muted">Discount</span><strong id="receipt-discount"></strong></div>
-                    <div class="d-flex justify-content-between small mb-2"><span class="text-muted">VAT (12%)</span><strong id="receipt-vat"></strong></div>
-                    <div class="d-flex justify-content-between fs-5 fw-bold mt-2 pt-2 border-top">
-                        <span>TOTAL</span><span id="receipt-total"></span>
+                    <div class="d-flex justify-content-between small mb-1"><span class="text-muted">Subtotal</span><strong id="receipt-subtotal" class="tabular-nums"></strong></div>
+                    <div class="d-flex justify-content-between small mb-1 text-danger"><span class="text-muted">Discount</span><strong id="receipt-discount" class="tabular-nums"></strong></div>
+                    <div class="d-flex justify-content-between small mb-2"><span class="text-muted">VAT (12%)</span><strong id="receipt-vat" class="tabular-nums"></strong></div>
+                    <div class="d-flex justify-content-between fs-5 fw-bold mt-2 pt-2 border-top text-title">
+                        <span>TOTAL</span><span id="receipt-total" class="tabular-nums"></span>
                     </div>
                     <div class="text-center mt-3 small text-muted" id="receipt-payment-method"></div>
                 </div>
                 <div class="d-flex gap-2 mt-3">
-                    <button class="btn btn-outline-dark w-100" onclick="printReceipt()">Print</button>
-                    <button class="btn btn-outline-danger w-100" onclick="downloadPDF()">Save PDF</button>
+                    <button class="btn btn-outline-dark w-100 fw-bold" onclick="printReceipt()"><i class="fas fa-print me-1"></i> Print</button>
+                    <button class="btn btn-sb-outline-gold w-100 fw-bold" onclick="downloadPDF()"><i class="fas fa-file-pdf me-1"></i> Save PDF</button>
                 </div>
-                <button class="btn pos-theme w-100 mt-2 fw-bold" data-bs-dismiss="modal" onclick="clearCart()">New Order</button>
+                <button class="btn btn-sb-gold w-100 mt-2 fw-bold py-2" data-bs-dismiss="modal" onclick="clearCart()">
+                    <i class="fas fa-plus-circle me-1"></i> New Order
+                </button>
             </div>
         </div>
     </div>
@@ -171,9 +269,11 @@
 <!-- 3. Transaction History Modal -->
 <div class="modal fade" id="historyModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header pos-theme text-white">
-                <h5 class="modal-title fw-bold">Transaction History</h5>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-clock-rotate-left text-gold"></i> Transaction History
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
@@ -190,7 +290,7 @@
                         </tr>
                     </thead>
                     <tbody id="history-table-body">
-                        <tr><td colspan="7" class="text-center text-muted">Loading transactions...</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">Loading transactions...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -250,15 +350,22 @@
                     ? "alert('Item out of stock!')" 
                     : `addToCart(${p.product_ID}, '${safeName}', ${parseFloat(p.price)}, ${stock})`;
                 
+                const badgeClass = isOutOfStock ? 'badge-critical' : 'badge-instock';
+                const stockText = isOutOfStock ? 'Out of Stock' : `${stock} in stock`;
+
                 return `
                 <div class="col-md-4 product-card" data-name="${p.product_name.toLowerCase()}">
-                    <div class="card h-100 shadow-sm item-card border-1 ${isOutOfStock ? 'opacity-50' : ''}" 
+                    <div class="card h-100 item-card ${isOutOfStock ? 'opacity-50' : ''}" 
                          onclick="${clickAction}">
-                        <div class="card-body text-center p-3">
-                            <span class="badge bg-warning text-dark mb-2">${p.category_name}</span>
-                            <h6 class="card-title fw-bold mb-1">${p.product_name}</h6>
-                            <p class="card-text text-danger fw-bold mb-1">₱${parseFloat(p.price).toFixed(2)}</p>
-                            <small class="${isOutOfStock ? 'text-danger fw-bold' : 'text-success'}">Stock: ${stock}</small>
+                        <div class="card-body text-center p-3 d-flex flex-column justify-content-between">
+                            <div>
+                                <span class="badge mb-2" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">${p.category_name}</span>
+                                <h6 class="card-title fw-bold text-title mb-1">${p.product_name}</h6>
+                            </div>
+                            <div class="mt-2">
+                                <p class="card-text fw-bold mb-1 tabular-nums fs-5" style="color: var(--sb-espresso);">₱${parseFloat(p.price).toFixed(2)}</p>
+                                <span class="badge ${badgeClass}">${stockText}</span>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -315,17 +422,17 @@
             const itemTotal = item.price * item.quantity;
             subtotal += itemTotal;
             list.innerHTML += `
-                <div class="d-flex justify-content-between align-items-center bg-light p-2 mb-2 rounded border">
-                    <div style="flex: 1;">
-                        <div class="fw-bold text-dark lh-sm">${item.name}</div>
-                        <small class="text-muted">₱${item.price.toFixed(2)} each</small>
+                <div class="cart-item-row d-flex justify-content-between align-items-center mb-2">
+                    <div style="flex: 1; min-width: 0;" class="pe-2">
+                        <div class="fw-bold text-title lh-sm text-truncate">${item.name}</div>
+                        <small class="text-muted tabular-nums">₱${item.price.toFixed(2)} each</small>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-outline-secondary qty-btn" onclick="updateQty(${item.product_id}, -1)">-</button>
-                        <span class="fw-bold">${item.quantity}</span>
-                        <button class="btn btn-outline-secondary qty-btn" onclick="updateQty(${item.product_id}, 1)">+</button>
+                        <button class="qty-btn" onclick="updateQty(${item.product_id}, -1)">-</button>
+                        <span class="fw-bold tabular-nums px-1">${item.quantity}</span>
+                        <button class="qty-btn" onclick="updateQty(${item.product_id}, 1)">+</button>
                     </div>
-                    <div class="fw-bold text-danger text-end ms-3" style="width: 70px;">₱${itemTotal.toFixed(2)}</div>
+                    <div class="fw-bold tabular-nums text-end ps-2" style="width: 75px; color: var(--sb-espresso);">₱${itemTotal.toFixed(2)}</div>
                 </div>`;
         });
 
@@ -515,20 +622,20 @@
             
             tbody.innerHTML = data.map(t => {
                 const isCompleted = t.transaction_status === 'Completed';
-                const badgeClass = isCompleted ? 'bg-success' : 'bg-danger';
+                const badgeClass = isCompleted ? 'badge-instock' : 'badge-critical';
                 const actionBtn = isCompleted 
-                    ? `<button class="btn btn-sm btn-outline-danger" onclick="processRefund(${t.transaction_ID})">Refund</button>`
-                    : `<span class="text-muted small">Refunded</span>`;
+                    ? `<button class="btn btn-sm btn-outline-danger fw-bold" onclick="processRefund(${t.transaction_ID})"><i class="fas fa-undo me-1"></i>Refund</button>`
+                    : `<span class="badge bg-light text-muted border">Refunded</span>`;
 
                 return `
                 <tr>
-                    <td class="fw-bold text-muted">TXN-${t.transaction_ID}</td>
+                    <td class="fw-bold text-muted tabular-nums">TXN-${t.transaction_ID}</td>
                     <td>Branch ID: ${t.branch}</td>
-                    <td class="fw-bold">₱${parseFloat(t.total_amount).toFixed(2)}</td>
-                    <td class="text-danger">${parseFloat(t.discount_amount) > 0 ? `-₱${t.discount_amount}` : '-'}</td>
-                    <td><span class="badge bg-secondary">${t.payment_method || 'Logged'}</span></td>
-                    <td class="small text-muted">${new Date(t.transaction_date).toLocaleString()}</td>
-                    <td><span class="badge ${badgeClass}">${t.transaction_status}</span></td>
+                    <td class="fw-bold tabular-nums" style="color: var(--sb-espresso);">₱${parseFloat(t.total_amount).toFixed(2)}</td>
+                    <td class="text-danger tabular-nums">${parseFloat(t.discount_amount) > 0 ? `-₱${parseFloat(t.discount_amount).toFixed(2)}` : '-'}</td>
+                    <td><span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);">${t.payment_method || 'Logged'}</span></td>
+                    <td class="small text-muted tabular-nums">${new Date(t.transaction_date).toLocaleString()}</td>
+                    <td><span class="status-badge ${badgeClass}">${t.transaction_status}</span></td>
                     <td>${actionBtn}</td>
                 </tr>`;
             }).join('');

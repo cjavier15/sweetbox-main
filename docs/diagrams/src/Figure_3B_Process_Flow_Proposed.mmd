@@ -1,0 +1,29 @@
+flowchart TD
+    START([Start of Operational Day]) --> ETL_CHECK[System Checks Real-Time Inventory & Constraints]
+    ETL_CHECK --> AI_PROD[Gemini AI Generates Feasible Production Targets]
+    AI_PROD --> MGR_APP{Branch Manager Approves?}
+    MGR_APP -- Override --> MGR_EDIT[Manager Overrides Target & Logs Reason]
+    MGR_APP -- Approve --> PROD_EXEC[Execute Kitchen Production via System]
+    MGR_EDIT --> PROD_EXEC
+    
+    PROD_EXEC --> BOM_DEDUCT["<b>Phase 1: Automated BOM Deduction</b><br/>(Deducts Raw Ingredients from Kitchen/Hub Stock)"]
+    BOM_DEDUCT --> PROD_INC["Increment Available Finished ProductStock"]
+    
+    PROD_INC --> DISPATCH_CHECK{Transfer Finished Goods to Satellites?}
+    DISPATCH_CHECK -- Yes --> TRANS_EXEC["Execute Inter-Branch Product Transfer<br/>(select_for_update concurrency lock)"]
+    DISPATCH_CHECK -- No --> READY_SALE[Ready for Point-of-Sale Service]
+    TRANS_EXEC --> READY_SALE
+    
+    READY_SALE --> POS_TXN["Front Staff Processes Sale at Cashier Terminal"]
+    POS_TXN --> FG_DEDUCT["<b>Phase 2: Finished Goods Deduction</b><br/>(Deducts directly from Branch ProductStock)"]
+    FG_DEDUCT --> RECORD_TXN["Save Transaction, Items, & Tender to MySQL"]
+    
+    RECORD_TXN --> THRESHOLD{Stock Quantity <= Reorder Threshold?}
+    THRESHOLD -- Yes --> AI_RESTOCK["Trigger Gemini AI Prescriptive Restock Directive<br/>(Feasibility-Bounded via Storage & MOQ Limits)"]
+    THRESHOLD -- No --> CONTINUOUS[Continuous Operation / Live Dashboard Update]
+    AI_RESTOCK --> OWNER_REV{Business Owner Approves Restock?}
+    OWNER_REV -- Yes --> AUTO_TRANSFER[Execute Inter-Branch Restock Transfer]
+    OWNER_REV -- Reject --> LOG_OVERRIDE[Log Override Reason to Database]
+    AUTO_TRANSFER --> CONTINUOUS
+    LOG_OVERRIDE --> CONTINUOUS
+    CONTINUOUS --> EOD([End of Day Automated Batch ETL & Archiving])

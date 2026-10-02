@@ -1,25 +1,50 @@
 {% extends 'base.html' %}
 {% block content %}
 <style>
-    .nav-tabs .nav-link { color: #795548; font-weight: 500; border: none; padding: 10px 20px; }
-    .nav-tabs .nav-link.active { background-color: #795548; color: white; border-radius: 20px; }
-    .status-badge { padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
-    .status-instock { background-color: #d4edda; color: #155724; }
-    .status-low { background-color: #fff3cd; color: #856404; }
-    .status-critical { background-color: #f8d7da; color: #721c24; }
-    .status-expiring { background-color: #ffeeba; color: #fd7e14; }
-    .action-card { border-left: 4px solid; }
-    .border-critical { border-color: #dc3545 !important; }
-    .border-high { border-color: #fd7e14 !important; }
+    .scm-tabs .nav-link {
+        color: var(--sb-text-muted);
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 1px solid transparent;
+        border-radius: var(--sb-radius-md);
+        padding: 8px 18px;
+        transition: var(--sb-transition);
+        background: transparent;
+    }
+    .scm-tabs .nav-link:hover {
+        color: var(--sb-espresso);
+        background: var(--sb-gold-subtle);
+    }
+    .scm-tabs .nav-link.active {
+        background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%) !important;
+        color: var(--sb-gold-light) !important;
+        box-shadow: var(--sb-shadow-xs);
+    }
+    .action-card {
+        border-left: 4px solid;
+        border-radius: var(--sb-radius-md);
+        background: var(--sb-bg-surface);
+        transition: var(--sb-transition);
+    }
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--sb-shadow-md);
+    }
+    .border-critical { border-color: var(--sb-danger) !important; }
+    .border-high { border-color: var(--sb-warning) !important; }
+    .border-success { border-color: var(--sb-success) !important; }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
-        <h3 class="fw-bold mb-0 text-dark">Inventory Monitor & SCM</h3>
-        <small class="text-muted">Centralized Inventory Management</small>
+        <h3 class="fw-bold mb-1 text-title d-flex align-items-center gap-2">
+            <span class="sb-brand-logo" style="width:32px;height:32px;font-size:0.9rem;"><i class="fas fa-boxes-stacked"></i></span>
+            Inventory Monitor & SCM
+        </h3>
+        <small class="text-muted">Real-time multi-branch stock levels, recipe BOM & prescriptive AI</small>
     </div>
-    <div class="d-flex gap-2">
-        <select id="branch-filter" class="form-select bg-light d-none" onchange="loadSCMData()">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <select id="branch-filter" class="form-select bg-white d-none shadow-sm" style="min-width: 190px;" onchange="loadSCMData()">
             <option value="all">All Branches</option>
             <option value="1">Ibaan (Main Hub)</option>
             <option value="2">Padre Garcia</option>
@@ -29,33 +54,90 @@
             <option value="6">San Antonio Quezon</option>
             <option value="7">Cuenca</option>
         </select>
-        <button class="btn btn-warning fw-bold px-4 text-dark" onclick="loadSCMData()">Refresh Data</button>
+        <button class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
+            <i class="fas fa-plus"></i> Add Ingredient
+        </button>
+        <button class="btn btn-sb-espresso fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" onclick="loadSCMData()">
+            <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
     </div>
 </div>
 
 <!-- Tabs Navigation -->
-<ul class="nav nav-tabs mb-4 border-0" id="scmTabs" role="tablist">
-    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tracker">Stock Tracker</button></li>
-    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#product-watch">Product Watch</button></li>
-    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bom">Bill-of-Materials</button></li>
-    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#prescriptive">Prescriptive Actions</button></li>
+<ul class="nav scm-tabs gap-2 mb-4" id="scmTabs" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tracker"><i class="fas fa-layer-group me-2 text-gold"></i>Stock Tracker</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#product-watch"><i class="fas fa-eye me-2 text-gold"></i>Product Watch</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bom"><i class="fas fa-receipt me-2 text-gold"></i>Bill-of-Materials</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#prescriptive"><i class="fas fa-brain me-2 text-gold"></i>Prescriptive Actions</button></li>
 </ul>
 
 <div class="tab-content" id="scmTabContent">
     <!-- TAB 1: Stock Tracker -->
     <div class="tab-pane fade show active" id="tracker">
         <!-- KPIs -->
-        <div class="row mb-4" id="kpi-container">
-            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-success"><i class="fas fa-check-circle"></i> In Stock</h6><h3 class="fw-bold mb-0" id="kpi-in">0</h3><small class="text-muted">items tracked</small></div></div></div>
-            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-warning"><i class="fas fa-exclamation-triangle"></i> Low Stock</h6><h3 class="fw-bold mb-0" id="kpi-low">0</h3><small class="text-muted">items tracked</small></div></div></div>
-            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-danger"><i class="fas fa-times-circle"></i> Critical</h6><h3 class="fw-bold mb-0" id="kpi-crit">0</h3><small class="text-muted">items tracked</small></div></div></div>
-            <div class="col-md-3"><div class="card shadow-sm border-0"><div class="card-body"><h6 class="text-orange" style="color: #fd7e14;"><i class="fas fa-clock"></i> Expiring Soon</h6><h3 class="fw-bold mb-0" id="kpi-exp">0</h3><small class="text-muted">items tracked</small></div></div></div>
+        <div class="row g-3 mb-4" id="kpi-container">
+            <div class="col-md-3">
+                <div class="card sb-card sb-kpi-card border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">In Stock</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="kpi-in" style="color: var(--sb-success);">0</h2>
+                        <span class="text-muted small">optimal level</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card sb-card sb-kpi-card border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Low Stock</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="kpi-low" style="color: var(--sb-warning);">0</h2>
+                        <span class="text-muted small">near reorder threshold</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card sb-card sb-kpi-card border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Critical Stock</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="kpi-crit" style="color: var(--sb-danger);">0</h2>
+                        <span class="text-muted small">urgent restocking required</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card sb-card sb-kpi-card border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Expiring Soon</span>
+                            <div class="kpi-icon-container" style="background-color: #FFEDD5; color: #EA580C;">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="kpi-exp" style="color: #EA580C;">0</h2>
+                        <span class="text-muted small">needs immediate rotation</span>
+                    </div>
+                </div>
+            </div>
         </div>
         
-        <div class="card shadow-sm border-0">
+        <div class="card sb-card border-0 shadow-sm overflow-hidden">
             <div class="card-body p-0 table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-muted small">
+                    <thead>
                         <tr>
                             <th>Item Name</th>
                             <th>Category</th>
@@ -65,12 +147,12 @@
                             <th>Branch</th>
                             <th>Expiry Date</th>
                             <th>Status</th>
+                            <th class="text-end pe-4">Action</th>
                         </tr>
                     </thead>
                     <tbody id="inventory-tbody">
                         <tr>
-                            <td colspan="9" class="text-center py-4">Loading stock data...</td>
-                            <th class="text-end pe-4">Action</th>
+                            <td colspan="9" class="text-center py-4 text-muted">Loading stock data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -79,30 +161,37 @@
     </div>
     <!-- TAB 1.5: Product Watch -->
     <div class="tab-pane fade" id="product-watch">
-        <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+        <div class="card sb-card border-0 mb-4 overflow-hidden" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1px solid rgba(212,154,61,0.25);">
             <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h5 class="fw-bold mb-1"><i class="fas fa-eye text-warning me-2"></i> Pre-made Product Watch</h5>
-                    <small class="text-light">Monitor live display stock across branches</small>
+                    <h5 class="fw-bold mb-1 d-flex align-items-center gap-2 text-white">
+                        <i class="fas fa-eye text-gold"></i> Pre-made Product Watch
+                    </h5>
+                    <small style="color: var(--sb-text-subtle);">Monitor live finished goods inventory across display chillers & counters</small>
                 </div>
-                <button class="btn btn-warning px-4 py-2 fw-bold text-dark fs-6 text-nowrap" data-bs-toggle="modal" data-bs-target="#produceModal">
-                    <i class="fas fa-hammer me-2"></i> Produce Items
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <button id="btn-transfer-product" class="btn btn-sb-gold px-3 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" onclick="openTransferModal()">
+                        <i class="fas fa-truck-fast"></i> Transfer Product
+                    </button>
+                    <button class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#produceModal">
+                        <i class="fas fa-kitchen-set"></i> Produce Items
+                    </button>
+                </div>
             </div>
         </div>
-        <div class="card shadow-sm border-0">
+        <div class="card sb-card border-0 shadow-sm overflow-hidden">
             <div class="card-body p-0 table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-muted small">
+                    <thead>
                         <tr>
                             <th>Product Name</th><th>Category</th><th>Selling Price</th>
                             <th>Display Stock</th><th>Threshold</th><th>Branch</th><th>Status</th>
+                            <th class="text-end pe-4">Action</th>
                         </tr>
                     </thead>
                     <tbody id="product-watch-tbody">
                         <tr>
-                            <td colspan="7" class="text-center py-4">Loading product watch data...</td>
-                            <th class="text-end pe-4">Action</th>
+                            <td colspan="8" class="text-center py-4 text-muted">Loading product watch data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -112,14 +201,16 @@
 
     <!-- TAB 2: Bill of Materials -->
     <div class="tab-pane fade" id="bom">
-        <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
-            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+        <div class="card sb-card border-0 mb-4 overflow-hidden" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1px solid rgba(212,154,61,0.25);">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h5 class="fw-bold mb-1"><i class="fas fa-cube text-warning me-2"></i> Bill-of-Materials Configuration</h5>
-                    <small class="text-light">Configure automatic ingredient deduction for each menu item</small>
+                    <h5 class="fw-bold mb-1 d-flex align-items-center gap-2 text-white">
+                        <i class="fas fa-receipt text-gold"></i> Bill-of-Materials Configuration
+                    </h5>
+                    <small style="color: var(--sb-text-subtle);">Configure automated multi-ingredient deductions whenever a menu item is sold or produced</small>
                 </div>
-                <button class="btn btn-warning px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addBomModal">
-                    <i class="fas fa-plus me-2"></i> Add Product
+                <button class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#addBomModal">
+                    <i class="fas fa-plus"></i> Add Product
                 </button>
             </div>
         </div>
@@ -129,27 +220,138 @@
     <!-- TAB 3: Prescriptive Actions -->
     <div class="tab-pane fade" id="prescriptive">
         <!-- Prescriptive KPIs -->
-        <div class="row mb-4">
-            <div class="col-md-4"><div class="card bg-danger text-white border-0 shadow-sm text-center py-3"><h2 class="fw-bold mb-0" id="kpi-pa-crit">0</h2><small>Critical Actions</small></div></div>
-            <div class="col-md-4"><div class="card bg-warning text-dark border-0 shadow-sm text-center py-3"><h2 class="fw-bold mb-0" id="kpi-pa-high">0</h2><small>High Priority</small></div></div>
-            <div class="col-md-4"><div class="card bg-success text-white border-0 shadow-sm text-center py-3"><h2 class="fw-bold mb-0" id="kpi-pa-loss">₱0</h2><small>Est. Loss Prevented If Action is Taken</small></div></div>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card sb-card sb-kpi-card border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Critical Actions</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
+                                <i class="fas fa-radiation"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="kpi-pa-crit" style="color: var(--sb-danger);">0</h2>
+                        <span class="text-muted small">immediate intervention</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card sb-card sb-kpi-card border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">High Priority Actions</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
+                                <i class="fas fa-triangle-exclamation"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="kpi-pa-high" style="color: var(--sb-warning);">0</h2>
+                        <span class="text-muted small">action recommended today</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card sb-card sb-kpi-card border-0">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Est. Loss Prevented</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
+                                <i class="fas fa-shield-heart"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="kpi-pa-loss" style="color: var(--sb-success);">₱0</h2>
+                        <span class="text-muted small">if prescriptive actions are executed</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- AI Recommendations Grid -->
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="fw-bold text-muted mb-0">Recommended Actions</h6>
-            <button class="btn btn-sm btn-warning fw-bold text-dark shadow-sm" id="btn-run-ai" onclick="generatePrescriptions()">
-                <i class="fas fa-magic me-2"></i>Run AI Analysis
+            <h6 class="fw-bold text-title mb-0 d-flex align-items-center gap-2">
+                <i class="fas fa-wand-magic-sparkles text-gold"></i> AI Prescriptive Recommendations
+            </h6>
+            <button class="btn btn-sm btn-sb-gold fw-bold shadow-sm d-inline-flex align-items-center gap-2" id="btn-run-ai" onclick="generatePrescriptions()">
+                <i class="fas fa-magic"></i> Run AI Analysis
             </button>
         </div>
         <div class="row g-3 mb-5" id="prescriptive-actions-container">
         </div>
 
         <!-- Restock Queue -->
-        <h6 class="fw-bold mb-3 text-warning"><i class="fas fa-exclamation-triangle"></i> Restock Action Queue</h6>
-        <div class="card shadow-sm border-0">
-            <div
-            class="card-body p-0" id="restock-queue-container">
+        <h6 class="fw-bold mb-3 text-title d-flex align-items-center gap-2">
+            <i class="fas fa-truck-ramp-box text-gold"></i> Restock Action Queue
+        </h6>
+        <div class="card sb-card border-0 shadow-sm overflow-hidden mb-4">
+            <div class="card-body p-0" id="restock-queue-container">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Ingredient Modal -->
+<div class="modal fade" id="addIngredientModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-seedling text-gold"></i> Add New Ingredient
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="background-color: var(--sb-bg-app);">
+                    <div class="row g-2 mb-3">
+                        <div class="col-7">
+                            <label class="form-label fw-bold text-title small">Ingredient Name</label>
+                            <input type="text" id="ing-new-name" class="form-control" placeholder="e.g., Matcha Powder" required>
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label fw-bold text-title small">Category</label>
+                            <select id="ing-new-category" class="form-select" required>
+                                <option value="Coffee">Coffee & Drinks</option>
+                                <option value="Cakes">Cakes</option>
+                                <option value="Pastries">Pastries</option>
+                                <option value="General">General Supplies</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small">Unit of Measure</label>
+                            <select id="ing-new-unit" class="form-select" required>
+                                <optgroup label="Weight">
+                                    <option value="kg" selected>kg</option>
+                                    <option value="g">g</option>
+                                </optgroup>
+                                <optgroup label="Volume">
+                                    <option value="L">L</option>
+                                    <option value="ml">ml</option>
+                                </optgroup>
+                                <optgroup label="Count">
+                                    <option value="pcs">pcs</option>
+                                    <option value="tray">tray</option>
+                                    <option value="box">box</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small">Cost per Unit (₱)</label>
+                            <input type="number" step="0.01" id="ing-new-cost" class="form-control" placeholder="e.g., 250.00" required>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small">Initial Stock (Main Hub)</label>
+                            <input type="number" step="0.01" id="ing-new-stock" class="form-control" placeholder="e.g., 50.00" value="0.00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small">Reorder Threshold</label>
+                            <input type="number" step="0.01" id="ing-new-threshold" class="form-control" value="10.00" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-check-circle"></i> Save & Initialize Across Branches
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -158,26 +360,41 @@
 <!-- BOM Modal -->
 <div class="modal fade" id="addBomModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title fw-bold">Configure Product & BOM</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-cube text-gold"></i> Configure Product & BOM
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body bg-light">
+            <div class="modal-body" style="background-color: var(--sb-bg-app);">
                 <form id="bomForm" onsubmit="submitNewBOM(event)">
-                    <h6 class="fw-bold text-muted mb-3">1. Product Details</h6>
-                    <div class="row g-2 mb-4">
+                    <h6 class="fw-bold text-title mb-3 d-flex align-items-center gap-2">
+                        <span class="badge rounded-circle bg-dark text-gold" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;">1</span>
+                        Product Details
+                    </h6>
+                    <div class="row g-2 mb-2">
                         <div class="col-md-6"><input type="text" id="bom-prod-name" class="form-control" placeholder="Product Name (e.g., Mango Cake)" required></div>
                         <div class="col-md-3"><input type="text" id="bom-prod-cat" class="form-control" placeholder="Category (e.g., Cakes)" required></div>
                         <div class="col-md-3"><input type="number" id="bom-prod-price" step="0.01" class="form-control" placeholder="Selling Price (₱)" required></div>
                     </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="fw-bold text-muted mb-0">2. Ingredient Deductions</h6>
-                        <button type="button" class="btn btn-sm btn-outline-dark" onclick="addIngredientRow()">+ Add Ingredient</button>
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-6">
+                            <input type="number" id="bom-prod-stock" step="1" class="form-control" placeholder="Initial Finished Stock (Main Hub, default: 0)" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <input type="number" id="bom-prod-threshold" step="1" class="form-control" placeholder="Reorder Threshold (default: 5)" value="5">
+                        </div>
                     </div>
                     
-                    <!-- CRITICAL FIX: This wrapper was missing! -->
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-title mb-0 d-flex align-items-center gap-2">
+                            <span class="badge rounded-circle bg-dark text-gold" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;">2</span>
+                            Ingredient Deductions
+                        </h6>
+                        <button type="button" class="btn btn-sm btn-sb-espresso" onclick="addIngredientRow()">+ Add Ingredient</button>
+                    </div>
+                    
                     <div id="bom-ingredients-list" class="mb-4">
                         <div class="row g-2 mb-2 ingredient-row align-items-center">
                             <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" placeholder="Name (e.g., Sugar)" required></div>
@@ -198,14 +415,15 @@
                                     </optgroup>
                                 </select>
                             </div>
-                            <!-- Widened to col-3 so the placeholder text fits -->
                             <div class="col-3"><input type="number" step="0.01" class="form-control ing-deduct" placeholder="Deduction per Sale" required></div>
                             <div class="col-2 text-end">
                                 <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.ingredient-row').remove()">Remove</button>
                             </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">Save Configuration</button>
+                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-check"></i> Save Configuration & Initialize Stock
+                    </button>
                 </form>
             </div>
         </div>
@@ -215,24 +433,118 @@
 <!-- Kitchen Production Modal -->
 <div class="modal fade" id="produceModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title fw-bold text-warning">Kitchen Production</h5>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-kitchen-set text-gold"></i> Kitchen Production
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body bg-light">
+            <div class="modal-body" style="background-color: var(--sb-bg-app);">
                 <form id="produceForm" onsubmit="submitProduction(event)">
+                    <div class="mb-3" id="produce-branch-wrapper">
+                        <label class="form-label fw-bold text-title small">Kitchen Branch</label>
+                        <select id="produce-branch-id" class="form-select">
+                            <option value="1">Ibaan (Main Hub)</option>
+                            <option value="2">Padre Garcia</option>
+                            <option value="3">San Jose</option>
+                            <option value="4">Sampaguita</option>
+                            <option value="5">South Supermarket Lipa</option>
+                            <option value="6">San Antonio Quezon</option>
+                            <option value="7">Cuenca</option>
+                        </select>
+                        <div id="produce-branch-static" class="d-none">
+                            <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.4); padding: 8px 14px; font-size: 0.9rem;">
+                                <i class="fas fa-store me-1 text-gold"></i> <span id="produce-branch-name-label">Branch</span>
+                            </span>
+                        </div>
+                    </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-muted small">Select Product to Make</label>
+                        <label class="form-label fw-bold text-title small">Select Product to Make</label>
                         <select id="produce-product-id" class="form-select" required>
                             <!-- Injected dynamically via JS -->
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-muted small">Quantity to Produce</label>
+                        <label class="form-label fw-bold text-title small">Quantity to Produce</label>
                         <input type="number" id="produce-quantity" class="form-control" min="1" placeholder="e.g., 10" required>
                     </div>
-                    <button type="submit" class="btn btn-warning text-dark w-100 fw-bold py-2">Execute Production & Deduct Ingredients</button>
+                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-check-circle"></i> Execute Production & Deduct Ingredients
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inter-Branch Product Transfer Modal -->
+<div class="modal fade" id="transferProductModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-truck-fast text-gold"></i> Inter-Branch Product Transfer
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="background-color: var(--sb-bg-app);">
+                <form id="transferProductForm" onsubmit="submitProductTransfer(event)">
+                    <div class="mb-3" id="transfer-source-wrapper">
+                        <label class="form-label fw-bold text-title small">Source Branch (Hub)</label>
+                        <select id="transfer-source-branch-id" class="form-select" onchange="onTransferSourceChanged()">
+                            <option value="1" selected>Ibaan (Main Hub)</option>
+                            <option value="2">Padre Garcia</option>
+                            <option value="3">San Jose</option>
+                            <option value="4">Sampaguita</option>
+                            <option value="5">South Supermarket Lipa</option>
+                            <option value="6">San Antonio Quezon</option>
+                            <option value="7">Cuenca</option>
+                        </select>
+                        <div id="transfer-source-static" class="d-none">
+                            <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.4); padding: 8px 14px; font-size: 0.9rem;">
+                                <i class="fas fa-warehouse me-1 text-gold"></i> <span id="transfer-source-name-label">Ibaan (Main Hub)</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-title small">Destination Satellite Branch</label>
+                        <select id="transfer-dest-branch-id" class="form-select" required>
+                            <option value="">-- Choose Receiving Branch --</option>
+                            <option value="2">Padre Garcia</option>
+                            <option value="3">San Jose</option>
+                            <option value="4">Sampaguita</option>
+                            <option value="5">South Supermarket Lipa</option>
+                            <option value="6">San Antonio Quezon</option>
+                            <option value="7">Cuenca</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-bold text-title small mb-0">Select Finished Product</label>
+                            <span id="transfer-stock-badge" class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">Available: --</span>
+                        </div>
+                        <select id="transfer-product-id" class="form-select" required onchange="onTransferProductSelected()">
+                            <option value="">-- Choose Product to Transfer --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-title small">Quantity to Transfer (Units)</label>
+                        <input type="number" id="transfer-quantity" class="form-control" min="1" step="1" placeholder="e.g., 5" required>
+                        <small class="text-muted" id="transfer-qty-hint">Quantity will be deducted from hub and added to satellite display counter.</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-title small">Transfer Notes / Waybill (Optional)</label>
+                        <input type="text" id="transfer-notes" class="form-control" placeholder="e.g., Delivery dispatch via Van #1">
+                    </div>
+
+                    <button type="submit" id="btn-submit-transfer" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-paper-plane"></i> Dispatch Transfer
+                    </button>
                 </form>
             </div>
         </div>
@@ -242,23 +554,25 @@
 <!-- Stock Adjustment Modal -->
 <div class="modal fade" id="stockAdjustModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title fw-bold text-warning">Manual Stock Adjustment</h5>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-sliders text-gold"></i> Manual Stock Adjustment
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body bg-light">
+            <div class="modal-body" style="background-color: var(--sb-bg-app);">
                 <form id="adjustForm" onsubmit="submitStockAdjustment(event)">
                     <input type="hidden" id="adj-item-type">
                     <input type="hidden" id="adj-item-id">
                     
-                    <div class="mb-3 text-center">
-                        <h4 class="fw-bold mb-0 text-dark" id="adj-item-name">Item Name</h4>
-                        <small class="text-muted" id="adj-current-qty">Current Stock: 0</small>
+                    <div class="mb-3 p-3 text-center rounded border" style="background-color: var(--sb-bg-surface);">
+                        <h4 class="fw-bold mb-1 text-title" id="adj-item-name">Item Name</h4>
+                        <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);" id="adj-current-qty">Current Stock: 0</span>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-muted small">Adjustment Type</label>
+                        <label class="form-label fw-bold text-title small">Adjustment Type</label>
                         <select id="adj-type" class="form-select" required>
                             <option value="Stock-in">Stock-In (Add to Inventory)</option>
                             <option value="Stock-out">Stock-Out (Deduct Inventory)</option>
@@ -267,16 +581,29 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-muted small">Quantity Change</label>
+                        <label class="form-label fw-bold text-title small">Quantity Change</label>
                         <input type="number" id="adj-qty" class="form-control" step="0.01" min="0.01" placeholder="e.g., 5" required>
                     </div>
 
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small">Batch # (Optional)</label>
+                            <input type="text" id="adj-batch" class="form-control" placeholder="e.g., B-20260928">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small">Expiry Date (Optional)</label>
+                            <input type="date" id="adj-expiry" class="form-control">
+                        </div>
+                    </div>
+
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-muted small">Reason (Mandatory)</label>
-                        <textarea id="adj-reason" class="form-control" rows="2" placeholder="e.g., Late delivery, dropped box, routine audit..." required></textarea>
+                        <label class="form-label fw-bold text-title small">Reason (Mandatory)</label>
+                        <textarea id="adj-reason" class="form-control" rows="2" placeholder="e.g., Supplier delivery, kitchen restock, routine audit, damaged box..." required></textarea>
                     </div>
                     
-                    <button type="submit" class="btn btn-warning text-dark w-100 fw-bold py-2">Confirm Adjustment</button>
+                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-check-circle"></i> Confirm Adjustment
+                    </button>
                 </form>
             </div>
         </div>
@@ -286,19 +613,21 @@
 <!-- AI Override Modal -->
 <div class="modal fade" id="overrideModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title fw-bold">AI Override Justification</h5>
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-triangle text-danger"></i> AI Override Justification
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body bg-light">
+            <div class="modal-body" style="background-color: var(--sb-bg-app);">
                 <form id="overrideForm" onsubmit="submitOverride(event)">
                     <input type="hidden" id="override-output-id">
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-muted small">Mandatory Reason for Future Calibration</label>
+                        <label class="form-label fw-bold text-title small">Mandatory Reason for Future Calibration</label>
                         <textarea id="override-reason" class="form-control" rows="3" placeholder="e.g., Supplier is closed for the holidays, ignoring min-order limit..." required></textarea>
                     </div>
-                    <button type="submit" class="btn btn-danger w-100 fw-bold py-2">Confirm Override</button>
+                    <button type="submit" class="btn btn-danger w-100 fw-bold py-2 shadow-sm">Confirm Override</button>
                 </form>
             </div>
         </div>
@@ -315,15 +644,68 @@
     });
 
     window.currentUserRole = '';
+    window.currentUserBranchId = null;
+    window.currentUserBranchName = '';
+    window.isOwnerOrHub = false;
+    window.cachedProductWatch = [];
+
     async function initializeRBACUI() {
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
             const user = await response.json();
             window.currentUserRole = user.role;
+            window.currentUserBranchId = user.branch_id;
+            window.currentUserBranchName = user.branch;
+            window.isOwnerOrHub = (user.role === 'Business Owner' || user.is_superuser || user.branch_id === 1 || (user.branch && user.branch.toLowerCase().includes('ibaan')));
             
-            if (user.role === 'Business Owner') {
-                document.getElementById('branch-filter').classList.remove('d-none');
+            const branchFilter = document.getElementById('branch-filter');
+            const produceBranchSelect = document.getElementById('produce-branch-id');
+            const produceBranchStatic = document.getElementById('produce-branch-static');
+            const produceBranchLabel = document.getElementById('produce-branch-name-label');
+            const btnTransfer = document.getElementById('btn-transfer-product');
+            const transferSourceSelect = document.getElementById('transfer-source-branch-id');
+            const transferSourceStatic = document.getElementById('transfer-source-static');
+            const transferSourceLabel = document.getElementById('transfer-source-name-label');
+
+            // Transfer Product Button Visibility
+            if (btnTransfer) {
+                if (window.isOwnerOrHub) {
+                    btnTransfer.classList.remove('d-none');
+                    btnTransfer.classList.add('d-inline-flex');
+                } else {
+                    btnTransfer.classList.add('d-none');
+                    btnTransfer.classList.remove('d-inline-flex');
+                }
+            }
+
+            if (user.role === 'Business Owner' || user.is_superuser) {
+                if (branchFilter) branchFilter.classList.remove('d-none');
+                if (produceBranchSelect) produceBranchSelect.classList.remove('d-none');
+                if (produceBranchStatic) produceBranchStatic.classList.add('d-none');
+                if (transferSourceSelect) transferSourceSelect.classList.remove('d-none');
+                if (transferSourceStatic) transferSourceStatic.classList.add('d-none');
+            } else {
+                if (branchFilter) {
+                    branchFilter.classList.add('d-none');
+                    if (user.branch_id) branchFilter.value = user.branch_id;
+                }
+                if (produceBranchSelect) {
+                    produceBranchSelect.classList.add('d-none');
+                    if (user.branch_id) produceBranchSelect.value = user.branch_id;
+                }
+                if (produceBranchStatic) {
+                    produceBranchStatic.classList.remove('d-none');
+                    if (produceBranchLabel) produceBranchLabel.innerText = user.branch || 'Assigned Branch';
+                }
+                if (transferSourceSelect) {
+                    transferSourceSelect.classList.add('d-none');
+                    if (user.branch_id) transferSourceSelect.value = user.branch_id;
+                }
+                if (transferSourceStatic) {
+                    transferSourceStatic.classList.remove('d-none');
+                    if (transferSourceLabel) transferSourceLabel.innerText = user.branch || 'Ibaan (Main Hub)';
+                }
             }
         } catch (e) { console.error("RBAC check failed", e); }
     }
@@ -345,6 +727,47 @@
         document.getElementById('bom-ingredients-list').insertAdjacentHTML('beforeend', row);
     };
 
+    window.submitNewIngredient = async function(event) {
+        event.preventDefault();
+        const token = localStorage.getItem('access_token');
+        const filterVal = document.getElementById('branch-filter').value;
+        const targetBranch = (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId)
+            ? (filterVal === 'all' ? 1 : filterVal)
+            : window.currentUserBranchId;
+
+        const catEl = document.getElementById('ing-new-category');
+        const categoryVal = catEl ? catEl.value : 'General';
+
+        const payload = {
+            ingredient_name: document.getElementById('ing-new-name').value,
+            category: categoryVal,
+            measurement_unit: document.getElementById('ing-new-unit').value,
+            cost_per_unit: parseFloat(document.getElementById('ing-new-cost').value),
+            initial_quantity: parseFloat(document.getElementById('ing-new-stock').value || 0),
+            reorder_threshold: parseFloat(document.getElementById('ing-new-threshold').value || 10),
+            branch_id: targetBranch
+        };
+
+        try {
+            const response = await fetch('/api/inventory/ingredient/add/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                bootstrap.Modal.getInstance(document.getElementById('addIngredientModal')).hide();
+                document.getElementById('ingredientForm').reset();
+                loadSCMData();
+            } else {
+                alert(`Addition Failed: ${data.error || 'Unknown error'}`);
+            }
+        } catch (e) {
+            alert("Network Error: Could not add ingredient.");
+        }
+    };
+
     window.submitNewBOM = async function(event) {
         event.preventDefault();
         
@@ -352,6 +775,8 @@
             product_name: document.getElementById('bom-prod-name').value,
             category: document.getElementById('bom-prod-cat').value,
             price: parseFloat(document.getElementById('bom-prod-price').value),
+            initial_stock: parseFloat(document.getElementById('bom-prod-stock').value || 0),
+            reorder_threshold: parseFloat(document.getElementById('bom-prod-threshold').value || 5),
             ingredients: Array.from(document.querySelectorAll('.ingredient-row')).map(row => ({
                 name: row.querySelector('.ing-name').value,
                 unit: row.querySelector('.ing-unit').value,
@@ -368,7 +793,7 @@
             });
             
             if (response.ok) {
-                alert("Product and BOM configured successfully!");
+                alert("Product and BOM configured successfully! Branch stocks initialized.");
                 bootstrap.Modal.getInstance(document.getElementById('addBomModal')).hide();
                 document.getElementById('bomForm').reset();
                 
@@ -399,7 +824,10 @@
             renderKPIs(data.kpis);
             renderInventory(data.inventory);
             
-            if (data.product_watch) renderProductWatch(data.product_watch);
+            if (data.product_watch) {
+                window.cachedProductWatch = data.product_watch;
+                renderProductWatch(data.product_watch);
+            }
             renderBOM(data.bom);
             renderRestockQueue(data.restock_queue, data.pending_restocks);
             populateProduceDropdown(data.bom); 
@@ -442,7 +870,10 @@
 
         const token = localStorage.getItem('access_token');
         const filterVal = document.getElementById('branch-filter').value;
-        const payload = filterVal === 'all' ? { branch_id: 1 } : { branch_id: filterVal };
+        const targetBranch = (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId)
+            ? (filterVal === 'all' ? 1 : filterVal)
+            : window.currentUserBranchId;
+        const payload = { branch_id: targetBranch };
 
         try {
             const response = await fetch('/api/analytics/restock-directive/', {
@@ -539,34 +970,43 @@
             // REMOVED Redundant Action Buttons to align with 8-column header
             return `
             <tr>
-                <td class="fw-bold text-dark">${i.ingredient_name}</td>
-                <td><span class="badge bg-light text-dark border">${i.category}</span></td>
+                <td class="fw-bold text-title">${i.ingredient_name}</td>
+                <td><span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212,154,61,0.3);">${i.category}</span></td>
                 <td class="text-muted small">${i.unit}</td>
-                <td class="fw-bold">${i.quantity}</td>
-                <td class="text-muted">${i.threshold}</td>
-                <td>${i.branch}</td>
-                <td class="text-muted small">${i.expiry}</td>
+                <td class="fw-bold tabular-nums">${i.quantity}</td>
+                <td class="text-muted tabular-nums">${i.threshold}</td>
+                <td><span class="badge bg-light text-muted border">${i.branch}</span></td>
+                <td class="text-muted small tabular-nums">${i.expiry}</td>
                 <td><span class="status-badge ${badgeClass}">${i.status}</span></td>
-                <td class="text-end pe-4"><button class="btn btn-sm btn-outline-dark fw-bold" onclick="openAdjustModal('ingredient', ${i.id}, '${i.ingredient_name}', ${i.quantity})">Adjust</button></td>
+                <td class="text-end pe-4"><button class="btn btn-sm btn-sb-outline-gold fw-bold" onclick="openAdjustModal('ingredient', ${i.id}, '${i.ingredient_name}', ${i.quantity})"><i class="fas fa-sliders me-1"></i>Adjust</button></td>
             </tr>`;
         }).join('');
     }
 
     function renderProductWatch(products) {
         const tbody = document.getElementById('product-watch-tbody');
-        if(!products || products.length === 0) return tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No products currently tracked on display.</td></tr>';
+        if(!products || products.length === 0) return tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">No products currently tracked on display.</td></tr>';
 
         tbody.innerHTML = products.map(p => {
             let badgeClass = p.status === 'Low Stock' ? 'status-low' : p.status === 'Critical' ? 'status-critical' : 'status-instock';
+            const isHubStock = (p.branch_id == 1 || (p.branch && p.branch.toLowerCase().includes('ibaan')));
+            const canTransfer = window.isOwnerOrHub && isHubStock && p.quantity > 0;
+            const transferBtn = canTransfer 
+                ? `<button class="btn btn-sm btn-sb-gold fw-bold me-1 text-dark" onclick="openTransferModal(${p.product_id}, '${p.product_name.replace(/'/g, "\\'")}', ${p.quantity})"><i class="fas fa-truck-fast me-1"></i>Transfer</button>`
+                : '';
+
             return `<tr>
-                <td class="fw-bold text-dark">${p.product_name}</td>
-                <td><span class="badge bg-light text-dark border">${p.category}</span></td>
-                <td class="text-muted">₱${p.price.toFixed(2)}</td>
-                <td class="fw-bold">${p.quantity}</td>
-                <td class="text-muted">${p.threshold}</td>
-                <td>${p.branch}</td>
+                <td class="fw-bold text-title">${p.product_name}</td>
+                <td><span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212,154,61,0.3);">${p.category}</span></td>
+                <td class="fw-bold tabular-nums">₱${p.price.toFixed(2)}</td>
+                <td class="fw-bold tabular-nums">${p.quantity}</td>
+                <td class="text-muted tabular-nums">${p.threshold}</td>
+                <td><span class="badge bg-light text-muted border">${p.branch}</span></td>
                 <td><span class="status-badge ${badgeClass}">${p.status}</span></td>
-                <td class="text-end pe-4"><button class="btn btn-sm btn-outline-dark fw-bold" onclick="openAdjustModal('product', ${p.id}, '${p.product_name}', ${p.quantity})">Adjust</button></td>
+                <td class="text-end pe-4 text-nowrap">
+                    ${transferBtn}
+                    <button class="btn btn-sm btn-sb-outline-gold fw-bold" onclick="openAdjustModal('product', ${p.id}, '${p.product_name.replace(/'/g, "\\'")}', ${p.quantity})"><i class="fas fa-sliders me-1"></i>Adjust</button>
+                </td>
             </tr>`;
         }).join('');
     }
@@ -594,13 +1034,13 @@
                     <tbody>
                         ${boms.map(b => `
                         <tr>
-                            <td class="fw-bold text-dark ps-3">${b.product}</td>
+                            <td class="fw-bold text-title ps-3">${b.product}</td>
                             <td class="text-muted small">${b.ingredients}</td>
-                            <td class="text-danger small">${b.deductions}</td>
-                            <td><span class="badge bg-success text-white">Active</span></td>
+                            <td class="text-danger small fw-bold">${b.deductions}</td>
+                            <td><span class="badge bg-success bg-opacity-25 text-success rounded-pill">Active</span></td>
                             <td class="text-end pe-4">
                                 <button class="btn btn-sm btn-outline-danger fw-bold" onclick="deleteProduct(${b.id}, '${b.product}')">
-                                    Delete
+                                    <i class="fas fa-trash-alt me-1"></i> Delete
                                 </button>
                             </td>
                         </tr>`).join('')}
@@ -642,16 +1082,16 @@
                 const actionButtons = (window.currentUserRole === 'Business Owner') 
                     ? `<button class="btn btn-sm btn-success fw-bold" onclick="processRestock(${p.id}, 'Approve')">Approve</button>
                        <button class="btn btn-sm btn-danger fw-bold" onclick="processRestock(${p.id}, 'Reject')">Reject</button>`
-                    : `<span class="badge bg-warning text-dark">Awaiting Owner Approval</span>`;
+                    : `<span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark);">Awaiting Owner Approval</span>`;
                     
                 return `
                 <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white mb-1 rounded border-start border-warning border-4">
                     <div>
-                        <span class="badge bg-warning text-dark mb-1">Pending Approval</span>
-                        <h6 class="fw-bold mb-0">${p.item}</h6>
+                        <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">Pending Approval</span>
+                        <h6 class="fw-bold mb-0 text-title mt-1">${p.item}</h6>
                         <small class="text-muted">Requested by: ${p.user} for ${p.destination}</small>
                     </div>
-                    <div class="text-end me-4"><div class="fw-bold text-dark">Qty: ${p.qty}</div></div>
+                    <div class="text-end me-4"><div class="fw-bold text-title tabular-nums">Qty: ${p.qty}</div></div>
                     <div class="d-flex gap-2">${actionButtons}</div>
                 </div>`;
             }).join('');
@@ -663,11 +1103,11 @@
                 return `
                 <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light mb-1 rounded">
                     <div>
-                        <h6 class="fw-bold mb-0">${q.item}</h6>
+                        <h6 class="fw-bold mb-0 text-title">${q.item}</h6>
                         <small class="text-muted">${q.branch} | Supplier: ${q.supplier}</small>
                     </div>
-                    <div class="text-end me-4"><div class="fw-bold text-dark">Suggest: ${q.order_amount}</div></div>
-                    <button class="btn btn-warning text-dark fw-bold" onclick="submitRestock('${q.item}', ${parseFloat(q.order_amount)}, '${q.branch_id}')">Submit Request</button>
+                    <div class="text-end me-4"><div class="fw-bold text-title tabular-nums">Suggest: ${q.order_amount}</div></div>
+                    <button class="btn btn-sm btn-sb-gold fw-bold" onclick="submitRestock('${q.item}', ${parseFloat(q.order_amount)}, '${q.branch_id}')">Submit Request</button>
                 </div>`;
             }).join('');
         }
@@ -711,10 +1151,24 @@
 
     window.submitProduction = async function(event) {
         event.preventDefault();
+
+        let targetBranchId = null;
+        if (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId) {
+            const modalSelect = document.getElementById('produce-branch-id');
+            if (modalSelect && modalSelect.value) {
+                targetBranchId = modalSelect.value;
+            } else {
+                const filterVal = document.getElementById('branch-filter').value;
+                targetBranchId = (filterVal && filterVal !== 'all') ? filterVal : 1;
+            }
+        } else {
+            targetBranchId = window.currentUserBranchId;
+        }
+
         const payload = {
             product_id: document.getElementById('produce-product-id').value,
             quantity: document.getElementById('produce-quantity').value,
-            branch_id: document.getElementById('branch-filter').value === 'all' ? 1 : document.getElementById('branch-filter').value
+            branch_id: targetBranchId
         };
 
         const token = localStorage.getItem('access_token');
@@ -738,6 +1192,27 @@
             alert("Network Error: Could not execute production."); 
         }
     };
+
+    // Synchronize produce modal branch state when opened
+    document.addEventListener("DOMContentLoaded", () => {
+        const prodModalEl = document.getElementById('produceModal');
+        if (prodModalEl) {
+            prodModalEl.addEventListener('show.bs.modal', () => {
+                if (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId) {
+                    const filterVal = document.getElementById('branch-filter').value;
+                    const prodSelect = document.getElementById('produce-branch-id');
+                    if (filterVal && filterVal !== 'all' && prodSelect) {
+                        prodSelect.value = filterVal;
+                    }
+                } else {
+                    const label = document.getElementById('produce-branch-name-label');
+                    if (label && window.currentUserBranchName) {
+                        label.innerText = window.currentUserBranchName;
+                    }
+                }
+            });
+        }
+    });
     window.openAdjustModal = function(type, id, name, currentQty) {
         document.getElementById('adj-item-type').value = type;
         document.getElementById('adj-item-id').value = id;
@@ -757,6 +1232,11 @@
             reason: document.getElementById('adj-reason').value
         };
 
+        const batch = document.getElementById('adj-batch') ? document.getElementById('adj-batch').value.trim() : '';
+        const expiry = document.getElementById('adj-expiry') ? document.getElementById('adj-expiry').value : '';
+        if (batch) payload.batch_number = batch;
+        if (expiry) payload.expiry_date = expiry;
+
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('/api/inventory/adjust/', {
@@ -774,6 +1254,153 @@
             }
         } catch (error) {
             alert("Network Error: Could not execute adjustment.");
+        }
+    };
+
+    // Inter-Branch Product Transfer Logic
+    window.openTransferModal = function(productId = null, productName = '', maxStock = null) {
+        const modalEl = document.getElementById('transferProductModal');
+        if (!modalEl) return;
+
+        let sourceBranchId = 1;
+        if (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId) {
+            const sourceSelect = document.getElementById('transfer-source-branch-id');
+            sourceBranchId = sourceSelect ? sourceSelect.value : 1;
+        } else {
+            sourceBranchId = window.currentUserBranchId || 1;
+        }
+
+        populateTransferProducts(sourceBranchId, productId);
+        
+        const qtyInput = document.getElementById('transfer-quantity');
+        const badge = document.getElementById('transfer-stock-badge');
+        if (maxStock !== null) {
+            qtyInput.max = maxStock;
+            badge.innerText = `Available: ${maxStock} units`;
+        }
+
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+    };
+
+    window.onTransferSourceChanged = function() {
+        const sourceSelect = document.getElementById('transfer-source-branch-id');
+        const sourceBranchId = sourceSelect ? sourceSelect.value : 1;
+        populateTransferProducts(sourceBranchId);
+    };
+
+    window.onTransferProductSelected = function() {
+        const prodSelect = document.getElementById('transfer-product-id');
+        const selectedOption = prodSelect.options[prodSelect.selectedIndex];
+        const badge = document.getElementById('transfer-stock-badge');
+        const qtyInput = document.getElementById('transfer-quantity');
+
+        if (selectedOption && selectedOption.dataset.stock) {
+            const stock = parseFloat(selectedOption.dataset.stock);
+            badge.innerText = `Available: ${stock} units`;
+            qtyInput.max = stock;
+        } else {
+            badge.innerText = 'Available: --';
+            qtyInput.removeAttribute('max');
+        }
+    };
+
+    function populateTransferProducts(sourceBranchId, selectedProductId = null) {
+        const prodSelect = document.getElementById('transfer-product-id');
+        if (!prodSelect) return;
+
+        const products = (window.cachedProductWatch || []).filter(p => {
+            return (p.branch_id == sourceBranchId || (sourceBranchId == 1 && p.branch && p.branch.toLowerCase().includes('ibaan')));
+        });
+
+        if (products.length === 0) {
+            prodSelect.innerHTML = '<option value="">-- No products available at source branch --</option>';
+            document.getElementById('transfer-stock-badge').innerText = 'Available: 0';
+            return;
+        }
+
+        prodSelect.innerHTML = '<option value="">-- Choose Product to Transfer --</option>' +
+            products.map(p => `<option value="${p.product_id}" data-stock="${p.quantity}" ${selectedProductId && p.product_id == selectedProductId ? 'selected' : ''}>${p.product_name} (${p.quantity} in stock)</option>`).join('');
+
+        if (selectedProductId) {
+            const matched = products.find(p => p.product_id == selectedProductId);
+            if (matched) {
+                document.getElementById('transfer-stock-badge').innerText = `Available: ${matched.quantity} units`;
+                document.getElementById('transfer-quantity').max = matched.quantity;
+            }
+        } else {
+            document.getElementById('transfer-stock-badge').innerText = 'Available: --';
+        }
+    }
+
+    window.submitProductTransfer = async function(event) {
+        event.preventDefault();
+        const token = localStorage.getItem('access_token');
+        
+        let sourceBranchId = 1;
+        if (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId) {
+            sourceBranchId = document.getElementById('transfer-source-branch-id').value;
+        } else {
+            sourceBranchId = window.currentUserBranchId;
+        }
+
+        const destBranchId = document.getElementById('transfer-dest-branch-id').value;
+        const productId = document.getElementById('transfer-product-id').value;
+        const quantity = parseFloat(document.getElementById('transfer-quantity').value);
+        const notes = document.getElementById('transfer-notes').value.trim();
+
+        if (!destBranchId) {
+            alert("Please choose a destination satellite branch.");
+            return;
+        }
+        if (parseInt(sourceBranchId) === parseInt(destBranchId)) {
+            alert("Source and destination branch cannot be the same.");
+            return;
+        }
+        if (!productId) {
+            alert("Please select a product to transfer.");
+            return;
+        }
+        if (!quantity || quantity <= 0) {
+            alert("Please enter a valid transfer quantity.");
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-transfer');
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Dispatching Transfer...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/inventory/transfer/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    source_branch_id: sourceBranchId,
+                    destination_branch_id: destBranchId,
+                    product_id: productId,
+                    quantity: quantity,
+                    notes: notes
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                bootstrap.Modal.getInstance(document.getElementById('transferProductModal')).hide();
+                document.getElementById('transferProductForm').reset();
+                loadSCMData();
+            } else {
+                alert(`Transfer Failed: ${data.error || 'Server error'}`);
+            }
+        } catch (e) {
+            alert("Network Error: Could not dispatch transfer.");
+        } finally {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
         }
     };
 </script>

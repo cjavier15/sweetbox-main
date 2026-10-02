@@ -1,0 +1,100 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#FFFFFF',
+    'primaryBorderColor': '#000000',
+    'primaryTextColor': '#000000',
+    'lineColor': '#000000',
+    'secondaryColor': '#FFFFFF',
+    'tertiaryColor': '#FFFFFF',
+    'mainBkg': '#FFFFFF',
+    'nodeBorder': '#000000',
+    'textColor': '#000000',
+    'attributeBackgroundColorOdd': '#FFFFFF',
+    'attributeBackgroundColorEven': '#F8F9FA'
+  }
+}}%%
+erDiagram
+    BRANCHES ||--o{ PRESCRIPTIVE_OUTPUTS : prescribes
+    PRODUCTS ||--o{ PRESCRIPTIVE_OUTPUTS : targets
+    INGREDIENTS ||--o{ PRESCRIPTIVE_OUTPUTS : targets
+    CONSTRAINT_PARAMETERS ||--o{ PRESCRIPTIVE_OUTPUTS : bounds
+
+    BRANCHES ||--o{ CHATBOT_LOGS : contextualizes
+    USERS ||--o{ CHATBOT_LOGS : initiates
+    PRESCRIPTIVE_OUTPUTS ||--o{ CHATBOT_LOGS : references
+
+    PRODUCTS ||--o{ PRODUCT_CLASSIFICATION : categorizes
+
+    BRANCHES ||--o{ EXTERNAL_VARIABLES : associates
+    BRANCHES ||--o{ KPI_RECORDS : logs
+
+    PRESCRIPTIVE_OUTPUTS {
+        int prescriptive_output_ID PK
+        int branch_ID FK
+        int product_ID FK
+        int ingredient_ID FK
+        int constraint_ID FK
+        string output_type
+        text recommendation
+        text justification
+        decimal recommended_quantity
+        date recommended_date
+        decimal estimated_cost
+        string status
+        bool is_overridden
+        text override_reason
+        datetime generated_at
+        datetime expired_at
+    }
+
+    CHATBOT_LOGS {
+        int chatbot_log_ID PK
+        int branch_ID FK
+        int prescriptive_output_ID FK
+        int user_ID FK
+        text query_text
+        text response_text
+        datetime created_time
+    }
+
+    PRODUCT_CLASSIFICATION {
+        int classification_ID PK
+        int product_ID FK
+        string classification
+        text recommended_action
+        datetime classified_time
+    }
+
+    EXTERNAL_VARIABLES {
+        int variable_ID PK
+        int branch_ID FK
+        string variable_type
+        string name
+        date start_date
+        date end_date
+        string impact_level
+        text description
+        bool is_active
+    }
+
+    KPI_RECORDS {
+        int kpi_ID PK
+        int branch_ID FK
+        decimal inventory_turnover
+        decimal gmroi
+        decimal gross_margin
+        decimal total_revenue
+        decimal dead_stock_value
+        int stockout_count
+        date period_date
+        datetime computed_time
+    }
+
+    ARCHIVE_STORAGE {
+        int archive_ID PK
+        string module_table
+        int record_ID
+        text archived_data
+        datetime archived_time
+    }

@@ -1,0 +1,41 @@
+flowchart TD
+    subgraph INPUT["INPUT: User Roles & Multi-Branch Enterprise Data"]
+        direction TB
+        ROLES["<b>User Roles:</b><br/>Business Owner • Branch Manager • Front Staff • System Administrator"]
+        
+        subgraph INPUT_DATA["Input Data Categories"]
+            direction LR
+            D_USER["<b>User & Transaction Data:</b><br/>• Transaction Items<br/>• Payment Tenders<br/>• Cashier Identity<br/>• Branch Assignment"]
+            D_INV["<b>Inventory & Operations Data:</b><br/>• Ingredient & Product Stocks<br/>• Manual Stock Adjustments<br/>• Restock Requests<br/>• Bill of Materials (BOM)"]
+            D_SYS["<b>Analytics & Context Data:</b><br/>• 180-Day Sales Velocity<br/>• External Variables (Holidays/Paydays)<br/>• Operational Constraints (MOQ/Capacity)<br/>• Audit Trails"]
+        end
+        ROLES --> INPUT_DATA
+    end
+
+    subgraph PROCESS["PROCESS: Business Analytics & Decision Engine"]
+        direction TB
+        ETL["<b>Data Integration & ETL Pipeline:</b><br/>Data Validation • Axios Polling • Batch Aggregation • Automated Data Archiving"]
+        
+        subgraph ENGINES["Processing Subsystems"]
+            direction LR
+            P_MON["<b>Deterministic Monitoring:</b><br/>• Real-Time Stock Status<br/>• 3-Tier Health Alerting<br/>• Automated COGS Tracking<br/>• KPI Formula Computations"]
+            P_AI["<b>Gemini AI Prescriptive Engine:</b><br/>• Restock Quantities & Deadlines<br/>• Production Target Advice<br/>• Natural Language Rationale<br/>• Sales Analyst Chatbot"]
+            P_BOUND["<b>Constraint Bounding & Fallback:</b><br/>• Physical Capacity Clamping<br/>• Supplier MOQ Enforcement<br/>• Algorithmic Replenishment Fallback"]
+        end
+        
+        ETL --> ENGINES
+        
+        DB[("<b>Centralized MySQL Database</b><br/>Master Data • Transactions • Inventory Stocks • Constraints • Prescriptions • Archives")]
+        ENGINES <--> DB
+    end
+
+    subgraph OUTPUT["OUTPUT: Operational Intelligence & Decision Support"]
+        direction LR
+        O_PROD["<b>Production Directives:</b><br/>• Batch Production Targets<br/>• Hub Raw Ingredient Planning<br/>• Kitchen Deduction Logs"]
+        O_RESTOCK["<b>Prescriptive Restock:</b><br/>• Feasibility-Bounded Reorders<br/>• Urgency & Order Deadlines<br/>• Estimated Procurement Cost"]
+        O_DASH["<b>Enterprise Dashboards:</b><br/>• Cross-Branch Revenue & Trends<br/>• Inventory Turnover & GMROI<br/>• Branch Target Accomplishment"]
+        O_MGMT["<b>Decision Support & Control:</b><br/>• Managerial Approval / Override<br/>• Conversational Chatbot Guidance<br/>• Digital Receipts & KPI CSV Exports"]
+    end
+
+    INPUT --> PROCESS
+    PROCESS --> OUTPUT

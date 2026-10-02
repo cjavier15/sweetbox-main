@@ -1,0 +1,149 @@
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#FFFFFF',
+    'primaryBorderColor': '#000000',
+    'primaryTextColor': '#000000',
+    'lineColor': '#000000',
+    'secondaryColor': '#FFFFFF',
+    'tertiaryColor': '#FFFFFF',
+    'mainBkg': '#FFFFFF',
+    'nodeBorder': '#000000',
+    'textColor': '#000000',
+    'attributeBackgroundColorOdd': '#FFFFFF',
+    'attributeBackgroundColorEven': '#F8F9FA'
+  }
+}}%%
+erDiagram
+    BRANCHES ||--o{ INGREDIENT_STOCK : maintains
+    BRANCHES ||--o{ PRODUCT_STOCK : maintains
+    BRANCHES ||--o{ CONSTRAINT_PARAMETERS : governs
+    BRANCHES ||--o{ RESTOCK_REQUESTS : "sources / receives"
+    BRANCHES ||--o{ PRODUCT_TRANSFERS : "dispatches / receives"
+
+    PRODUCT_CATEGORIES ||--o{ INGREDIENTS : classifies
+    INGREDIENTS ||--o{ INGREDIENT_STOCK : instantiates
+    PRODUCTS ||--o{ PRODUCT_STOCK : instantiates
+
+    PRODUCTS ||--|{ BILL_OF_MATERIALS : defines
+    INGREDIENTS ||--|{ BILL_OF_MATERIALS : "consumed by"
+
+    USERS ||--o{ STOCK_ADJUSTMENTS : logs
+    PRODUCT_STOCK ||--o{ STOCK_ADJUSTMENTS : adjusts
+    INGREDIENT_STOCK ||--o{ STOCK_ADJUSTMENTS : adjusts
+
+    USERS ||--o{ RESTOCK_REQUESTS : submits
+    USERS ||--o{ RESTOCK_REQUESTS : approves
+    INGREDIENTS ||--o{ RESTOCK_REQUESTS : requests
+    PRODUCTS ||--o{ RESTOCK_REQUESTS : requests
+
+    USERS ||--o{ PRODUCT_TRANSFERS : transfers
+    PRODUCTS ||--o{ PRODUCT_TRANSFERS : transfers
+
+    BRANCHES {
+        int branch_ID PK
+        string name
+        text address
+        bool main_hub
+    }
+
+    PRODUCT_CATEGORIES {
+        int category_ID PK
+        string category_name
+        text description
+    }
+
+    INGREDIENTS {
+        int ingredient_ID PK
+        int category_ID FK
+        string ingredient_name
+        string measurement_unit
+        decimal cost_per_unit
+    }
+
+    PRODUCTS {
+        int product_ID PK
+        int category_ID FK
+        string product_name
+        decimal price
+        bool is_active
+    }
+
+    INGREDIENT_STOCK {
+        int ingredient_inventory_ID PK
+        int branch_ID FK
+        int ingredient_ID FK
+        datetime expiry_date
+        string batch_number
+        decimal total_cost
+        decimal quantity_available
+        decimal reorder_threshold
+    }
+
+    PRODUCT_STOCK {
+        int product_inventory_ID PK
+        int branch_ID FK
+        int product_ID FK
+        datetime expiry_date
+        string batch_number
+        decimal total_cost
+        decimal quantity_available
+        decimal reorder_threshold
+    }
+
+    BILL_OF_MATERIALS {
+        int bom_ID PK
+        int product_ID FK
+        int ingredient_ID FK
+        decimal quantity_required
+        string measurement_unit
+    }
+
+    STOCK_ADJUSTMENTS {
+        int adjustments_ID PK
+        int user_ID FK
+        int product_inventory_ID FK
+        int ingredients_inventory_ID FK
+        string adjustment_type
+        decimal quantity_change
+        text reason
+        datetime latest_update
+    }
+
+    RESTOCK_REQUESTS {
+        int restock_ID PK
+        int ingredient_ID FK
+        int product_ID FK
+        int user_ID FK
+        int approved_by_ID FK
+        int source_branch_ID FK
+        int destination_branch_ID FK
+        datetime approved_at
+        decimal requested_quantity
+        string status
+        datetime request_finished
+    }
+
+    PRODUCT_TRANSFERS {
+        int transfer_ID PK
+        int product_ID FK
+        int source_branch_ID FK
+        int destination_branch_ID FK
+        decimal quantity
+        int transferred_by_ID FK
+        datetime transfer_date
+        text notes
+    }
+
+    CONSTRAINT_PARAMETERS {
+        int constraint_ID PK
+        int branch_ID FK
+        int ingredient_ID FK
+        int product_ID FK
+        int lead_time_days
+        decimal min_order_quantity
+        decimal max_order_quantity
+        decimal production_limit
+        decimal capacity_limit
+        datetime latest_update
+    }

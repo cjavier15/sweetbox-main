@@ -3,16 +3,37 @@ from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from accounts.models import Branch
-from pos.models import Product
+from pos.models import Product, ProductCategory
 
 class Ingredient(models.Model):
     ingredient_ID = models.AutoField(primary_key=True)
     ingredient_name = models.CharField(max_length=255)
+    category = models.ForeignKey(ProductCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='ingredients')
     measurement_unit = models.CharField(max_length=50) # e.g., 'kg', 'grams', 'liters'
     cost_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return f"{self.ingredient_name} ({self.measurement_unit})"
+
+    def get_category_name(self):
+        if self.category:
+            return self.category.category_name
+        first_bom = self.billofmaterial_set.select_related('product__category').first()
+        if first_bom and first_bom.product.category:
+            return first_bom.product.category.category_name
+        return "General"
+
+    def is_cake_or_pastry(self):
+        cat_name = (self.get_category_name() or "").strip().lower()
+        if cat_name in ['cakes', 'cake', 'pastries', 'pastry', 'baking supplies']:
+            return True
+        boms = list(self.billofmaterial_set.select_related('product__category').all())
+        if not boms:
+            return False
+        return all(
+            b.product.category and b.product.category.category_name.strip().lower() in ['cakes', 'cake', 'pastries', 'pastry']
+            for b in boms
+        )
 
 class IngredientStock(models.Model):
     ingredient_inventory_ID = models.AutoField(primary_key=True)
@@ -21,27 +42,23 @@ class IngredientStock(models.Model):
     
     expiry_date = models.DateTimeField(blank=True, null=True)
     batch_number = models.CharField(max_length=100, blank=True, null=True)
-    total_cost = models.DecimalField(max_digits=12, decimal_places=2)
-    quantity_available = models.DecimalField(max_digits=10, decimal_places=2)
-    reorder_threshold = models.DecimalField(max_digits=10, decimal_places=2)
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    quantity_available = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    reorder_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=10.00)
 
     def __str__(self):
         return f"{self.branch.name} - {self.ingredient.ingredient_name}: {self.quantity_available}"
 
 class ProductStock(models.Model):
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity_available = models.IntegerField(default=0)
-    low_stock_threshold = models.IntegerField(default=5)
     product_inventory_ID = models.AutoField(primary_key=True)
     branch = models.ForeignKey('accounts.Branch', related_name='product_stocks', on_delete=models.CASCADE)
     product = models.ForeignKey('pos.Product', related_name='stocks', on_delete=models.PROTECT)
     
     expiry_date = models.DateTimeField(blank=True, null=True)
     batch_number = models.CharField(max_length=100, blank=True, null=True)
-    total_cost = models.DecimalField(max_digits=12, decimal_places=2)
-    quantity_available = models.DecimalField(max_digits=10, decimal_places=2)
-    reorder_threshold = models.DecimalField(max_digits=10, decimal_places=2)
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    quantity_available = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    reorder_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=5.00)
 
     def __str__(self):
         return f"{self.branch.name} - {self.product.product_name}: {self.quantity_available}"
@@ -91,16 +108,29 @@ class ConstraintParameter(models.Model):
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE, blank=True, null=True)
     product = models.ForeignKey('pos.Product', on_delete=models.CASCADE, blank=True, null=True)
     
-    lead_time_days = models.IntegerField()
-    min_order_quantity = models.DecimalField(max_digits=10, decimal_places=2)
-    max_order_quantity = models.DecimalField(max_digits=10, decimal_places=2)
-    production_limit = models.DecimalField(max_digits=10, decimal_places=2)
-    capacity_limit = models.DecimalField(max_digits=10, decimal_places=2)
+    lead_time_days = models.IntegerField(default=3)
+    min_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    max_order_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=9999.00)
+    production_limit = models.DecimalField(max_digits=10, decimal_places=2, default=9999.00)
+    capacity_limit = models.DecimalField(max_digits=10, decimal_places=2, default=9999.00)
     latest_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         item_name = self.ingredient.ingredient_name if self.ingredient else self.product.product_name if self.product else "General"
         return f"Constraints for {item_name} at {self.branch.name}"
+
+class ProductTransfer(models.Model):
+    transfer_ID = models.AutoField(primary_key=True)
+    product = models.ForeignKey('pos.Product', related_name='transfers', on_delete=models.CASCADE)
+    source_branch = models.ForeignKey('accounts.Branch', related_name='outgoing_transfers', on_delete=models.CASCADE)
+    destination_branch = models.ForeignKey('accounts.Branch', related_name='incoming_transfers', on_delete=models.CASCADE)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    transferred_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfers_made')
+    transfer_date = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Transfer #{self.transfer_ID}: {self.quantity} x {self.product.product_name} ({self.source_branch.name} -> {self.destination_branch.name})"
 
 @receiver(post_save, sender=IngredientStock)
 def auto_calculate_unit_cost(sender, instance, **kwargs):
