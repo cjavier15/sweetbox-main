@@ -64,6 +64,62 @@ class Command(BaseCommand):
         admin_user.is_superuser = True
         admin_user.save()
 
+        # 2b. Official Sweet Box Team Accounts
+        official_team = [
+            {
+                'name': 'Cristian Javier',
+                'email': 'cristianjohua@gmail.com',
+                'role': 'Business Owner',
+                'branch': branches['Ibaan (Main Hub)'],
+                'is_staff': True,
+            },
+            {
+                'name': 'CJ Javier',
+                'email': 'ceejay122421@gmail.com',
+                'role': 'Staff',
+                'branch': branches['Ibaan (Main Hub)'],
+                'is_staff': False,
+            },
+            {
+                'name': 'Brent Aclan',
+                'email': 'brentaclan@gmail.com',
+                'role': 'Staff',
+                'branch': branches['San Jose'],
+                'is_staff': False,
+            },
+            {
+                'name': 'Aclan Brent',
+                'email': 'msclick15@gmail.com',
+                'role': 'Branch Manager',
+                'branch': branches['San Jose'],
+                'is_staff': False,
+            },
+            {
+                'name': 'JP Claveria',
+                'email': 'johnpaoloclaveria25@gmail.com',
+                'role': 'Staff',
+                'branch': branches['Padre Garcia'],
+                'is_staff': False,
+            },
+            {
+                'name': 'Claveria JP',
+                'email': 'jpclaveria9@gmail.com',
+                'role': 'Branch Manager',
+                'branch': branches['Padre Garcia'],
+                'is_staff': False,
+            },
+        ]
+
+        for member in official_team:
+            team_user, _ = User.objects.get_or_create(email=member['email'])
+            team_user.set_password('Sweetbox123!')
+            team_user.name = member['name']
+            team_user.role = member['role']
+            team_user.branch = member['branch']
+            team_user.is_staff = member.get('is_staff', False)
+            team_user.is_active = True
+            team_user.save()
+
         # 3. Expanded Categories & Products
         cat_cakes, _ = ProductCategory.objects.get_or_create(category_name="Cakes")
         cat_pastries, _ = ProductCategory.objects.get_or_create(category_name="Pastries")

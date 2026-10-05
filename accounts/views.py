@@ -49,7 +49,7 @@ class LoginInitiateView(APIView):
             email_msg = EmailMessage(
                 subject='Sweet Box Authentication Code',
                 body=f'Hello {user.name},\n\nYour 2FA verification code is: {otp_code}\n\nThis code expires in 10 minutes.',
-                from_email='security@sweetbox.ph',
+                from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[email]
             )
             email_msg.send(fail_silently=False)

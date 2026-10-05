@@ -130,13 +130,15 @@ class LiveStockView(APIView):
 
         # 5. Fetch Actual AI Prescriptions
         if getattr(user, 'role', '') == 'Business Owner' and branch_filter == 'all':
-            db_prescriptions = PrescriptiveOutput.objects.filter(status__in=['Pending Review', 'Flagged - Needs Override'])
+            db_prescriptions = PrescriptiveOutput.objects.select_related('branch').filter(status__in=['Pending Review', 'Flagged - Needs Override'])
         else:
-            target_branch = branch_filter if branch_filter != 'all' else user.branch.branch_ID
-            db_prescriptions = PrescriptiveOutput.objects.filter(branch_id=target_branch, status__in=['Pending Review', 'Flagged - Needs Override'])
+            target_branch = branch_filter if branch_filter != 'all' else (user.branch.branch_ID if user.branch else 1)
+            db_prescriptions = PrescriptiveOutput.objects.select_related('branch').filter(branch_id=target_branch, status__in=['Pending Review', 'Flagged - Needs Override'])
 
         prescriptive_actions = [{
             "id": p.prescriptive_output_ID,
+            "branch": p.branch.name if p.branch else "Headquarters",
+            "branch_id": p.branch.branch_ID if p.branch else None,
             "title": p.output_type,
             "description": p.recommendation,
             "impact": p.justification,

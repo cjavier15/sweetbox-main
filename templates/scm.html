@@ -1,7 +1,19 @@
 {% extends 'base.html' %}
 {% block content %}
 <style>
+    .scm-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 6px;
+        scrollbar-width: none;
+    }
+    .scm-tabs::-webkit-scrollbar {
+        display: none;
+    }
     .scm-tabs .nav-link {
+        white-space: nowrap;
         color: var(--sb-text-muted);
         font-weight: 600;
         font-size: 0.9rem;
@@ -76,7 +88,7 @@
     <div class="tab-pane fade show active" id="tracker">
         <!-- KPIs -->
         <div class="row g-3 mb-4" id="kpi-container">
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="card sb-card sb-kpi-card border-0">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -90,7 +102,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="card sb-card sb-kpi-card border-0">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -104,7 +116,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="card sb-card sb-kpi-card border-0">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -118,7 +130,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-6 col-md-3">
                 <div class="card sb-card sb-kpi-card border-0">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -221,7 +233,7 @@
     <div class="tab-pane fade" id="prescriptive">
         <!-- Prescriptive KPIs -->
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
+            <div class="col-12 col-md-4">
                 <div class="card sb-card sb-kpi-card border-0">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -235,7 +247,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-12 col-md-4">
                 <div class="card sb-card sb-kpi-card border-0">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -249,7 +261,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-12 col-md-4">
                 <div class="card sb-card sb-kpi-card border-0">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -290,7 +302,7 @@
 
 <!-- Add Ingredient Modal -->
 <div class="modal fade" id="addIngredientModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -359,7 +371,7 @@
 
 <!-- BOM Modal -->
 <div class="modal fade" id="addBomModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -432,7 +444,7 @@
 
 <!-- Kitchen Production Modal -->
 <div class="modal fade" id="produceModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -480,7 +492,7 @@
 
 <!-- Inter-Branch Product Transfer Modal -->
 <div class="modal fade" id="transferProductModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -553,7 +565,7 @@
 
 <!-- Stock Adjustment Modal -->
 <div class="modal fade" id="stockAdjustModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -848,8 +860,11 @@
         container.innerHTML = actions.map(a => `
             <div class="col-md-6">
                 <div class="card shadow-sm border-0 action-card border-${a.color} h-100 p-3">
-                    <div class="d-flex justify-content-between mb-2">
-                        <strong class="text-${a.color}">${a.title}</strong>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center">
+                            ${a.branch ? `<span class="badge me-2" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);"><i class="fas fa-store me-1"></i>${a.branch}</span>` : ''}
+                            <strong class="text-${a.color}">${a.title}</strong>
+                        </div>
                         <span class="badge bg-${a.color} ${a.color === 'warning' ? 'text-dark' : ''}">${a.status}</span>
                     </div>
                     <p class="fw-bold mb-1">${a.description}</p>
@@ -871,7 +886,7 @@
         const token = localStorage.getItem('access_token');
         const filterVal = document.getElementById('branch-filter').value;
         const targetBranch = (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId)
-            ? (filterVal === 'all' ? 1 : filterVal)
+            ? filterVal
             : window.currentUserBranchId;
         const payload = { branch_id: targetBranch };
 
@@ -884,7 +899,9 @@
             
             const data = await response.json();
             if (response.ok) {
-                alert("AI Analysis Complete! " + (data.outputs ? data.outputs.length : 0) + " prescriptions generated.");
+                const count = data.outputs ? data.outputs.length : 0;
+                const msg = data.message || `AI Analysis Complete! ${count} restock prescription(s) generated.`;
+                alert(msg);
                 loadSCMData(); 
             } else {
                 alert(`AI Error: ${data.error || data.message}`);

@@ -2,31 +2,51 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-9">
-        <div class="card sb-card border-0 shadow-sm overflow-hidden">
-            <div class="card-header bg-dark py-3 px-4 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%) !important;">
-                <div class="d-flex align-items-center gap-2 text-white">
-                    <span class="sb-brand-logo" style="width:34px;height:34px;font-size:0.95rem;"><i class="fas fa-brain"></i></span>
+    <div class="col-12 col-md-10 col-lg-9">
+        <div class="card sb-card border-0 shadow-sm overflow-hidden" style="border-radius: var(--sb-radius-lg);">
+            <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center text-white" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); border-bottom: 2px solid var(--sb-gold);">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="sb-brand-logo" style="width: 38px; height: 38px; font-size: 1.1rem; background: rgba(212, 154, 61, 0.2); border: 1.5px solid var(--sb-gold);"><i class="fas fa-brain text-gold"></i></div>
                     <div>
-                        <h5 class="mb-0 fw-bold">Gemini Sales Analyst</h5>
-                        <small style="color: var(--sb-text-subtle);">Ask natural language questions about your multi-branch revenue & inventory</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="mb-0 fw-bold fs-6 fs-md-5 text-gold">Gemini Sales Analyst</h5>
+                            <span class="badge" style="background: rgba(212, 154, 61, 0.2); color: var(--sb-gold-light); font-size: 0.65rem; border: 1px solid rgba(212, 154, 61, 0.35);">Owner Exclusive</span>
+                        </div>
+                        <small class="text-white-50 d-none d-sm-inline" style="font-size: 0.75rem;">Grounded natural language reasoning for multi-branch revenue & inventory</small>
                     </div>
                 </div>
-                <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark);"><i class="fas fa-sparkles text-gold me-1"></i>AI Powered</span>
+                <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-weight: 700;"><i class="fas fa-wand-magic-sparkles text-gold me-1"></i>AI Powered</span>
             </div>
-            <div class="card-body p-4" id="chat-box" style="height: 480px; overflow-y: auto; background-color: var(--sb-bg-app);">
-                <div class="text-center my-4">
-                    <div class="d-inline-flex p-3 rounded-circle mb-2" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);">
-                        <i class="fas fa-wand-magic-sparkles fs-3"></i>
+            <div class="card-body p-3 p-md-4" id="chat-box" style="height: clamp(380px, 60vh, 560px); overflow-y: auto; background-color: var(--sb-bg-app);">
+                <div id="chat-initial-view" class="text-center my-4">
+                    <div class="d-inline-flex p-3 rounded-circle mb-3 shadow-sm" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);">
+                        <i class="fas fa-wand-magic-sparkles fs-2 text-gold"></i>
                     </div>
-                    <h6 class="fw-bold text-title mb-1">How can I assist your business today?</h6>
-                    <p class="text-muted small">Try: "What was the highest revenue product?" or "Which branch exceeded targets?"</p>
+                    <h6 class="fw-bold text-title mb-1" id="page-welcome-heading">How can I assist your business today?</h6>
+                    <p class="text-muted small mx-auto mb-3" style="max-width: 480px;">
+                        Grounded in historical sales telemetry and active local event variables.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2 justify-content-center pt-1" id="quick-prompt-chips">
+                        <button type="button" class="ai-prompt-chip" onclick="sendPagePrompt('What was our highest revenue product in recent sales?')">
+                            <i class="fas fa-chart-line text-gold me-1"></i> Top revenue products
+                        </button>
+                        <button type="button" class="ai-prompt-chip" onclick="sendPagePrompt('How are active local events impacting customer demand?')">
+                            <i class="fas fa-calendar-check text-gold me-1"></i> Local events impact
+                        </button>
+                        <button type="button" class="ai-prompt-chip" onclick="sendPagePrompt('Give me a quantified restock recommendation for low ingredients.')">
+                            <i class="fas fa-boxes-stacked text-gold me-1"></i> Restock prescription
+                        </button>
+                        <button type="button" class="ai-prompt-chip" onclick="sendPagePrompt('Summarize our overall multi-branch sales performance.')">
+                            <i class="fas fa-store text-gold me-1"></i> Branch sales summary
+                        </button>
+                    </div>
                 </div>
+                <div id="chat-page-messages" class="d-flex flex-column gap-3"></div>
             </div>
-            <div class="card-footer bg-white p-3 border-top d-flex gap-2" style="border-color: var(--sb-border-subtle) !important;">
-                <input type="text" id="user-input" class="form-control" placeholder="Ask Gemini about sales, top performers, or product trends..." onkeydown="if(event.key==='Enter') askGemini()">
-                <button class="btn btn-sb-gold fw-bold px-4 d-flex align-items-center gap-2 shadow-sm" onclick="askGemini()">
-                    <i class="fas fa-paper-plane"></i> Send
+            <div class="card-footer bg-white p-2 p-md-3 border-top d-flex gap-2" style="border-color: var(--sb-border-subtle) !important;">
+                <input type="text" id="user-input" class="form-control" placeholder="Ask Gemini about sales, top performers, or product trends..." onkeydown="if(event.key==='Enter') askGeminiPage()">
+                <button class="btn btn-sb-gold fw-bold px-3 px-md-4 d-flex align-items-center gap-2 shadow-sm text-nowrap" id="btn-page-send" onclick="askGeminiPage()">
+                    <i class="fas fa-paper-plane"></i> <span class="d-none d-sm-inline">Send</span>
                 </button>
             </div>
         </div>
@@ -36,35 +56,111 @@
 
 {% block scripts %}
 <script>
-    async function askGemini() {
+    function sendPagePrompt(text) {
+        const input = document.getElementById('user-input');
+        if (input) {
+            input.value = text;
+            askGeminiPage();
+        }
+    }
+
+    async function loadPageChatHistory() {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        try {
+            const res = await fetch('/api/analytics/chat/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.status === 403) {
+                window.location.href = '/enterprise/';
+                return;
+            }
+            if (!res.ok) return;
+            const data = await res.json();
+
+            if (data.user_name) {
+                const heading = document.getElementById('page-welcome-heading');
+                if (heading) heading.textContent = `Welcome, ${data.user_name}! 👋 How can I assist your business today?`;
+            }
+
+            const messages = document.getElementById('chat-page-messages');
+            if (data.history && data.history.length > 0 && messages) {
+                messages.innerHTML = '';
+                data.history.forEach(item => {
+                    renderPageUserMsg(item.query);
+                    renderPageAiMsg(item.response, item.created_at);
+                });
+                const chatBox = document.getElementById('chat-box');
+                if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        } catch (e) {
+            console.error("Failed to load page chat history:", e);
+        }
+    }
+
+    function renderPageUserMsg(query) {
+        const messages = document.getElementById('chat-page-messages');
+        if (!messages) return;
+        const div = document.createElement('div');
+        div.className = 'text-end animate-fade-in mb-2';
+        div.innerHTML = `
+            <div class="d-inline-block p-3 rounded-3 text-white text-start shadow-sm" style="background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%); max-width: 85%;">
+                <div class="small fw-bold mb-1" style="color: var(--sb-gold-light); font-size: 0.72rem;"><i class="fas fa-user me-1"></i> You</div>
+                <div class="lh-base" style="font-size: 0.88rem;">${escapeHtml(query)}</div>
+            </div>`;
+        messages.appendChild(div);
+    }
+
+    function renderPageAiMsg(reply, timestamp) {
+        const messages = document.getElementById('chat-page-messages');
+        if (!messages) return;
+        const timeLabel = timestamp ? `<span class="text-muted ms-2" style="font-size: 0.65rem;">${timestamp}</span>` : '';
+        const div = document.createElement('div');
+        div.className = 'text-start animate-fade-in mb-2';
+        div.innerHTML = `
+            <div class="d-inline-block p-3 rounded-3 bg-white shadow-sm border text-start" style="max-width: 90%; border-left: 4px solid var(--sb-gold) !important; border-color: var(--sb-border-subtle);">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="small fw-bold" style="color: var(--sb-espresso);"><i class="fas fa-robot text-gold me-1"></i> Gemini Analyst</span>
+                    <div>
+                        <span class="badge" style="background: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-size: 0.65rem;">Grounded Telemetry</span>
+                        ${timeLabel}
+                    </div>
+                </div>
+                <div class="text-body lh-base" style="font-size: 0.88rem;">${formatAiReply(reply)}</div>
+            </div>`;
+        messages.appendChild(div);
+    }
+
+    async function askGeminiPage() {
         const inputField = document.getElementById('user-input');
         const chatBox = document.getElementById('chat-box');
+        const messages = document.getElementById('chat-page-messages');
+        const sendBtn = document.getElementById('btn-page-send');
         const query = inputField.value.trim();
         if (!query) return;
 
-        // Append User Message
-        chatBox.innerHTML += `
-            <div class="mb-3 text-end animate-fade-in">
-                <div class="d-inline-block p-3 rounded-3 text-white text-start shadow-sm" style="background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%); max-width: 80%;">
-                    <div class="small fw-bold mb-1" style="color: var(--sb-gold-light);"><i class="fas fa-user me-1"></i> You</div>
-                    <div>${query}</div>
-                </div>
-            </div>`;
+        renderPageUserMsg(query);
         inputField.value = '';
-        chatBox.scrollTop = chatBox.scrollHeight;
+        if (sendBtn) sendBtn.disabled = true;
 
-        // Loading indicator
         const loadingId = 'loading-' + Date.now();
-        chatBox.innerHTML += `
-            <div class="mb-3 text-start animate-fade-in" id="${loadingId}">
-                <div class="d-inline-block p-3 rounded-3 bg-white border shadow-sm" style="max-width: 80%; border-color: var(--sb-border-subtle) !important;">
-                    <div class="small text-muted fw-bold mb-1"><i class="fas fa-robot text-gold me-1"></i> Gemini Analyst</div>
-                    <div class="text-muted small"><i class="fas fa-spinner fa-spin me-2"></i> Analyzing enterprise telemetry...</div>
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = loadingId;
+        loadingDiv.className = 'text-start animate-fade-in mb-2';
+        loadingDiv.innerHTML = `
+            <div class="d-inline-block p-3 rounded-3 bg-white border shadow-sm" style="max-width: 85%; border-color: var(--sb-border-subtle) !important;">
+                <div class="small text-muted fw-bold mb-1"><i class="fas fa-robot text-gold me-1"></i> Gemini Analyst</div>
+                <div class="text-muted small d-flex align-items-center gap-2">
+                    <span class="spinner-border spinner-border-sm text-warning" role="status"></span>
+                    <span>Analyzing enterprise telemetry & local event models...</span>
                 </div>
             </div>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
+        if (messages) messages.appendChild(loadingDiv);
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
 
         const token = localStorage.getItem('access_token');
+        const branchToQuery = window.currentBranchId || 1;
 
         try {
             const response = await fetch('/api/analytics/chat/', {
@@ -73,44 +169,44 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ branch_id: 1, query: query })
+                body: JSON.stringify({ branch_id: branchToQuery, query: query })
             });
 
-            const data = await response.json();
             const loadingEl = document.getElementById(loadingId);
             if (loadingEl) loadingEl.remove();
-            
-            // Append AI Response
+
+            const data = await response.json();
+
             if (response.ok) {
-                chatBox.innerHTML += `
-                    <div class="mb-3 text-start animate-fade-in">
-                        <div class="d-inline-block p-3 rounded-3 bg-white shadow-sm border" style="max-width: 85%; border-left: 4px solid var(--sb-gold) !important;">
-                            <div class="small fw-bold mb-1" style="color: var(--sb-espresso);"><i class="fas fa-robot text-gold me-1"></i> Gemini Analyst</div>
-                            <div class="text-body lh-base" style="font-size: 0.95rem;">${data.reply}</div>
-                        </div>
-                    </div>`;
+                renderPageAiMsg(data.reply, 'Just now');
             } else {
                 const errorMessage = data.error || data.detail || "An error occurred while contacting AI.";
-                chatBox.innerHTML += `
-                    <div class="mb-3 text-start animate-fade-in">
-                        <div class="d-inline-block p-3 rounded-3 bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="max-width: 85%;">
-                            <div class="small fw-bold mb-1"><i class="fas fa-circle-exclamation me-1"></i> Analysis Notice</div>
-                            <div>${errorMessage}</div>
-                        </div>
+                const errDiv = document.createElement('div');
+                errDiv.className = 'text-start animate-fade-in mb-2';
+                errDiv.innerHTML = `
+                    <div class="d-inline-block p-3 rounded-3 bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="max-width: 85%;">
+                        <div class="small fw-bold mb-1"><i class="fas fa-circle-exclamation me-1"></i> Analysis Notice</div>
+                        <div>${escapeHtml(errorMessage)}</div>
                     </div>`;
+                if (messages) messages.appendChild(errDiv);
             }
-            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
         } catch (error) {
             const loadingEl = document.getElementById(loadingId);
             if (loadingEl) loadingEl.remove();
-            chatBox.innerHTML += `
-                <div class="mb-3 text-start animate-fade-in">
-                    <div class="d-inline-block p-3 rounded-3 bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
-                        <i class="fas fa-wifi me-1"></i> Network connection error. Please verify server connectivity.
-                    </div>
+
+            const errDiv = document.createElement('div');
+            errDiv.className = 'text-start animate-fade-in mb-2';
+            errDiv.innerHTML = `
+                <div class="d-inline-block p-3 rounded-3 bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                    <i class="fas fa-wifi me-1"></i> Network connection error. Please verify server connectivity.
                 </div>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
+            if (messages) messages.appendChild(errDiv);
+        } finally {
+            if (sendBtn) sendBtn.disabled = false;
+            if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
         }
     }
+
+    document.addEventListener("DOMContentLoaded", loadPageChatHistory);
 </script>
 {% endblock %}

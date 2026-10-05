@@ -82,13 +82,13 @@
 </style>
 
 <!-- Top Navigation Bar -->
-<div class="pos-header p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div class="d-flex align-items-center gap-3">
-        <span class="sb-brand-logo"><i class="fas fa-cookie-bite"></i></span>
+<div class="pos-header p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2 gap-md-3">
+    <div class="d-flex align-items-center gap-2 gap-md-3">
+        <span class="sb-brand-logo" style="width: 38px; height: 38px; font-size: 1rem;"><i class="fas fa-cookie-bite"></i></span>
         <div>
-            <h4 class="mb-0 fw-bold text-white d-flex align-items-center gap-2">
+            <h4 class="mb-0 fw-bold text-white d-flex align-items-center gap-2 fs-5 fs-md-4">
                 Sweet Box POS
-                <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-size: 0.75rem;">Cashier Terminal</span>
+                <span class="badge d-none d-sm-inline-block" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-size: 0.75rem;">Cashier Terminal</span>
             </h4>
             <small class="d-flex align-items-center gap-2" style="color: var(--sb-text-subtle);">
                 <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:#10B981;"></span>
@@ -96,27 +96,49 @@
             </small>
         </div>
     </div>
-    <div class="d-flex align-items-center gap-3 flex-wrap">
-        <button class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" onclick="fetchHistory()" data-bs-toggle="modal" data-bs-target="#historyModal">
-            <i class="fas fa-clock-rotate-left"></i> Transaction History
+    <div class="d-flex align-items-center gap-2 gap-md-3 flex-wrap">
+        <button class="btn btn-sb-gold btn-sm fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" onclick="fetchHistory()" data-bs-toggle="modal" data-bs-target="#historyModal">
+            <i class="fas fa-clock-rotate-left"></i> <span class="d-none d-sm-inline">History</span>
         </button>
-        <div class="text-end ps-3 border-start" style="border-color: rgba(232,220,203,0.2) !important;">
-            <div class="fw-bold small text-white">Cashier: <span id="cashier-name" class="text-gold">Loading...</span></div>
+        <div class="text-end ps-2 ps-md-3 border-start" style="border-color: rgba(232,220,203,0.2) !important;">
+            <div class="fw-bold small text-white text-nowrap"><span class="d-none d-sm-inline">Cashier: </span><span id="cashier-name" class="text-gold">Loading...</span></div>
             <div id="live-clock" class="small tabular-nums text-white-50">00:00:00</div>
         </div>
     </div>
 </div>
 
+<!-- Mobile Segmented View Switcher (Only visible on < md screens) -->
+<div class="pos-mobile-toggle d-md-none mb-3">
+    <button type="button" id="pos-btn-menu-tab" class="active" onclick="switchPosMobileView('menu')">
+        <i class="fas fa-utensils me-1"></i> Menu Catalog
+    </button>
+    <button type="button" id="pos-btn-cart-tab" onclick="switchPosMobileView('cart')">
+        <i class="fas fa-shopping-cart me-1"></i> Order Cart (<span id="mobile-cart-badge-count">0</span>)
+    </button>
+</div>
+
+<!-- Sticky Bottom Floating Bar when viewing Catalog on Mobile -->
+<div class="pos-floating-cart-bar d-md-none" id="pos-floating-cart-bar" style="display: none;" onclick="switchPosMobileView('cart')">
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-warning text-dark px-2 py-1 fw-bold" id="floating-cart-count">0 items</span>
+        <span class="small fw-semibold text-white">View Order</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="fw-bold fs-6 tabular-nums text-gold" id="floating-cart-total">₱0.00</span>
+        <i class="fas fa-arrow-right text-gold"></i>
+    </div>
+</div>
+
 <div class="row g-3">
     <!-- Left Panel: Product Grid -->
-    <div class="col-md-8">
+    <div class="col-12 col-md-8" id="pos-product-col">
         <div class="card sb-card border-0 h-100 shadow-sm">
-            <div class="card-body p-3">
+            <div class="card-body p-2 p-md-3">
                 <div class="input-group mb-3">
                     <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-search text-muted"></i></span>
                     <input type="text" class="form-control border-start-0" placeholder="Search menu items..." id="search-input" onkeyup="filterProducts()">
                 </div>
-                <div class="row g-3 overflow-auto" id="product-catalog-container" style="max-height: 65vh; padding-right: 4px;">
+                <div class="row g-2 g-md-3 overflow-auto" id="product-catalog-container" style="max-height: 65vh; padding-right: 4px;">
                     <!-- Products dynamically injected here -->
                 </div>
             </div>
@@ -124,23 +146,28 @@
     </div>
 
     <!-- Right Panel: Cart & Billing -->
-    <div class="col-md-4">
+    <div class="col-12 col-md-4 d-none d-md-block" id="pos-cart-col">
         <div class="card sb-card border-0 h-100 shadow-sm d-flex flex-column">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom" style="border-color: var(--sb-border-subtle) !important;">
-                <h5 class="mb-0 fw-bold text-title d-flex align-items-center gap-2">
-                    <i class="fas fa-cart-shopping text-gold"></i> Current Order
-                </h5>
-                <button class="btn btn-sm btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash-can me-1"></i>Clear All</button>
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 py-md-3 border-bottom" style="border-color: var(--sb-border-subtle) !important;">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-secondary d-md-none px-2 py-1" onclick="switchPosMobileView('menu')" title="Back to Menu">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h5 class="mb-0 fw-bold text-title d-flex align-items-center gap-2 fs-6 fs-md-5">
+                        <i class="fas fa-cart-shopping text-gold"></i> Current Order
+                    </h5>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="clearCart()"><i class="fas fa-trash-can me-1"></i>Clear</button>
             </div>
             
             <!-- Cart Items -->
-            <div class="card-body overflow-auto flex-grow-1 p-3" id="cart-list" style="max-height: 38vh;">
+            <div class="card-body overflow-auto flex-grow-1 p-2 p-md-3" id="cart-list" style="max-height: 38vh;">
                 <p class="text-muted text-center mt-4">Cart is empty</p>
             </div>
 
             <!-- Billing Section -->
-            <div class="card-footer bg-white border-top p-3" style="border-color: var(--sb-border-subtle) !important;">
-                <div class="mb-3">
+            <div class="card-footer bg-white border-top p-2 p-md-3" style="border-color: var(--sb-border-subtle) !important;">
+                <div class="mb-2 mb-md-3">
                     <label class="form-label text-muted small fw-bold mb-1">Discount Apply</label>
                     <select class="form-select form-select-sm" id="discount-selector" onchange="updateCartUI()">
                         <option value="none">Standard Pricing (No Discount)</option>
@@ -155,13 +182,13 @@
                     <span>Discount (20%)</span>
                     <span id="bill-discount" class="tabular-nums fw-bold">-₱0.00</span>
                 </div>
-                <div class="d-flex justify-content-between small mb-3 text-muted">
+                <div class="d-flex justify-content-between small mb-2 mb-md-3 text-muted">
                     <span>VAT (12% Inclusive)</span>
                     <span id="bill-vat" class="tabular-nums">₱0.00</span>
                 </div>
-                <div class="p-3 mb-3 rounded d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1.5px solid var(--sb-gold);">
+                <div class="p-2 p-md-3 mb-2 mb-md-3 rounded d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1.5px solid var(--sb-gold);">
                     <span class="fw-bold small tracking-wider" style="color: var(--sb-gold-light); text-transform: uppercase;">Total Due</span>
-                    <span id="bill-total" class="fs-4 fw-bold tabular-nums text-white">₱0.00</span>
+                    <span id="bill-total" class="fs-5 fs-md-4 fw-bold tabular-nums text-white">₱0.00</span>
                 </div>
                 <button class="btn btn-sb-gold w-100 fw-bold py-2 shadow d-flex align-items-center justify-content-center gap-2 fs-6" data-bs-toggle="modal" data-bs-target="#paymentModal">
                     <i class="fas fa-credit-card"></i> Proceed to Payment
@@ -173,7 +200,7 @@
 
 <!-- 1. Payment Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -181,10 +208,10 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center p-4" style="background-color: var(--sb-bg-app);">
-                <div class="rounded py-3 mb-4" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1.5px solid var(--sb-gold);">
+            <div class="modal-body text-center p-3 p-md-4" style="background-color: var(--sb-bg-app);">
+                <div class="rounded py-3 mb-3" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1.5px solid var(--sb-gold);">
                     <small class="text-uppercase tracking-wider" style="color: var(--sb-gold-light); font-weight: 600;">Amount Due</small>
-                    <h2 class="fw-bold mb-0 tabular-nums text-white" id="payment-amount-due">₱0.00</h2>
+                    <h2 class="fw-bold mb-0 tabular-nums text-white fs-3 fs-md-2" id="payment-amount-due">₱0.00</h2>
                 </div>
                 
                 <h6 class="text-start text-title fw-bold mb-2">Select Payment Method</h6>
@@ -198,6 +225,14 @@
                 <div id="cash-payment-section" class="text-start mb-3 p-3 bg-white rounded border">
                     <label class="form-label text-title fw-bold small">Amount Tendered (₱)</label>
                     <input type="number" id="cash-tendered" class="form-control" placeholder="Enter cash received" oninput="calculateChange()">
+                    <div class="d-flex flex-wrap gap-1 mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashExact()">Exact</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashTendered(50)">₱50</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashTendered(100)">₱100</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashTendered(200)">₱200</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashTendered(500)">₱500</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashTendered(1000)">₱1,000</button>
+                    </div>
                     <div class="mt-2 small text-success fw-bold tabular-nums" id="cash-change-display">Change: ₱0.00</div>
                 </div>
 
@@ -224,7 +259,7 @@
 
 <!-- 2. Digital Receipt Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -232,8 +267,8 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4" style="background-color: var(--sb-bg-app);">
-                <div id="receipt-container" class="bg-white p-4 rounded shadow-sm border">
+            <div class="modal-body p-3 p-md-4" style="background-color: var(--sb-bg-app);">
+                <div id="receipt-container" class="bg-white p-3 p-md-4 rounded shadow-sm border">
                     <div class="text-center mb-3">
                         <div class="d-inline-flex align-items-center justify-content-center p-2 rounded mb-2" style="background: var(--sb-espresso); color: var(--sb-gold); width: 44px; height: 44px;">
                             <i class="fas fa-cookie-bite fs-4"></i>
@@ -268,7 +303,7 @@
 
 <!-- 3. Transaction History Modal -->
 <div class="modal fade" id="historyModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -277,22 +312,24 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>TXN ID</th>
-                            <th>Branch</th>
-                            <th>Total Amount</th>
-                            <th>Discount</th>
-                            <th>Payment</th>
-                            <th>Time</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-table-body">
-                        <tr><td colspan="7" class="text-center text-muted py-4">Loading transactions...</td></tr>
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 text-nowrap">
+                        <thead class="table-light">
+                            <tr>
+                                <th>TXN ID</th>
+                                <th>Branch</th>
+                                <th>Total Amount</th>
+                                <th>Discount</th>
+                                <th>Payment</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr><td colspan="7" class="text-center text-muted py-4">Loading transactions...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -354,17 +391,17 @@
                 const stockText = isOutOfStock ? 'Out of Stock' : `${stock} in stock`;
 
                 return `
-                <div class="col-md-4 product-card" data-name="${p.product_name.toLowerCase()}">
+                <div class="col-6 col-sm-6 col-md-4 product-card" data-name="${p.product_name.toLowerCase()}">
                     <div class="card h-100 item-card ${isOutOfStock ? 'opacity-50' : ''}" 
                          onclick="${clickAction}">
-                        <div class="card-body text-center p-3 d-flex flex-column justify-content-between">
+                        <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between">
                             <div>
-                                <span class="badge mb-2" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">${p.category_name}</span>
-                                <h6 class="card-title fw-bold text-title mb-1">${p.product_name}</h6>
+                                <span class="badge mb-2 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${p.category_name}</span>
+                                <h6 class="card-title fw-bold text-title mb-1 fs-6 text-truncate" title="${p.product_name}">${p.product_name}</h6>
                             </div>
                             <div class="mt-2">
-                                <p class="card-text fw-bold mb-1 tabular-nums fs-5" style="color: var(--sb-espresso);">₱${parseFloat(p.price).toFixed(2)}</p>
-                                <span class="badge ${badgeClass}">${stockText}</span>
+                                <p class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${parseFloat(p.price).toFixed(2)}</p>
+                                <span class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
                             </div>
                         </div>
                     </div>
@@ -374,6 +411,53 @@
             catalog.innerHTML = '<p class="text-danger">Failed to load products.</p>'; 
         }
     }
+
+    function switchPosMobileView(view) {
+        const productCol = document.getElementById('pos-product-col');
+        const cartCol = document.getElementById('pos-cart-col');
+        const menuTab = document.getElementById('pos-btn-menu-tab');
+        const cartTab = document.getElementById('pos-btn-cart-tab');
+        const floatBar = document.getElementById('pos-floating-cart-bar');
+        
+        if (view === 'menu') {
+            if (productCol) {
+                productCol.classList.remove('d-none');
+                productCol.classList.add('d-block');
+            }
+            if (cartCol) {
+                cartCol.classList.remove('d-block');
+                cartCol.classList.add('d-none', 'd-md-block');
+            }
+            if (menuTab) menuTab.classList.add('active');
+            if (cartTab) cartTab.classList.remove('active');
+            if (floatBar) {
+                const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
+                floatBar.style.display = (totalItems > 0 && window.innerWidth < 768) ? 'flex' : 'none';
+            }
+        } else {
+            if (productCol) {
+                productCol.classList.remove('d-block');
+                productCol.classList.add('d-none');
+            }
+            if (cartCol) {
+                cartCol.classList.remove('d-none');
+                cartCol.classList.add('d-block');
+            }
+            if (menuTab) menuTab.classList.remove('active');
+            if (cartTab) cartTab.classList.add('active');
+            if (floatBar) floatBar.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('resize', () => {
+        const floatBar = document.getElementById('pos-floating-cart-bar');
+        const productCol = document.getElementById('pos-product-col');
+        if (floatBar) {
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const isMenuVisible = productCol && !productCol.classList.contains('d-none');
+            floatBar.style.display = (totalItems > 0 && isMenuVisible && window.innerWidth < 768) ? 'flex' : 'none';
+        }
+    });
 
     function filterProducts() {
         const query = document.getElementById('search-input').value.toLowerCase();
@@ -447,6 +531,38 @@
         document.getElementById('bill-vat').innerText = `₱${vat.toFixed(2)}`;
         document.getElementById('bill-total').innerText = `₱${total.toFixed(2)}`;
         document.getElementById('payment-amount-due').innerText = `₱${total.toFixed(2)}`;
+
+        // Sync Mobile Badges & Floating Cart Bar
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        const mobileBadge = document.getElementById('mobile-cart-badge-count');
+        if (mobileBadge) mobileBadge.innerText = totalItems;
+        
+        const floatCount = document.getElementById('floating-cart-count');
+        if (floatCount) floatCount.innerText = `${totalItems} ${totalItems === 1 ? 'item' : 'items'}`;
+        
+        const floatTotal = document.getElementById('floating-cart-total');
+        if (floatTotal) floatTotal.innerText = `₱${total.toFixed(2)}`;
+        
+        const floatBar = document.getElementById('pos-floating-cart-bar');
+        const productCol = document.getElementById('pos-product-col');
+        if (floatBar) {
+            const isMenuVisible = productCol && !productCol.classList.contains('d-none');
+            floatBar.style.display = (totalItems > 0 && isMenuVisible && window.innerWidth < 768) ? 'flex' : 'none';
+        }
+    }
+
+    function setCashExact() {
+        const isPwd = document.getElementById('discount-selector').value === 'pwd';
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const discountAmount = isPwd ? subtotal * 0.20 : 0;
+        const total = subtotal - discountAmount;
+        document.getElementById('cash-tendered').value = total.toFixed(2);
+        calculateChange();
+    }
+
+    function setCashTendered(amount) {
+        document.getElementById('cash-tendered').value = amount;
+        calculateChange();
     }
 
     function selectPayment(method) {

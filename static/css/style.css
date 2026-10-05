@@ -603,3 +603,369 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 .pulse-glow {
     animation: sbPulseGlow 2.5s infinite;
 }
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS & TOUCH OPTIMIZATION (Mobile First Enhancements)
+   ========================================================================== */
+
+/* Prevent iOS Safari 16px auto-zoom on input focus */
+@media (max-width: 767.98px) {
+    input, select, textarea, .form-control, .form-select {
+        font-size: 16px !important;
+    }
+}
+
+/* Safe Area Insets for Modern Edge-to-Edge Displays (iPhone notch, etc.) */
+:root {
+    --sb-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --sb-safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* Touch Targets: Ensure min 40-44px click area on mobile devices */
+@media (max-width: 767.98px) {
+    .btn {
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-sm {
+        min-height: 36px;
+    }
+}
+
+/* --- Mobile Bottom Navigation Bar --- */
+.sb-mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(62px + var(--sb-safe-bottom));
+    padding-bottom: var(--sb-safe-bottom);
+    background: linear-gradient(180deg, var(--sb-espresso-dark) 0%, #150C08 100%);
+    border-top: 1.5px solid rgba(212, 154, 61, 0.35);
+    box-shadow: 0 -4px 20px rgba(20, 10, 5, 0.4);
+    z-index: 1040;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+}
+
+.sb-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--sb-text-subtle);
+    text-decoration: none;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: var(--sb-radius-sm);
+    transition: var(--sb-transition);
+    flex: 1;
+    text-align: center;
+    min-height: 48px;
+}
+
+.sb-bottom-nav-item i {
+    font-size: 1.15rem;
+    margin-bottom: 3px;
+    transition: var(--sb-transition);
+}
+
+.sb-bottom-nav-item:hover,
+.sb-bottom-nav-item.active {
+    color: var(--sb-gold-light) !important;
+}
+
+.sb-bottom-nav-item.active i {
+    color: var(--sb-gold);
+    transform: translateY(-2px);
+    filter: drop-shadow(0 2px 6px rgba(212, 154, 61, 0.5));
+}
+
+.sb-bottom-nav-badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 16px);
+    background-color: var(--sb-gold);
+    color: var(--sb-espresso-dark);
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 5px;
+    border-radius: 10px;
+    line-height: 1;
+}
+
+/* --- Mobile Main Content Layout --- */
+@media (max-width: 767.98px) {
+    main.sb-main-content {
+        height: auto !important;
+        min-height: calc(100dvh - 56px);
+        overflow-y: visible !important;
+        padding-bottom: calc(82px + var(--sb-safe-bottom)) !important;
+    }
+
+    /* Compact KPI cards on mobile (2 columns) */
+    .sb-kpi-card {
+        padding: 0.85rem !important;
+    }
+    .sb-kpi-card .sb-kpi-value,
+    .sb-kpi-card .stat-value {
+        font-size: 1.35rem !important;
+    }
+    .sb-kpi-card .sb-kpi-label,
+    .sb-kpi-card .kpi-label {
+        font-size: 0.75rem !important;
+    }
+    .sb-kpi-card .sb-kpi-subtext {
+        font-size: 0.7rem !important;
+    }
+    .sb-kpi-icon,
+    .kpi-icon-container {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Modal adjustments for small screens */
+    .modal-dialog {
+        margin: 0.5rem !important;
+        max-width: calc(100% - 1rem) !important;
+    }
+    .modal-body {
+        padding: 1.15rem !important;
+    }
+    .modal-header {
+        padding: 1rem 1.15rem !important;
+    }
+
+    /* Horizontal scrollable tab bars on mobile */
+    .scm-tabs,
+    .nav-tabs-mobile {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+    .scm-tabs::-webkit-scrollbar,
+    .nav-tabs-mobile::-webkit-scrollbar {
+        display: none;
+    }
+    .scm-tabs .nav-link,
+    .nav-tabs-mobile .nav-link {
+        white-space: nowrap !important;
+        padding: 8px 14px !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Table responsive container enhancements */
+    .table-responsive {
+        border-radius: var(--sb-radius-md);
+        box-shadow: inset -6px 0 8px -6px rgba(0,0,0,0.1);
+        -webkit-overflow-scrolling: touch;
+    }
+    .table-responsive thead th {
+        position: sticky;
+        top: 0;
+        background-color: #FAF7F2 !important;
+        z-index: 2;
+    }
+}
+
+/* --- Mobile POS Specific Styles --- */
+@media (max-width: 767.98px) {
+    .qty-btn {
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 1rem !important;
+    }
+    
+    .pay-method-btn {
+        padding: 12px 6px !important;
+        font-size: 0.85rem !important;
+    }
+
+    .pos-mobile-toggle {
+        display: flex;
+        background: #FFFFFF;
+        border: 1px solid var(--sb-border-subtle);
+        border-radius: var(--sb-radius-md);
+        padding: 4px;
+        margin-bottom: 12px;
+        box-shadow: var(--sb-shadow-xs);
+    }
+
+    .pos-mobile-toggle button {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-weight: 700;
+        font-size: 0.88rem;
+        padding: 8px 12px;
+        border-radius: var(--sb-radius-sm);
+        color: var(--sb-text-muted);
+        transition: var(--sb-transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .pos-mobile-toggle button.active {
+        background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%);
+        color: var(--sb-gold-light);
+        box-shadow: var(--sb-shadow-xs);
+    }
+
+    /* Sticky Bottom Floating Bar when viewing Catalog on Mobile */
+    .pos-floating-cart-bar {
+        position: fixed;
+        bottom: calc(66px + var(--sb-safe-bottom));
+        left: 12px;
+        right: 12px;
+        background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);
+        border: 1.5px solid var(--sb-gold);
+        border-radius: var(--sb-radius-lg);
+        color: #FAF7F2;
+        padding: 12px 16px;
+        box-shadow: 0 10px 25px rgba(28, 14, 8, 0.45);
+        z-index: 1030;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        animation: sbFadeIn 0.25s ease-out;
+    }
+
+    /* Compact item card for 2-column mobile layout */
+    .item-card .card-body {
+        padding: 0.75rem !important;
+    }
+    .item-card .card-title {
+        font-size: 0.85rem !important;
+        line-height: 1.25;
+        min-height: 2.5em;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .item-card .card-text {
+        font-size: 1rem !important;
+    }
+}
+
+/* ==========================================================================
+   FLOATING AI ANALYST CHAT BUBBLE (Owner Exclusivity)
+   ========================================================================== */
+.sb-floating-bubble-wrapper {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 1035;
+    transition: var(--sb-transition);
+}
+
+@media (max-width: 767.98px) {
+    .sb-floating-bubble-wrapper {
+        bottom: calc(76px + var(--sb-safe-bottom));
+        right: 16px;
+    }
+}
+
+.sb-floating-ai-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%) !important;
+    border: 2px solid var(--sb-gold) !important;
+    color: var(--sb-gold-light) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative;
+    padding: 0 !important;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 8px 25px rgba(28, 14, 8, 0.45) !important;
+    cursor: pointer;
+}
+
+.sb-floating-ai-btn:hover {
+    transform: translateY(-4px) scale(1.08);
+    box-shadow: 0 12px 30px rgba(212, 154, 61, 0.5) !important;
+    border-color: #FFF !important;
+}
+
+.sb-floating-ai-btn .ai-bubble-inner i {
+    font-size: 1.45rem;
+    color: var(--sb-gold);
+    transition: transform 0.3s ease;
+}
+
+.sb-floating-ai-btn:hover .ai-bubble-inner i {
+    transform: rotate(15deg) scale(1.1);
+}
+
+.ai-bubble-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid var(--sb-gold);
+    top: 0;
+    left: 0;
+    animation: sbBubblePulse 2.4s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+@keyframes sbBubblePulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.28);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+}
+
+.chat-bubble-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: var(--sb-gold);
+    color: var(--sb-espresso-dark);
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 3px 6px;
+    border-radius: 12px;
+    border: 1.5px solid var(--sb-espresso-dark);
+}
+
+.ai-prompt-chip {
+    background: var(--sb-bg-surface);
+    border: 1px solid var(--sb-border-subtle);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--sb-espresso);
+    cursor: pointer;
+    transition: var(--sb-transition);
+    white-space: nowrap;
+}
+
+.ai-prompt-chip:hover {
+    background: var(--sb-gold-subtle);
+    border-color: var(--sb-gold);
+    color: var(--sb-espresso-dark);
+    transform: translateY(-1px);
+}
+

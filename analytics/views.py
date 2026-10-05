@@ -57,22 +57,61 @@ class RestockDirectiveView(APIView):
 
     def post(self, request):
         user = request.user
+        is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
         branch_id = request.data.get('branch_id')
 
-        # Allow passing a branch_id, or fall back to the user's assigned branch
+        # Case 1: All branches requested (Only allowed for Business Owner or Superuser)
+        if branch_id and str(branch_id).lower() == 'all':
+            if not is_owner:
+                return Response(
+                    {"error": "Access denied: Generating prescriptions across all branches is restricted to the Business Owner."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            branches = Branch.objects.all().order_by('branch_ID')
+            all_outputs = []
+            branches_with_prescriptions = 0
+            for b in branches:
+                try:
+                    res = generate_restock_directive(b)
+                    if res.get('status') == 'generated':
+                        all_outputs.extend(res.get('outputs', []))
+                        branches_with_prescriptions += 1
+                except Exception:
+                    continue
+                    
+            return Response({
+                "status": "generated",
+                "message": f"AI Analysis complete across all {branches.count()} branches. Generated {len(all_outputs)} prescription(s) across {branches_with_prescriptions} branch(es).",
+                "outputs": all_outputs,
+                "branches_analyzed": branches.count()
+            }, status=status.HTTP_200_OK)
+
+        # Case 2: Specific branch requested
         if branch_id:
             try:
                 branch = Branch.objects.get(branch_ID=branch_id)
-            except Branch.DoesNotExist:
-                return Response({"error": "Branch not found."}, status=status.HTTP_404_NOT_FOUND)
+            except (Branch.DoesNotExist, ValueError):
+                return Response({"error": f"Branch '{branch_id}' not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Non-owners cannot generate for branches they don't belong to
+            if not is_owner and user.branch and user.branch.branch_ID != branch.branch_ID:
+                return Response({"error": "Access denied: You can only generate prescriptions for your assigned branch."}, status=status.HTTP_403_FORBIDDEN)
         elif user.branch:
             branch = user.branch
+        elif is_owner:
+            # Business owner without a branch specified defaults to first branch
+            branch = Branch.objects.first()
+            if not branch:
+                return Response({"error": "No branches found in database."}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({"error": "Please provide a branch_id in the request body."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Trigger Gemini AI Pipeline
-        result = generate_restock_directive(branch)
-        return Response(result, status=status.HTTP_200_OK)
+        # Trigger AI Pipeline for single branch
+        try:
+            result = generate_restock_directive(branch)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"AI Generation Failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 from django.db.models import Sum, Count, F, DateField
 from django.db.models.functions import Cast
@@ -94,8 +133,37 @@ class CurrentUserView(APIView):
 class SalesChatbotView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        """Fetch recent chatbot message history and user greeting info for the owner."""
+        if getattr(request.user, 'role', '') != 'Business Owner' and not request.user.is_superuser:
+            return Response(
+                {"error": "Access denied. The AI Sales Analyst is exclusively accessible to the Business Owner role."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        logs = ChatbotLog.objects.filter(user=request.user).order_by('-created_time')[:25]
+        history = [{
+            "id": log.chatbot_log_ID,
+            "branch": log.branch.name if log.branch else "Headquarters",
+            "query": log.query_text,
+            "response": log.response_text,
+            "created_at": log.created_time.strftime("%b %d, %Y %I:%M %p")
+        } for log in reversed(logs)]
+        
+        return Response({
+            "history": history,
+            "user_name": request.user.name,
+            "role": request.user.role
+        }, status=status.HTTP_200_OK)
+
     def post(self, request):
         user = request.user
+        if getattr(user, 'role', '') != 'Business Owner' and not user.is_superuser:
+            return Response(
+                {"error": "Access denied. The AI Sales Analyst is exclusively accessible to the Business Owner role."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         branch_id = request.data.get('branch_id')
         user_query = request.data.get('query', 'Give me a brief summary of our recent sales.')
 

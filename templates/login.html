@@ -42,9 +42,9 @@
         }
     </style>
 </head>
-<body class="d-flex align-items-center justify-content-center p-3">
+<body class="d-flex align-items-center justify-content-center p-3" style="min-height: 100dvh;">
 
-    <div class="login-card">
+    <div class="login-card mx-auto">
         <div class="login-header text-center">
             <div class="d-inline-flex align-items-center justify-content-center mb-3">
                 <span class="sb-brand-logo" style="width:48px;height:48px;font-size:1.35rem;">
@@ -63,14 +63,14 @@
                     <label class="form-label fw-bold text-title small">Email Address</label>
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-envelope text-muted"></i></span>
-                        <input type="email" id="email" class="form-control border-start-0" placeholder="name@sweetbox.ph" required>
+                        <input type="email" id="email" class="form-control border-start-0" placeholder="name@sweetbox.ph" required autocomplete="email" inputmode="email">
                     </div>
                 </div>
                 <div class="mb-4">
                     <label class="form-label fw-bold text-title small">Password</label>
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-lock text-muted"></i></span>
-                        <input type="password" id="password" class="form-control border-start-0" placeholder="••••••••" required>
+                        <input type="password" id="password" class="form-control border-start-0" placeholder="••••••••" required autocomplete="current-password">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 fs-6" id="btn-login">
@@ -86,7 +86,7 @@
                     </div>
                     <h5 class="fw-bold text-title mb-1">Two-Factor Authentication</h5>
                     <p class="text-muted small mb-3">Enter the 6-digit verification code sent to your credentials.</p>
-                    <input type="text" id="otp" class="form-control text-center fs-3 fw-bold letter-spacing-2" maxlength="6" placeholder="000000" required>
+                    <input type="text" id="otp" class="form-control text-center fs-3 fw-bold letter-spacing-2" maxlength="6" placeholder="000000" required inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
                 </div>
                 <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 fs-6" id="btn-verify">
                     <i class="fas fa-check-circle"></i> Verify & Access
