@@ -167,7 +167,7 @@ AUTH_USER_MODEL = 'accounts.User'
 
 # Email Configuration (Gmail SMTP)
 EMAIL_BACKEND = 'anymail.backends.brevo.EmailBackend'
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '"Sweet Box Security" <sweetbox.system@gmail.com>')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '"Sweet Box OTP" <sweetbox.system@gmail.com>')
 
 ANYMAIL = {
     "BREVO_API_KEY": os.getenv("BREVO_API_KEY"),
