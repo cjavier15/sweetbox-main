@@ -59,6 +59,7 @@
             
             <!-- Step 1: Email & Password -->
             <form id="loginForm" onsubmit="processLogin(event)">
+                {% csrf_token %}
                 <div class="mb-3">
                     <label class="form-label fw-bold text-title small">Email Address</label>
                     <div class="input-group">
@@ -80,6 +81,7 @@
 
             <!-- Step 2: OTP Verification (Hidden by default) -->
             <form id="otpForm" class="d-none" onsubmit="verifyOTP(event)">
+                {% csrf_token %}
                 <div class="mb-4 text-center">
                     <div class="d-inline-flex p-3 rounded-circle mb-3" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);">
                         <i class="fas fa-key fs-4"></i>
@@ -104,6 +106,15 @@
 <script>
     let tempEmail = "";
 
+    function getCSRFToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input && input.value) {
+            return input.value;
+        }
+        const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
     async function routeUser(token) {
         const userRes = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
         if (userRes.ok) {
@@ -122,29 +133,39 @@
 
     async function processLogin(event) {
         event.preventDefault();
-        const email = document.getElementById('email').value;
+        const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
         const errorBox = document.getElementById('error-message');
         const btn = document.getElementById('btn-login');
-        const trustedToken = localStorage.getItem('trusted_device_token'+ email);
+        const trustedToken = localStorage.getItem('trusted_device_token' + email);
         
         btn.innerText = "Authenticating...";
         btn.disabled = true;
 
         try {
+            const csrfToken = getCSRFToken();
             const response = await fetch('/api/auth/initiate/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({ email: email, password: password, trusted_device_token: trustedToken })
             });
-            const data = await response.json();
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (jsonErr) {
+                data = { error: `Server error (${response.status} ${response.statusText})` };
+            }
             
             if (response.ok) {
                 if (data.status === "trusted_bypass") {
                     localStorage.setItem('access_token', data.access);
                     routeUser(data.access);
                 } else {
-                    tempEmail = data.email;
+                    tempEmail = data.email || email;
                     errorBox.classList.add('d-none');
                     document.getElementById('loginForm').classList.add('d-none');
                     document.getElementById('otpForm').classList.remove('d-none');
@@ -157,7 +178,7 @@
             }
         } catch (error) {
             errorBox.classList.remove('d-none');
-            errorBox.innerText = "Network error. Is the server running?";
+            errorBox.innerText = "Network error. Please check your connection and try again.";
             btn.innerText = "Secure Login";
             btn.disabled = false;
         }
@@ -165,7 +186,7 @@
 
     async function verifyOTP(event) {
         event.preventDefault();
-        const otp = document.getElementById('otp').value;
+        const otp = document.getElementById('otp').value.trim();
         const errorBox = document.getElementById('error-message');
         const btn = document.getElementById('btn-verify');
         
@@ -173,12 +194,22 @@
         btn.disabled = true;
 
         try {
+            const csrfToken = getCSRFToken();
             const response = await fetch('/api/auth/verify/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({ email: tempEmail, otp: otp })
             });
-            const data = await response.json();
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (jsonErr) {
+                data = { error: `Server error (${response.status} ${response.statusText})` };
+            }
             
             if (response.ok) {
                 localStorage.setItem('access_token', data.access);
