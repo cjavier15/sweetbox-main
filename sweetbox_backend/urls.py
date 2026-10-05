@@ -26,7 +26,7 @@ urlpatterns = [
     path('scm/', TemplateView.as_view(template_name='scm.html'), name='scm_frontend'),
 
     path('enterprise/', EnterpriseDashboardView.as_view(), name='enterprise-dashboard'),
-    path('', RedirectView.as_view(url='/enterprise/', permanent=False), name='index'),
+    #path('', RedirectView.as_view(url='/enterprise/', permanent=False), name='index'),
 
     path('', RedirectView.as_view(url='/login/', permanent=False), name='index'),
 ]
