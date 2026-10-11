@@ -11,10 +11,11 @@ from inventory.models import (
 class InventoryTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.hub = Branch.objects.create(name="Main Hub", address="Hub St", main_hub=True)
+        self.hub = Branch.objects.create(name="Ibaan (Main Hub)", address="Hub St", main_hub=True)
         self.branch = Branch.objects.create(name="Branch 1", address="Branch St", main_hub=False)
         self.owner = User.objects.create(name="Owner", email="owner_inv@sweetbox.ph", role="Business Owner", is_active=True)
         self.manager = User.objects.create(name="Manager", email="manager_inv@sweetbox.ph", role="Branch Manager", branch=self.branch, is_active=True)
+        self.hub_manager = User.objects.create(name="Hub Manager", email="hubmanager_inv@sweetbox.ph", role="Branch Manager", branch=self.hub, is_active=True)
         self.staff = User.objects.create(name="Staff", email="staff_inv@sweetbox.ph", role="Staff", branch=self.branch, is_active=True)
 
         self.category = ProductCategory.objects.create(category_name="Cakes")
@@ -62,18 +63,21 @@ class InventoryTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("Insufficient", response.data.get('error', ''))
 
-    def test_produce_product_view_satellite_branch_manager(self):
-        """Branch manager producing items strictly produces at their branch and deducts branch ingredients."""
-        # Setup branch stocks: Flour 50, Sugar 30
-        branch_flour = IngredientStock.objects.create(
-            branch=self.branch, ingredient=self.flour, quantity_available=Decimal('50.00'), total_cost=Decimal('2500.00')
-        )
-        branch_sugar = IngredientStock.objects.create(
-            branch=self.branch, ingredient=self.sugar, quantity_available=Decimal('30.00'), total_cost=Decimal('1200.00')
-        )
-
+    def test_produce_product_view_satellite_branch_manager_rejected(self):
+        """Satellite branch managers cannot produce products (strictly exclusive to Main Hub)."""
         self.client.force_authenticate(user=self.manager)
-        # Even if payload erroneously sends branch_id=hub, backend binds strictly to self.branch
+        payload = {
+            'product_id': self.product.product_ID,
+            'quantity': 2,
+            'branch_id': self.branch.branch_ID
+        }
+        response = self.client.post('/api/inventory/produce/', payload, format='json')
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("Main Hub", response.data.get('error', ''))
+
+    def test_produce_product_view_main_hub_manager(self):
+        """Branch manager assigned to Main Hub (Ibaan) can successfully produce products."""
+        self.client.force_authenticate(user=self.hub_manager)
         payload = {
             'product_id': self.product.product_ID,
             'quantity': 4,
@@ -82,42 +86,18 @@ class InventoryTests(TestCase):
         response = self.client.post('/api/inventory/produce/', payload, format='json')
         self.assertEqual(response.status_code, 201)
         self.assertIn("produced 4", response.data.get('message', ''))
-        self.assertIn(self.branch.name, response.data.get('message', ''))
 
-        # Branch flour deducted: 50 - (4 * 2) = 42
-        branch_flour.refresh_from_db()
-        self.assertEqual(branch_flour.quantity_available, Decimal('42.00'))
-
-        # Branch sugar deducted: 30 - (4 * 1) = 26
-        branch_sugar.refresh_from_db()
-        self.assertEqual(branch_sugar.quantity_available, Decimal('26.00'))
-
-        # Branch product stock increased to 4
-        branch_ps = ProductStock.objects.get(branch=self.branch, product=self.product)
-        self.assertEqual(branch_ps.quantity_available, Decimal('4.00'))
-
-        # Hub flour was UNTOUCHED (still 100)
+        # Hub flour deducted: 100 - (4 * 2) = 92
         self.flour_stock.refresh_from_db()
-        self.assertEqual(self.flour_stock.quantity_available, Decimal('100.00'))
+        self.assertEqual(self.flour_stock.quantity_available, Decimal('92.00'))
 
-    def test_produce_product_view_satellite_branch_insufficient(self):
-        """Satellite branch fails if its own ingredients are insufficient even if Hub has plenty."""
-        # Setup branch with only 1kg flour (needs 2kg per cake)
-        IngredientStock.objects.create(
-            branch=self.branch, ingredient=self.flour, quantity_available=Decimal('1.00'), total_cost=Decimal('50.00')
-        )
-        IngredientStock.objects.create(
-            branch=self.branch, ingredient=self.sugar, quantity_available=Decimal('10.00'), total_cost=Decimal('400.00')
-        )
+        # Hub sugar deducted: 50 - (4 * 1) = 46
+        self.sugar_stock.refresh_from_db()
+        self.assertEqual(self.sugar_stock.quantity_available, Decimal('46.00'))
 
-        self.client.force_authenticate(user=self.manager)
-        payload = {
-            'product_id': self.product.product_ID,
-            'quantity': 2, # needs 4kg flour
-        }
-        response = self.client.post('/api/inventory/produce/', payload, format='json')
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("Insufficient Flour at Branch 1", response.data.get('error', ''))
+        # Hub product stock increased to 4
+        hub_ps = ProductStock.objects.get(branch=self.hub, product=self.product)
+        self.assertEqual(hub_ps.quantity_available, Decimal('4.00'))
 
     def test_manual_stock_adjustment_view_success(self):
         self.client.force_authenticate(user=self.owner)
@@ -428,3 +408,80 @@ class InventoryTests(TestCase):
         response = self.client.post('/api/inventory/transfer/', payload, format='json')
         self.assertEqual(response.status_code, 400)
         self.assertIn("cannot be the same", response.data['error'])
+
+    def test_manual_stock_adjustment_invalid_inputs(self):
+        """Ensure non-positive quantity, empty reason, or invalid adjustment type are rejected."""
+        self.client.force_authenticate(user=self.owner)
+
+        # Zero quantity
+        res = self.client.post('/api/inventory/adjust/', {
+            'item_type': 'ingredient',
+            'item_id': self.flour_stock.ingredient_inventory_ID,
+            'adjustment_type': 'Stock-in',
+            'quantity_change': 0,
+            'reason': 'Zero test'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("greater than zero", res.data.get('error', ''))
+
+        # Negative quantity
+        res = self.client.post('/api/inventory/adjust/', {
+            'item_type': 'ingredient',
+            'item_id': self.flour_stock.ingredient_inventory_ID,
+            'adjustment_type': 'Stock-in',
+            'quantity_change': -5,
+            'reason': 'Negative test'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+
+        # Empty reason
+        res = self.client.post('/api/inventory/adjust/', {
+            'item_type': 'ingredient',
+            'item_id': self.flour_stock.ingredient_inventory_ID,
+            'adjustment_type': 'Stock-in',
+            'quantity_change': 5,
+            'reason': '   '
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("reason", res.data.get('error', '').lower())
+
+        # Invalid adjustment type
+        res = self.client.post('/api/inventory/adjust/', {
+            'item_type': 'ingredient',
+            'item_id': self.flour_stock.ingredient_inventory_ID,
+            'adjustment_type': 'MagicType',
+            'quantity_change': 5,
+            'reason': 'Type test'
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+
+    def test_ingredient_create_invalid_inputs(self):
+        """Ensure negative costs/initial quantities and empty names are rejected."""
+        self.client.force_authenticate(user=self.owner)
+
+        # Negative cost
+        res = self.client.post('/api/inventory/ingredient/add/', {
+            'ingredient_name': 'Vanilla',
+            'cost_per_unit': -10.00,
+            'initial_quantity': 5,
+            'branch_id': self.hub.branch_ID
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+
+        # Empty name
+        res = self.client.post('/api/inventory/ingredient/add/', {
+            'ingredient_name': '   ',
+            'cost_per_unit': 10.00,
+            'initial_quantity': 5,
+            'branch_id': self.hub.branch_ID
+        }, format='json')
+        self.assertEqual(res.status_code, 400)
+
+    def test_category_list_api(self):
+        """Test GET /api/inventory/categories/ returns active product categories."""
+        self.client.force_authenticate(user=self.manager)
+        response = self.client.get('/api/inventory/categories/')
+        self.assertEqual(response.status_code, 200)
+        names = [c['category_name'] for c in response.data]
+        self.assertIn("Cakes", names)
+

@@ -187,11 +187,21 @@ class SalesChatbotView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@method_decorator(cache_page(30), name='dispatch')
 class EnterpriseDashboardDataView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
+        user = request.user
+        is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
+        branch_param = request.GET.get('branch')
+        
+        target_branch = None
+        if not is_owner and user.branch:
+            # Branch Manager or Staff: strictly bound to their assigned branch
+            target_branch = user.branch
+        elif is_owner and branch_param and str(branch_param).lower() != 'all':
+            target_branch = Branch.objects.filter(branch_ID=branch_param).first()
+
         time_filter = request.GET.get('filter', 'this_month')
         today = timezone.now()
         
@@ -206,40 +216,88 @@ class EnterpriseDashboardDataView(APIView):
         start_date = today - timedelta(days=days)
         prev_start_date = start_date - timedelta(days=days)
         
-        # Base QuerySets
-        txns_current = Transaction.objects.filter(transaction_status='Completed', transaction_date__gte=start_date)
-        txns_prev = Transaction.objects.filter(transaction_status='Completed', transaction_date__gte=prev_start_date, transaction_date__lt=start_date)
-        
-        # If no transactions in recent 30-day window (e.g. mock data older), fall back to all completed transactions so dashboard is never blank
-        if not txns_current.exists():
-            txns_current = Transaction.objects.filter(transaction_status='Completed')
+        # Base QuerySets: Strictly completed transactions, excluding voided/refunded/cancelled
+        base_txns = Transaction.objects.filter(transaction_status='Completed').exclude(
+            transaction_status__in=['Voided', 'Refunded', 'Cancelled']
+        )
+        if target_branch:
+            base_txns = base_txns.filter(branch=target_branch)
+
+        txns_current = base_txns.filter(transaction_date__gte=start_date)
+        txns_prev = base_txns.filter(transaction_date__gte=prev_start_date, transaction_date__lt=start_date)
         
         # 1. Top Scorecards & Trends
         curr_revenue = txns_current.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
-        prev_revenue = txns_prev.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('1.00')
-        if prev_revenue <= 0:
-            prev_revenue = Decimal('1.00')
-        rev_trend = ((float(curr_revenue) - float(prev_revenue)) / float(prev_revenue)) * 100
+        prev_revenue = txns_prev.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+        if prev_revenue > 0:
+            rev_trend = ((float(curr_revenue) - float(prev_revenue)) / float(prev_revenue)) * 100
+        else:
+            rev_trend = 100.0 if curr_revenue > 0 else 0.0
         
         curr_txns = txns_current.count()
-        prev_txns = txns_prev.count() or 1
-        txn_trend = ((curr_txns - prev_txns) / prev_txns) * 100
-        
-        latest_kpi = KPIRecord.objects.order_by('-period_date').first()
-        turnover = float(latest_kpi.inventory_turnover) if latest_kpi else 0.00
-        gmroi = float(latest_kpi.gmroi) if latest_kpi else 0.00
-        
-        total_branches = Branch.objects.count()
-        active_branches = txns_current.values('branch').distinct().count()
+        prev_txns = txns_prev.count()
+        if prev_txns > 0:
+            txn_trend = ((curr_txns - prev_txns) / prev_txns) * 100
+        else:
+            txn_trend = 100.0 if curr_txns > 0 else 0.0
+
+        # Stock Levels & Production Costs (COGS)
+        if target_branch:
+            ing_stocks = IngredientStock.objects.filter(branch=target_branch)
+            prod_stocks = ProductStock.objects.filter(branch=target_branch)
+            latest_kpi = KPIRecord.objects.filter(branch=target_branch).order_by('-period_date').first()
+        else:
+            ing_stocks = IngredientStock.objects.all()
+            prod_stocks = ProductStock.objects.all()
+            latest_kpi = KPIRecord.objects.order_by('-period_date').first()
+
+        total_ing_cost = ing_stocks.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+        total_prod_cost = prod_stocks.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+        total_stock_value = total_ing_cost + total_prod_cost
+
+        # Calculate exact COGS / Production Costs for the period via Bill of Materials
+        cogs = Decimal('0.00')
+        txn_items = TransactionItem.objects.filter(transaction__in=txns_current).select_related('product')
+        product_recipe_costs = {}
+        for bom in BillOfMaterial.objects.select_related('ingredient'):
+            product_recipe_costs[bom.product_id] = product_recipe_costs.get(bom.product_id, Decimal('0.00')) + (
+                Decimal(str(bom.quantity_required)) * Decimal(str(bom.ingredient.cost_per_unit))
+            )
+        for item in txn_items:
+            unit_cost = product_recipe_costs.get(item.product_id, Decimal('0.00'))
+            cogs += unit_cost * Decimal(str(item.quantity))
+
+        # Dynamic Inventory Turnover and GMROI
+        if total_stock_value > 0 and cogs > 0:
+            turnover = float(round(cogs / total_stock_value, 2))
+            gross_margin = curr_revenue - cogs
+            gmroi = float(round(gross_margin / total_stock_value, 2))
+        else:
+            turnover = float(latest_kpi.inventory_turnover) if latest_kpi else 0.00
+            gmroi = float(latest_kpi.gmroi) if latest_kpi else 0.00
+
+        if target_branch:
+            total_branches = 1
+            active_branches = 1 if curr_txns > 0 else 0
+        else:
+            total_branches = Branch.objects.count()
+            active_branches = txns_current.values('branch').distinct().count()
         
         scorecards = {
-            'revenue': float(curr_revenue), 'revenue_trend': round(rev_trend, 1), 'prev_revenue': float(prev_revenue),
-            'transactions': curr_txns, 'transactions_trend': round(txn_trend, 1),
-            'turnover': turnover, 'gmroi': gmroi,
-            'active_branches': active_branches, 'total_branches': total_branches
+            'revenue': float(curr_revenue), 
+            'revenue_trend': round(rev_trend, 1), 
+            'prev_revenue': float(prev_revenue),
+            'transactions': curr_txns, 
+            'transactions_trend': round(txn_trend, 1),
+            'turnover': turnover, 
+            'gmroi': gmroi,
+            'cogs': float(cogs),
+            'inventory_value': float(total_stock_value),
+            'active_branches': active_branches, 
+            'total_branches': total_branches
         }
 
-        # 2. Time-Series: Daily/Monthly Sales Overview (resilient across all database timezone settings)
+        # 2. Time-Series: Daily/Monthly Sales Overview
         sales_over_time = txns_current.annotate(
             txn_day=Cast('transaction_date', DateField())
         ).values('txn_day').annotate(total=Sum('total_amount')).order_by('txn_day')
@@ -279,10 +337,11 @@ class EnterpriseDashboardDataView(APIView):
             'Cuenca': 9000.00
         }
         
+        branch_qs = [target_branch] if target_branch else Branch.objects.all()
         branch_performance = []
-        for b in Branch.objects.all():
+        for b in branch_qs:
             b_rev = txns_current.filter(branch=b).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
-            base_monthly_target = monthly_targets.get(b.name, 150000.00)
+            base_monthly_target = monthly_targets.get(b.name, 15000.00)
             
             if days == 7:
                 target = base_monthly_target / 4
@@ -309,16 +368,28 @@ class EnterpriseDashboardDataView(APIView):
         for idx, item in enumerate(top_items):
             trend = round(((float(item['rev']) / float(curr_revenue)) * 100) if curr_revenue > 0 else 0, 1)
             top_products.append({
-                'rank': idx + 1, 'name': item['product__product_name'], 'category': item['product__category__category_name'],
-                'units': item['units'], 'revenue': float(item['rev']), 'trend': trend
+                'rank': idx + 1, 
+                'name': item['product__product_name'], 
+                'category': item['product__category__category_name'] or 'General',
+                'units': item['units'], 
+                'revenue': float(item['rev']), 
+                'trend': trend
             })
+
+        branches_data = [{
+            'id': b.branch_ID,
+            'name': b.name
+        } for b in Branch.objects.all().order_by('branch_ID')]
 
         return Response({
             'scorecards': scorecards,
             'time_series': time_series,
             'payment_methods': payment_data,
             'branch_performance': branch_performance,
-            'top_products': top_products
+            'top_products': top_products,
+            'branches': branches_data,
+            'selected_branch': target_branch.name if target_branch else 'All Branches',
+            'selected_branch_id': target_branch.branch_ID if target_branch else 'all'
         })
 
 class ExternalVariableView(APIView):

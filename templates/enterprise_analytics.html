@@ -9,11 +9,20 @@
         <p class="text-muted-warm small mb-0">Multi-Branch Real-Time Performance & Algorithmic Insights</p>
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
+        <!-- Branch Selector (Owner / Multi-Branch) -->
+        <div class="d-inline-flex align-items-center" id="analytics-branch-wrapper">
+            <select id="analytics-branch-filter" class="form-select form-select-sm bg-white shadow-xs fw-semibold border" style="border-color: var(--sb-border-subtle) !important; min-width: 170px;" onchange="onBranchFilterChange(this.value)">
+                <option value="all">All Branches</option>
+            </select>
+        </div>
         <div class="btn-group bg-white p-1 rounded-3 shadow-xs border" role="group" style="border-color: var(--sb-border-subtle) !important;">
             <button type="button" class="btn btn-sm filter-btn" onclick="applyFilter('this_week', this)">This Week</button>
             <button type="button" class="btn btn-sm filter-btn active" onclick="applyFilter('this_month', this)">This Month</button>
             <button type="button" class="btn btn-sm filter-btn" onclick="applyFilter('last_7_months', this)">Last 7 Months</button>
         </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary bg-white shadow-xs fw-semibold d-inline-flex align-items-center gap-1 border" style="border-color: var(--sb-border-subtle) !important;" onclick="manualRefresh()" id="btn-refresh" title="Refresh Live Analytics">
+            <i class="fas fa-arrows-rotate" id="refresh-icon"></i> Refresh
+        </button>
         <button class="btn btn-warning fw-bold text-dark shadow-sm d-inline-flex align-items-center gap-2" onclick="exportKPIs()">
             <i class="fas fa-file-arrow-down"></i> Export Report
         </button>
@@ -236,7 +245,11 @@
 <script src="{% static 'js/axios.min.js' %}"></script>
 <script>
     let currentFilter = 'this_month';
+    let currentBranch = 'all';
     let charts = { daily: null, payment: null, target: null };
+    let branchesLoaded = false;
+    let currentUserRole = '';
+    let isOwner = false;
     
     // Sweet Box Brand Theme Colors
     const brandColor = '#3E2419';      // Rich Espresso
@@ -252,13 +265,61 @@
         await renderEnterpriseCharts();
     }
 
-    async function renderEnterpriseCharts() {
+    async function onBranchFilterChange(val) {
+        currentBranch = val;
+        await renderEnterpriseCharts();
+    }
+
+    async function manualRefresh() {
+        const icon = document.getElementById('refresh-icon');
+        const btn = document.getElementById('btn-refresh');
+        if (icon) icon.classList.add('fa-spin');
+        if (btn) btn.disabled = true;
+        try {
+            await renderEnterpriseCharts(true);
+        } finally {
+            setTimeout(() => {
+                if (icon) icon.classList.remove('fa-spin');
+                if (btn) btn.disabled = false;
+            }, 400);
+        }
+    }
+
+    function populateBranchSelector(branches, selectedBranchId) {
+        const select = document.getElementById('analytics-branch-filter');
+        if (!select) return;
+
+        if (!branchesLoaded && branches && branches.length) {
+            select.innerHTML = '<option value="all">All Branches</option>';
+            branches.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.textContent = b.name;
+                select.appendChild(opt);
+            });
+            branchesLoaded = true;
+        }
+
+        if (selectedBranchId !== undefined && selectedBranchId !== null) {
+            select.value = selectedBranchId;
+        }
+
+        if (!isOwner && currentUserRole) {
+            select.disabled = true;
+        }
+    }
+
+    async function renderEnterpriseCharts(isManual = false) {
         const token = localStorage.getItem('access_token');
         try {
-            const response = await axios.get(`/api/analytics/dashboard-data/?filter=${currentFilter}`, {
+            const cacheBuster = Date.now();
+            const response = await axios.get(`/api/analytics/dashboard-data/?filter=${currentFilter}&branch=${currentBranch}&_t=${cacheBuster}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = response.data;
+
+            // Populate branch dropdown if needed
+            populateBranchSelector(data.branches, data.selected_branch_id);
 
             // 1. Populate Scorecards
             document.getElementById('kpi-revenue').innerText = `₱${data.scorecards.revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
@@ -558,10 +619,27 @@
         .catch(err => alert("Error downloading report."));
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-        renderEnterpriseCharts();
+    document.addEventListener("DOMContentLoaded", async () => {
+        const token = localStorage.getItem('access_token');
+        try {
+            const userRes = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (userRes.ok) {
+                const user = await userRes.json();
+                currentUserRole = user.role;
+                isOwner = (user.role === 'Business Owner' || user.is_superuser);
+                if (!isOwner && user.branch_id) {
+                    currentBranch = user.branch_id;
+                    const select = document.getElementById('analytics-branch-filter');
+                    if (select) select.disabled = true;
+                }
+            }
+        } catch (e) {
+            console.warn("Could not load user info:", e);
+        }
+
+        await renderEnterpriseCharts();
         loadEvents();
-        setInterval(renderEnterpriseCharts, 60000); 
+        setInterval(() => renderEnterpriseCharts(false), 20000); 
     });
 </script>
 {% endblock %}

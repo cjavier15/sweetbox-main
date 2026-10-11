@@ -8,11 +8,13 @@ from .views import (
     ManualStockAdjustmentView, 
     SubmitRestockView, 
     ProcessRestockView,
-    ProductTransferView
+    ProductTransferView,
+    CategoryListView
 )
 
 urlpatterns = [
     path('stock/', LiveStockView.as_view(), name='live_stock_api'),
+    path('categories/', CategoryListView.as_view(), name='category_list_api'),
     path('ingredient/add/', IngredientCreateView.as_view(), name='ingredient_add_api'),
     path('bom/create/', BOMCreateView.as_view(), name='bom_create_api'),
     path('bom/delete/<int:product_id>/', ProductDeleteView.as_view(), name='bom_delete_api'),

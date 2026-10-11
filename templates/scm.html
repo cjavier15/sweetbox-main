@@ -185,7 +185,7 @@
                     <button id="btn-transfer-product" class="btn btn-sb-gold px-3 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" onclick="openTransferModal()">
                         <i class="fas fa-truck-fast"></i> Transfer Product
                     </button>
-                    <button class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#produceModal">
+                    <button id="btn-produce-product" class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#produceModal">
                         <i class="fas fa-kitchen-set"></i> Produce Items
                     </button>
                 </div>
@@ -387,7 +387,11 @@
                     </h6>
                     <div class="row g-2 mb-2">
                         <div class="col-md-6"><input type="text" id="bom-prod-name" class="form-control" placeholder="Product Name (e.g., Mango Cake)" required></div>
-                        <div class="col-md-3"><input type="text" id="bom-prod-cat" class="form-control" placeholder="Category (e.g., Cakes)" required></div>
+                        <div class="col-md-3">
+                            <select id="bom-prod-cat" class="form-select" required>
+                                <option value="" disabled selected>-- Select Category --</option>
+                            </select>
+                        </div>
                         <div class="col-md-3"><input type="number" id="bom-prod-price" step="0.01" class="form-control" placeholder="Selling Price (₱)" required></div>
                     </div>
                     <div class="row g-2 mb-4">
@@ -676,11 +680,12 @@
             const produceBranchStatic = document.getElementById('produce-branch-static');
             const produceBranchLabel = document.getElementById('produce-branch-name-label');
             const btnTransfer = document.getElementById('btn-transfer-product');
+            const btnProduce = document.getElementById('btn-produce-product');
             const transferSourceSelect = document.getElementById('transfer-source-branch-id');
             const transferSourceStatic = document.getElementById('transfer-source-static');
             const transferSourceLabel = document.getElementById('transfer-source-name-label');
 
-            // Transfer Product Button Visibility
+            // Transfer Product Button Visibility (Main Hub & Owner only)
             if (btnTransfer) {
                 if (window.isOwnerOrHub) {
                     btnTransfer.classList.remove('d-none');
@@ -688,6 +693,17 @@
                 } else {
                     btnTransfer.classList.add('d-none');
                     btnTransfer.classList.remove('d-inline-flex');
+                }
+            }
+
+            // Produce Product Button Visibility (Main Hub & Owner only)
+            if (btnProduce) {
+                if (window.isOwnerOrHub) {
+                    btnProduce.classList.remove('d-none');
+                    btnProduce.classList.add('d-inline-flex');
+                } else {
+                    btnProduce.classList.add('d-none');
+                    btnProduce.classList.remove('d-inline-flex');
                 }
             }
 
@@ -747,16 +763,40 @@
             ? (filterVal === 'all' ? 1 : filterVal)
             : window.currentUserBranchId;
 
+        const nameVal = document.getElementById('ing-new-name').value.trim();
+        if (!nameVal) {
+            alert("Ingredient name cannot be empty.");
+            return;
+        }
+
+        const costVal = parseFloat(document.getElementById('ing-new-cost').value);
+        if (isNaN(costVal) || costVal < 0) {
+            alert("Cost per unit must be a non-negative number.");
+            return;
+        }
+
+        const initialStockVal = parseFloat(document.getElementById('ing-new-stock').value || 0);
+        if (isNaN(initialStockVal) || initialStockVal < 0) {
+            alert("Initial stock must be a non-negative number.");
+            return;
+        }
+
+        const thresholdVal = parseFloat(document.getElementById('ing-new-threshold').value || 10);
+        if (isNaN(thresholdVal) || thresholdVal < 0) {
+            alert("Reorder threshold must be a non-negative number.");
+            return;
+        }
+
         const catEl = document.getElementById('ing-new-category');
         const categoryVal = catEl ? catEl.value : 'General';
 
         const payload = {
-            ingredient_name: document.getElementById('ing-new-name').value,
+            ingredient_name: nameVal,
             category: categoryVal,
             measurement_unit: document.getElementById('ing-new-unit').value,
-            cost_per_unit: parseFloat(document.getElementById('ing-new-cost').value),
-            initial_quantity: parseFloat(document.getElementById('ing-new-stock').value || 0),
-            reorder_threshold: parseFloat(document.getElementById('ing-new-threshold').value || 10),
+            cost_per_unit: costVal,
+            initial_quantity: initialStockVal,
+            reorder_threshold: thresholdVal,
             branch_id: targetBranch
         };
 
@@ -783,14 +823,27 @@
     window.submitNewBOM = async function(event) {
         event.preventDefault();
         
+        const catSelect = document.getElementById('bom-prod-cat');
+        const selectedCat = catSelect ? catSelect.value : '';
+        if (!selectedCat) {
+            alert("Please select a product category from the dropdown.");
+            return;
+        }
+
+        const priceVal = parseFloat(document.getElementById('bom-prod-price').value);
+        if (isNaN(priceVal) || priceVal < 0) {
+            alert("Selling price must be a non-negative number.");
+            return;
+        }
+
         const payload = {
-            product_name: document.getElementById('bom-prod-name').value,
-            category: document.getElementById('bom-prod-cat').value,
-            price: parseFloat(document.getElementById('bom-prod-price').value),
+            product_name: document.getElementById('bom-prod-name').value.trim(),
+            category: selectedCat,
+            price: priceVal,
             initial_stock: parseFloat(document.getElementById('bom-prod-stock').value || 0),
             reorder_threshold: parseFloat(document.getElementById('bom-prod-threshold').value || 5),
             ingredients: Array.from(document.querySelectorAll('.ingredient-row')).map(row => ({
-                name: row.querySelector('.ing-name').value,
+                name: row.querySelector('.ing-name').value.trim(),
                 unit: row.querySelector('.ing-unit').value,
                 deduction: parseFloat(row.querySelector('.ing-deduct').value)
             }))
@@ -823,16 +876,36 @@
         }
     };
 
+    function populateCategoryDropdowns(categories) {
+        if (!categories || !categories.length) return;
+        const bomCatSelect = document.getElementById('bom-prod-cat');
+        if (bomCatSelect) {
+            const currentVal = bomCatSelect.value;
+            bomCatSelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>' +
+                categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            if (currentVal) bomCatSelect.value = currentVal;
+        }
+
+        const ingCatSelect = document.getElementById('ing-new-category');
+        if (ingCatSelect) {
+            const currentVal = ingCatSelect.value;
+            ingCatSelect.innerHTML = categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            if (currentVal) ingCatSelect.value = currentVal;
+        }
+    }
+
     async function loadSCMData() {
         const token = localStorage.getItem('access_token');
         const branchId = document.getElementById('branch-filter').value;
         
         try {
-            const response = await fetch(`/api/inventory/stock/?branch=${branchId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch(`/api/inventory/stock/?branch=${branchId}&_t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await response.json();
             const uniqueIngs = [...new Map(data.inventory.map(item => [item.ingredient_name, item])).values()];
             document.getElementById('existing-ingredients').innerHTML = uniqueIngs.map(i => `<option value="${i.ingredient_name}" data-unit="${i.unit}" data-cost="${i.cost_per_unit}">`).join('');
             
+            if (data.categories) populateCategoryDropdowns(data.categories);
+
             renderKPIs(data.kpis);
             renderInventory(data.inventory);
             
@@ -1169,6 +1242,11 @@
     window.submitProduction = async function(event) {
         event.preventDefault();
 
+        if (!window.isOwnerOrHub) {
+            alert("Access Denied: Product manufacturing/production is strictly exclusive to the Main Hub (Ibaan).");
+            return;
+        }
+
         let targetBranchId = null;
         if (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId) {
             const modalSelect = document.getElementById('produce-branch-id');
@@ -1182,9 +1260,15 @@
             targetBranchId = window.currentUserBranchId;
         }
 
+        const qtyVal = parseInt(document.getElementById('produce-quantity').value);
+        if (isNaN(qtyVal) || qtyVal <= 0) {
+            alert("Production quantity must be a positive integer greater than zero.");
+            return;
+        }
+
         const payload = {
             product_id: document.getElementById('produce-product-id').value,
-            quantity: document.getElementById('produce-quantity').value,
+            quantity: qtyVal,
             branch_id: targetBranchId
         };
 
@@ -1241,12 +1325,25 @@
 
     window.submitStockAdjustment = async function(event) {
         event.preventDefault();
+
+        const qtyVal = parseFloat(document.getElementById('adj-qty').value);
+        if (isNaN(qtyVal) || qtyVal <= 0) {
+            alert("Quantity must be a positive number greater than zero.");
+            return;
+        }
+
+        const reasonVal = document.getElementById('adj-reason').value.trim();
+        if (!reasonVal) {
+            alert("An adjustment reason is mandatory and cannot be empty.");
+            return;
+        }
+
         const payload = {
             item_type: document.getElementById('adj-item-type').value,
             item_id: document.getElementById('adj-item-id').value,
             adjustment_type: document.getElementById('adj-type').value,
-            quantity_change: document.getElementById('adj-qty').value,
-            reason: document.getElementById('adj-reason').value
+            quantity_change: qtyVal,
+            reason: reasonVal
         };
 
         const batch = document.getElementById('adj-batch') ? document.getElementById('adj-batch').value.trim() : '';
@@ -1276,6 +1373,11 @@
 
     // Inter-Branch Product Transfer Logic
     window.openTransferModal = function(productId = null, productName = '', maxStock = null) {
+        if (!window.isOwnerOrHub) {
+            alert("Access Denied: Product transfers are strictly exclusive to the Main Hub (Ibaan).");
+            return;
+        }
+
         const modalEl = document.getElementById('transferProductModal');
         if (!modalEl) return;
 

@@ -146,6 +146,11 @@ class LiveStockView(APIView):
             "color": "danger" if "Flagged" in p.status else "warning"
         } for p in db_prescriptions]
 
+        categories_data = [{
+            "id": c.category_ID,
+            "name": c.category_name
+        } for c in ProductCategory.objects.all().order_by('category_name')]
+
         return Response({
             "kpis": kpis, 
             "inventory": inventory_data, 
@@ -153,8 +158,21 @@ class LiveStockView(APIView):
             "restock_queue": restock_queue, 
             "prescriptive_actions": prescriptive_actions, 
             "product_watch": product_watch_data, 
-            "pending_restocks": pending_restocks
+            "pending_restocks": pending_restocks,
+            "categories": categories_data
         })
+
+class CategoryListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        categories = ProductCategory.objects.all().order_by('category_name')
+        return Response([{
+            "id": c.category_ID,
+            "name": c.category_name,
+            "category_name": c.category_name,
+            "description": c.description or ""
+        } for c in categories], status=status.HTTP_200_OK)
 
 class IngredientCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -163,16 +181,46 @@ class IngredientCreateView(APIView):
     def post(self, request):
         data = request.data
         name = data.get('ingredient_name') or data.get('name')
-        unit = data.get('measurement_unit') or data.get('unit', 'kg')
-        cost = Decimal(str(data.get('cost_per_unit', data.get('cost', 0.00))))
-        initial_qty = Decimal(str(data.get('initial_quantity', data.get('initial_stock', 0.00))))
-        threshold = Decimal(str(data.get('reorder_threshold', 10.00)))
-        branch_id = data.get('branch_id')
-
         if not name or not str(name).strip():
-            return Response({"error": "Ingredient name is required."}, status=status.HTTP_400_BAD_REQUEST)
-        if cost < 0:
-            return Response({"error": "Cost per unit cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Ingredient name is required and cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+        name = str(name).strip()
+
+        unit = str(data.get('measurement_unit') or data.get('unit', 'kg')).strip() or 'kg'
+
+        try:
+            raw_cost = data.get('cost_per_unit', data.get('cost', 0.00))
+            if raw_cost is None or str(raw_cost).strip() == '':
+                cost = Decimal('0.00')
+            else:
+                cost = Decimal(str(raw_cost))
+            if cost < 0:
+                return Response({"error": "Cost per unit cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response({"error": "Invalid cost per unit. Must be a valid non-negative number."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            raw_qty = data.get('initial_quantity', data.get('initial_stock', 0.00))
+            if raw_qty is None or str(raw_qty).strip() == '':
+                initial_qty = Decimal('0.00')
+            else:
+                initial_qty = Decimal(str(raw_qty))
+            if initial_qty < 0:
+                return Response({"error": "Initial quantity cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response({"error": "Invalid initial quantity. Must be a valid non-negative number."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            raw_threshold = data.get('reorder_threshold', 10.00)
+            if raw_threshold is None or str(raw_threshold).strip() == '':
+                threshold = Decimal('10.00')
+            else:
+                threshold = Decimal(str(raw_threshold))
+            if threshold < 0:
+                return Response({"error": "Reorder threshold cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response({"error": "Invalid reorder threshold. Must be a valid non-negative number."}, status=status.HTTP_400_BAD_REQUEST)
+
+        branch_id = data.get('branch_id')
 
         category_id = data.get('category_id')
         category_name = data.get('category') or data.get('category_name')
@@ -185,7 +233,7 @@ class IngredientCreateView(APIView):
                 category = ProductCategory.objects.create(category_name=str(category_name).strip())
 
         ingredient, created = Ingredient.objects.get_or_create(
-            ingredient_name=str(name).strip(),
+            ingredient_name=name,
             defaults={
                 'category': category,
                 'measurement_unit': unit,
@@ -207,12 +255,12 @@ class IngredientCreateView(APIView):
         if branch_id and str(branch_id) != 'all':
             target_branch = Branch.objects.filter(branch_ID=branch_id).first()
         if not target_branch:
-            target_branch = Branch.objects.filter(main_hub=True).first()
+            target_branch = Branch.objects.filter(main_hub=True).first() or Branch.objects.first()
 
         for branch in Branch.objects.all():
             qty = initial_qty if (branch == target_branch or branch_id == 'all') else Decimal('0.00')
             total_cost = qty * cost
-            IngredientStock.objects.get_or_create(
+            stock_obj, stock_created = IngredientStock.objects.get_or_create(
                 branch=branch,
                 ingredient=ingredient,
                 defaults={
@@ -221,6 +269,11 @@ class IngredientCreateView(APIView):
                     'total_cost': total_cost
                 }
             )
+            if not stock_created and (branch == target_branch or branch_id == 'all') and initial_qty > 0:
+                stock_obj.quantity_available += initial_qty
+                stock_obj.total_cost += total_cost
+                stock_obj.save()
+
             ConstraintParameter.objects.get_or_create(
                 branch=branch,
                 ingredient=ingredient,
@@ -232,6 +285,16 @@ class IngredientCreateView(APIView):
                     'capacity_limit': Decimal('500.00')
                 }
             )
+
+            # Audit trail: log stock adjustment if stock was allocated
+            if qty > 0:
+                StockAdjustment.objects.create(
+                    user=request.user,
+                    ingredients_inventory=stock_obj,
+                    adjustment_type='Stock-in',
+                    quantity_change=qty,
+                    reason=f"Initial stock allocation for new ingredient '{ingredient.ingredient_name}' at {branch.name}."
+                )
 
         AuditLog.objects.create(
             user=request.user,
@@ -252,32 +315,67 @@ class BOMCreateView(APIView):
     def post(self, request):
         data = request.data
         try:
-            category, _ = ProductCategory.objects.get_or_create(category_name=data.get('category', 'General'))
-            product = Product.objects.create(category=category, product_name=data['product_name'], price=data.get('price', 0.00), is_active=True)
+            prod_name = data.get('product_name')
+            if not prod_name or not str(prod_name).strip():
+                return Response({"error": "Product name is required."}, status=status.HTTP_400_BAD_REQUEST)
+            prod_name = str(prod_name).strip()
+
+            cat_input = data.get('category') or data.get('category_name') or data.get('category_id') or 'General'
+            category = None
+            if isinstance(cat_input, int) or (isinstance(cat_input, str) and str(cat_input).isdigit()):
+                category = ProductCategory.objects.filter(category_ID=int(cat_input)).first()
+            if not category and cat_input:
+                category = ProductCategory.objects.filter(category_name__iexact=str(cat_input).strip()).first()
+            if not category:
+                category, _ = ProductCategory.objects.get_or_create(category_name=str(cat_input).strip())
+
+            try:
+                price = Decimal(str(data.get('price', 0.00)))
+                if price < 0:
+                    return Response({"error": "Product price cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception:
+                return Response({"error": "Invalid price provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+            product = Product.objects.create(category=category, product_name=prod_name, price=price, is_active=True)
             
             for item in data.get('ingredients', []):
+                ing_name = str(item.get('name', '')).strip()
+                if not ing_name:
+                    continue
+                try:
+                    ing_cost = Decimal(str(item.get('cost', 0.00)))
+                    if ing_cost < 0:
+                        ing_cost = Decimal('0.00')
+                except Exception:
+                    ing_cost = Decimal('0.00')
+
+                try:
+                    deduction_qty = Decimal(str(item.get('deduction', 0.00)))
+                    if deduction_qty <= 0:
+                        return Response({"error": f"Deduction quantity for {ing_name} must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    return Response({"error": f"Invalid deduction quantity for {ing_name}."}, status=status.HTTP_400_BAD_REQUEST)
+
                 ingredient, created = Ingredient.objects.get_or_create(
-                    ingredient_name=item['name'],
+                    ingredient_name=ing_name,
                     defaults={
                         'measurement_unit': item.get('unit', 'unit'),
-                        'cost_per_unit': Decimal(str(item.get('cost', 0.00)))
+                        'cost_per_unit': ing_cost
                     }
                 )
                 
-                # If ingredient exists, override unit/cost if provided
                 if not created and 'cost' in item:
                     ingredient.measurement_unit = item.get('unit', ingredient.measurement_unit)
-                    ingredient.cost_per_unit = Decimal(str(item.get('cost', ingredient.cost_per_unit)))
+                    ingredient.cost_per_unit = ing_cost
                     ingredient.save()
                 
                 BillOfMaterial.objects.create(
                     product=product,
                     ingredient=ingredient,
-                    quantity_required=Decimal(str(item['deduction'])),
+                    quantity_required=deduction_qty,
                     measurement_unit=ingredient.measurement_unit
                 )
                 
-                # Ensure ingredient stocks and constraints exist across all branches
                 for branch in Branch.objects.all():
                     IngredientStock.objects.get_or_create(
                         branch=branch, ingredient=ingredient,
@@ -294,12 +392,24 @@ class BOMCreateView(APIView):
                         }
                     )
 
-            # Initialize ProductStock and Product Constraints across all branches
-            initial_stock = Decimal(str(data.get('initial_stock', data.get('initial_quantity', 0.00))))
-            threshold = Decimal(str(data.get('reorder_threshold', 5.00)))
+            try:
+                initial_stock = Decimal(str(data.get('initial_stock', data.get('initial_quantity', 0.00))))
+                if initial_stock < 0:
+                    initial_stock = Decimal('0.00')
+            except Exception:
+                initial_stock = Decimal('0.00')
+
+            try:
+                threshold = Decimal(str(data.get('reorder_threshold', 5.00)))
+                if threshold < 0:
+                    threshold = Decimal('5.00')
+            except Exception:
+                threshold = Decimal('5.00')
+
             for branch in Branch.objects.all():
-                ps_qty = initial_stock if branch.main_hub else Decimal('0.00')
-                ProductStock.objects.get_or_create(
+                is_hub = bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
+                ps_qty = initial_stock if is_hub else Decimal('0.00')
+                p_stock, _ = ProductStock.objects.get_or_create(
                     branch=branch,
                     product=product,
                     defaults={
@@ -308,6 +418,15 @@ class BOMCreateView(APIView):
                         'total_cost': Decimal('0.00')
                     }
                 )
+                if ps_qty > 0:
+                    StockAdjustment.objects.create(
+                        user=request.user,
+                        product_inventory=p_stock,
+                        adjustment_type='Stock-in',
+                        quantity_change=ps_qty,
+                        reason=f"Initial finished stock for new product '{product.product_name}'."
+                    )
+
                 ConstraintParameter.objects.get_or_create(
                     branch=branch,
                     product=product,
@@ -365,74 +484,118 @@ class ProduceProductView(APIView):
 
     @db_transaction.atomic
     def post(self, request):
+        user = request.user
+        is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
+        user_branch = getattr(user, 'branch', None)
+        is_ibaan = bool(user_branch and (user_branch.main_hub or user_branch.branch_ID == 1 or 'ibaan' in user_branch.name.lower()))
+
+        # Task 3: Restrict "Produce Product" to Main Hub Only
+        # Only managers assigned to the Ibaan branch (or Business Owner / Superuser) can trigger the production action.
+        if not (is_owner or is_ibaan):
+            return Response(
+                {"error": "Access Denied: Product manufacturing/production is strictly exclusive to the Main Hub (Ibaan) and Business Owner."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         product_id = request.data.get('product_id')
-        quantity = int(request.data.get('quantity', 0))
         branch_id = request.data.get('branch_id')
         
-        if not product_id or quantity <= 0:
-            return Response({"error": "Invalid production data provided."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            raw_qty = request.data.get('quantity', 0)
+            quantity = int(raw_qty)
+            if quantity <= 0:
+                return Response({"error": "Production quantity must be an integer greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid production quantity. Must be a valid positive integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not product_id:
+            return Response({"error": "Product ID is required for production."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             product = Product.objects.get(product_ID=product_id)
             
-            # CRITICAL MULTI-BRANCH ROUTING:
-            # Business Owner / Superuser can produce at any specified branch.
-            # Branch-assigned accounts (Branch Manager, Staff) MUST strictly produce at their assigned branch!
-            if getattr(request.user, 'role', '') == 'Business Owner' or request.user.is_superuser:
-                branch = None
+            # Target branch resolution: Production strictly occurs at the Main Production Hub (Ibaan)
+            if is_owner:
                 if branch_id and str(branch_id) != 'all':
                     branch = Branch.objects.filter(branch_ID=branch_id).first()
-                if not branch:
-                    branch = request.user.branch or Branch.objects.filter(main_hub=True).first()
+                else:
+                    branch = Branch.objects.filter(main_hub=True).first() or Branch.objects.filter(branch_ID=1).first() or user_branch
             else:
-                branch = request.user.branch
+                branch = user_branch
             
             if not branch:
                 return Response({"error": "No valid production branch could be determined."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Ensure the production location is Main Hub (Ibaan)
+            is_target_hub = bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
+            if not is_target_hub:
+                return Response(
+                    {"error": f"Production cannot occur at {branch.name}. Manufacturing is strictly exclusive to the Main Hub (Ibaan)."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             
-            # 1. Check and Deduct Ingredients via BOM
-            boms = BillOfMaterial.objects.filter(product=product)
-            if not boms.exists():
+            # 1. Check and Deduct Ingredients via BOM with concurrency row-level lock
+            boms = list(BillOfMaterial.objects.filter(product=product).select_related('ingredient'))
+            if not boms:
                 return Response({"error": f"{product.product_name} has no Bill of Materials configured. Cannot produce."}, status=status.HTTP_400_BAD_REQUEST)
 
+            # First verify all ingredients are sufficient under lock before mutating
+            ingredient_stocks_to_update = []
             for bom in boms:
                 qty_req = Decimal(str(bom.quantity_required))
                 qty_to_produce = Decimal(str(quantity))
                 total_deduction = qty_req * qty_to_produce
                 
-                stock, _ = IngredientStock.objects.get_or_create(
-                    branch=branch, ingredient=bom.ingredient,
-                    defaults={'quantity_available': Decimal('0.00'), 'reorder_threshold': Decimal('10.00'), 'total_cost': Decimal('0.00')}
-                )
+                stock = IngredientStock.objects.select_for_update().filter(
+                    branch=branch, ingredient=bom.ingredient
+                ).first()
+                if not stock:
+                    stock = IngredientStock.objects.create(
+                        branch=branch, ingredient=bom.ingredient,
+                        quantity_available=Decimal('0.00'), reorder_threshold=Decimal('10.00'), total_cost=Decimal('0.00')
+                    )
+                    stock = IngredientStock.objects.select_for_update().get(pk=stock.pk)
                 
-                if Decimal(str(stock.quantity_available)) < total_deduction:
+                if stock.quantity_available < total_deduction:
                     return Response({
                         "error": f"Insufficient {bom.ingredient.ingredient_name} at {branch.name}. Need {total_deduction} {bom.measurement_unit}, but only have {stock.quantity_available} {bom.measurement_unit}."
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
-                # Apply the deduction
-                stock.quantity_available = Decimal(str(stock.quantity_available)) - total_deduction
+                ingredient_stocks_to_update.append((stock, bom, total_deduction))
+
+            # Apply ingredient deductions
+            for stock, bom, total_deduction in ingredient_stocks_to_update:
+                if stock.quantity_available > 0 and stock.total_cost > 0:
+                    cost_per_unit = stock.total_cost / stock.quantity_available
+                    stock.total_cost = max(Decimal('0.00'), stock.total_cost - (cost_per_unit * total_deduction))
+                stock.quantity_available -= total_deduction
                 stock.save()
 
                 StockAdjustment.objects.create(
-                    user=request.user,
+                    user=user,
                     ingredients_inventory=stock,
                     adjustment_type='Stock-out',
                     quantity_change=total_deduction,
                     reason=f"Kitchen production of {quantity}x {product.product_name} at {branch.name}"
                 )
 
-            # 2. Add to Pre-Made Product Stock
-            prod_stock, created = ProductStock.objects.get_or_create(
-                branch=branch, 
-                product=product,
-                defaults={'quantity_available': Decimal('0.00'), 'reorder_threshold': Decimal('5.00'), 'total_cost': Decimal('0.00')}
-            )
-            prod_stock.quantity_available = Decimal(str(prod_stock.quantity_available)) + Decimal(str(quantity))
+            # 2. Add to Pre-Made Product Stock under row-level lock
+            prod_stock = ProductStock.objects.select_for_update().filter(
+                branch=branch, product=product
+            ).first()
+            if not prod_stock:
+                prod_stock = ProductStock.objects.create(
+                    branch=branch, 
+                    product=product,
+                    quantity_available=Decimal('0.00'), reorder_threshold=Decimal('5.00'), total_cost=Decimal('0.00')
+                )
+                prod_stock = ProductStock.objects.select_for_update().get(pk=prod_stock.pk)
+
+            prod_stock.quantity_available += Decimal(str(quantity))
             prod_stock.save()
 
             StockAdjustment.objects.create(
-                user=request.user,
+                user=user,
                 product_inventory=prod_stock,
                 adjustment_type='Stock-in',
                 quantity_change=Decimal(str(quantity)),
@@ -440,7 +603,7 @@ class ProduceProductView(APIView):
             )
 
             AuditLog.objects.create(
-                user=request.user,
+                user=user,
                 action="Kitchen Production",
                 module="Inventory Management",
                 details=f"Produced {quantity} {product.product_name} at {branch.name}. Ingredients deducted and product stock increased."
@@ -451,6 +614,8 @@ class ProduceProductView(APIView):
                 status=status.HTTP_201_CREATED
             )
             
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -461,75 +626,126 @@ class ManualStockAdjustmentView(APIView):
     def post(self, request):
         data = request.data
         item_type = data.get('item_type') # 'ingredient' or 'product'
+        if item_type not in ['ingredient', 'product']:
+            return Response({"error": "Invalid item type. Must be 'ingredient' or 'product'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        adj_type = data.get('adjustment_type', 'Stock-in') # 'Stock-in', 'Stock-out', 'Spoilage'
+        if adj_type not in ['Stock-in', 'Stock-out', 'Spoilage']:
+            return Response({"error": "Invalid adjustment type. Must be 'Stock-in', 'Stock-out', or 'Spoilage'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            raw_qty = data.get('quantity_change')
+            if raw_qty is None or str(raw_qty).strip() == '':
+                return Response({"error": "Quantity change is required."}, status=status.HTTP_400_BAD_REQUEST)
+            qty_change = Decimal(str(raw_qty))
+            if qty_change <= 0:
+                return Response({"error": "Quantity change must be a positive number greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response({"error": "Invalid quantity change. Must be a valid positive number."}, status=status.HTTP_400_BAD_REQUEST)
+
+        reason = data.get('reason')
+        if not reason or not str(reason).strip():
+            return Response({"error": "An adjustment reason is mandatory and cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+        reason = str(reason).strip()
+
         item_id = data.get('item_id')
         branch_id = data.get('branch_id')
-        target_id = data.get('target_id') # specific ingredient_ID or product_ID
-        adj_type = data.get('adjustment_type', 'Stock-in') # 'Stock-in', 'Stock-out', 'Spoilage'
-        qty_change = Decimal(str(data.get('quantity_change', 0)))
-        reason = data.get('reason')
+        target_id = data.get('target_id')
         expiry_date = data.get('expiry_date')
         batch_number = data.get('batch_number')
 
-        if qty_change <= 0:
-            return Response({"error": "Quantity must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
-        if not reason:
-            return Response({"error": "An adjustment reason is mandatory."}, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user
+        is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
 
         try:
-            adj_record = StockAdjustment(user=request.user, adjustment_type=adj_type, quantity_change=qty_change, reason=reason)
+            adj_record = StockAdjustment(user=user, adjustment_type=adj_type, quantity_change=qty_change, reason=reason)
             
             if item_type == 'ingredient':
                 if item_id:
-                    stock = IngredientStock.objects.get(ingredient_inventory_ID=item_id)
+                    stock = IngredientStock.objects.select_for_update().filter(ingredient_inventory_ID=item_id).first()
                 elif branch_id and target_id:
-                    branch = Branch.objects.get(branch_ID=branch_id)
-                    ingredient = Ingredient.objects.get(ingredient_ID=target_id)
-                    stock, _ = IngredientStock.objects.get_or_create(
-                        branch=branch, ingredient=ingredient,
-                        defaults={'quantity_available': Decimal('0.00'), 'reorder_threshold': Decimal('10.00'), 'total_cost': Decimal('0.00')}
-                    )
+                    branch = Branch.objects.filter(branch_ID=branch_id).first()
+                    ingredient = Ingredient.objects.filter(ingredient_ID=target_id).first()
+                    if not branch or not ingredient:
+                        return Response({"error": "Branch or Ingredient does not exist."}, status=status.HTTP_404_NOT_FOUND)
+                    stock = IngredientStock.objects.select_for_update().filter(branch=branch, ingredient=ingredient).first()
+                    if not stock:
+                        stock = IngredientStock.objects.create(
+                            branch=branch, ingredient=ingredient,
+                            quantity_available=Decimal('0.00'), reorder_threshold=Decimal('10.00'), total_cost=Decimal('0.00')
+                        )
+                        stock = IngredientStock.objects.select_for_update().get(pk=stock.pk)
                 else:
                     return Response({"error": "Target ingredient could not be identified."}, status=status.HTTP_400_BAD_REQUEST)
-                    
+
+                if not stock:
+                    return Response({"error": "Ingredient stock record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+                # Branch isolation check: non-owner managers can only adjust stock for their assigned branch
+                if not is_owner and user.branch and stock.branch_id != user.branch.branch_ID:
+                    return Response({"error": "Access Denied: You cannot adjust inventory for another branch."}, status=status.HTTP_403_FORBIDDEN)
+
                 adj_record.ingredients_inventory = stock
                 item_name = stock.ingredient.ingredient_name
                 
             else: # product
                 if item_id:
-                    stock = ProductStock.objects.get(product_inventory_ID=item_id)
+                    stock = ProductStock.objects.select_for_update().filter(product_inventory_ID=item_id).first()
                 elif branch_id and target_id:
-                    branch = Branch.objects.get(branch_ID=branch_id)
-                    product = Product.objects.get(product_ID=target_id)
-                    stock, _ = ProductStock.objects.get_or_create(
-                        branch=branch, product=product,
-                        defaults={'quantity_available': Decimal('0.00'), 'reorder_threshold': Decimal('5.00'), 'total_cost': Decimal('0.00')}
-                    )
+                    branch = Branch.objects.filter(branch_ID=branch_id).first()
+                    product = Product.objects.filter(product_ID=target_id).first()
+                    if not branch or not product:
+                        return Response({"error": "Branch or Product does not exist."}, status=status.HTTP_404_NOT_FOUND)
+                    stock = ProductStock.objects.select_for_update().filter(branch=branch, product=product).first()
+                    if not stock:
+                        stock = ProductStock.objects.create(
+                            branch=branch, product=product,
+                            quantity_available=Decimal('0.00'), reorder_threshold=Decimal('5.00'), total_cost=Decimal('0.00')
+                        )
+                        stock = ProductStock.objects.select_for_update().get(pk=stock.pk)
                 else:
                     return Response({"error": "Target product could not be identified."}, status=status.HTTP_400_BAD_REQUEST)
-                    
+
+                if not stock:
+                    return Response({"error": "Product stock record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+                # Branch isolation check
+                if not is_owner and user.branch and stock.branch_id != user.branch.branch_ID:
+                    return Response({"error": "Access Denied: You cannot adjust inventory for another branch."}, status=status.HTTP_403_FORBIDDEN)
+
                 adj_record.product_inventory = stock
                 item_name = stock.product.product_name
 
-            # Apply mathematical deduction or addition
+            # Apply mathematical deduction or addition with atomic row locking
             if adj_type == 'Stock-in':
-                stock.quantity_available = Decimal(str(stock.quantity_available)) + qty_change
+                stock.quantity_available += qty_change
                 if expiry_date:
                     stock.expiry_date = expiry_date
                 if batch_number:
                     stock.batch_number = batch_number
-                if 'cost' in data:
-                    stock.total_cost = Decimal(str(stock.total_cost)) + (Decimal(str(data['cost'])) * qty_change)
+                if 'cost' in data and data['cost'] is not None and str(data['cost']).strip() != '':
+                    try:
+                        cost_val = Decimal(str(data['cost']))
+                        if cost_val < 0:
+                            return Response({"error": "Cost cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+                        stock.total_cost += (cost_val * qty_change)
+                    except Exception:
+                        return Response({"error": "Invalid cost value provided."}, status=status.HTTP_400_BAD_REQUEST)
             else: # Stock-out or Spoilage
-                if Decimal(str(stock.quantity_available)) < qty_change:
+                if stock.quantity_available < qty_change:
                     return Response({"error": f"Cannot deduct {qty_change}. Only {stock.quantity_available} available in stock."}, status=status.HTTP_400_BAD_REQUEST)
-                stock.quantity_available = Decimal(str(stock.quantity_available)) - qty_change
+                # Deduct proportional cost
+                if stock.quantity_available > 0 and stock.total_cost > 0:
+                    cost_per_unit = stock.total_cost / stock.quantity_available
+                    stock.total_cost = max(Decimal('0.00'), stock.total_cost - (cost_per_unit * qty_change))
+                stock.quantity_available -= qty_change
 
             stock.save()
             adj_record.save()
 
             # Create immutable Audit Log
             AuditLog.objects.create(
-                user=request.user, 
+                user=user, 
                 action=f"Manual {adj_type}", 
                 module="Inventory Management", 
                 details=f"Adjusted {item_name} at {stock.branch.name} by {qty_change} ({adj_type}). Reason: {reason}"
@@ -694,7 +910,7 @@ class ProductTransferView(APIView):
         branches = [{
             "id": b.branch_ID,
             "name": b.name,
-            "is_hub": bool(b.main_hub or b.branch_ID == 1)
+            "is_hub": bool(b.main_hub or b.branch_ID == 1 or 'ibaan' in b.name.lower())
         } for b in Branch.objects.all().order_by('branch_ID')]
 
         return Response({
