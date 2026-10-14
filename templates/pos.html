@@ -79,6 +79,87 @@
         color: var(--sb-gold-light) !important;
         box-shadow: var(--sb-shadow-xs);
     }
+    .pos-pill-tab {
+        border: 1px solid var(--sb-border-subtle);
+        background: #FFFFFF;
+        color: var(--sb-espresso);
+        border-radius: 50rem;
+        padding: 5px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: var(--sb-transition);
+        cursor: pointer;
+    }
+    .pos-pill-tab:hover {
+        border-color: var(--sb-gold);
+        background: var(--sb-gold-subtle);
+        color: var(--sb-espresso-dark);
+    }
+    .pos-pill-tab.active {
+        background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%) !important;
+        border-color: var(--sb-gold) !important;
+        color: var(--sb-gold-light) !important;
+        box-shadow: var(--sb-shadow-xs);
+    }
+    .pos-subcat-pill {
+        border: 1px solid rgba(212, 154, 61, 0.25);
+        background: #FAF7F2;
+        color: var(--sb-espresso);
+        border-radius: 50rem;
+        padding: 3px 10px;
+        font-size: 0.74rem;
+        font-weight: 500;
+        white-space: nowrap;
+        transition: var(--sb-transition);
+        cursor: pointer;
+    }
+    .pos-subcat-pill:hover {
+        background: var(--sb-gold-subtle);
+        border-color: var(--sb-gold);
+        color: var(--sb-espresso-dark);
+    }
+    .pos-subcat-pill.active {
+        background: var(--sb-gold) !important;
+        color: #FFFFFF !important;
+        font-weight: 700;
+        border-color: var(--sb-gold) !important;
+    }
+    .size-pill-btn {
+        padding: 2px 7px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid var(--sb-border-subtle);
+        background: #FFFFFF;
+        color: var(--sb-espresso);
+        transition: all 0.15s ease;
+    }
+    .size-pill-btn:hover:not(.disabled-pill) {
+        border-color: var(--sb-gold);
+        background: var(--sb-gold-subtle);
+        color: var(--sb-espresso-dark);
+    }
+    .size-pill-btn.active {
+        background: var(--sb-espresso) !important;
+        border-color: var(--sb-gold) !important;
+        color: var(--sb-gold-light) !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+    .size-pill-btn.disabled-pill {
+        opacity: 0.4;
+        background: #F3F4F6;
+        color: #9CA3AF;
+        border-color: #E5E7EB;
+        cursor: not-allowed;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
 </style>
 
 <!-- Top Navigation Bar -->
@@ -133,12 +214,50 @@
     <!-- Left Panel: Product Grid -->
     <div class="col-12 col-md-8" id="pos-product-col">
         <div class="card sb-card border-0 h-100 shadow-sm">
-            <div class="card-body p-2 p-md-3">
-                <div class="input-group mb-3">
-                    <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" class="form-control border-start-0" placeholder="Search menu items..." id="search-input" onkeyup="filterProducts()">
+            <div class="card-body p-2 p-md-3 d-flex flex-column" style="min-height: 75vh;">
+                <!-- Enhanced Search Bar + Quick Filters -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="input-group flex-grow-1 shadow-xs rounded">
+                        <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control border-start-0 border-end-0" placeholder="Search menu items, sizes, or categories..." id="search-input" oninput="filterProducts()">
+                        <button class="btn btn-outline-secondary border-start-0 bg-white text-muted" type="button" id="search-clear-btn" onclick="clearSearch()" style="border-color: var(--sb-border-subtle); display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="form-check form-switch d-flex align-items-center gap-1 ms-1 ps-0 text-nowrap">
+                        <input class="form-check-input ms-0" type="checkbox" id="instock-filter-switch" onchange="filterProducts()" style="cursor: pointer;">
+                        <label class="form-check-label small fw-semibold text-muted user-select-none" for="instock-filter-switch" style="cursor: pointer; font-size: 0.8rem;">
+                            <i class="fas fa-check-circle text-success me-1"></i>In-Stock
+                        </label>
+                    </div>
                 </div>
-                <div class="row g-2 g-md-3 overflow-auto" id="product-catalog-container" style="max-height: 65vh; padding-right: 4px;">
+
+                <!-- Tier 1: Department Tabs -->
+                <div class="pos-dept-bar d-flex gap-1 overflow-x-auto pb-1 mb-1 no-scrollbar" id="pos-department-pills">
+                    <button type="button" class="btn pos-pill-tab active" onclick="setDepartmentFilter('all', this)">
+                        All Menu <span class="badge bg-light text-dark ms-1" id="dept-count-all">0</span>
+                    </button>
+                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('cakes', this)">
+                        🎂 Cakes <span class="badge bg-light text-dark ms-1" id="dept-count-cakes">0</span>
+                    </button>
+                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('pastries', this)">
+                        🥐 Pastries <span class="badge bg-light text-dark ms-1" id="dept-count-pastries">0</span>
+                    </button>
+                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('beverages', this)">
+                        ☕ Beverages <span class="badge bg-light text-dark ms-1" id="dept-count-beverages">0</span>
+                    </button>
+                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('food', this)">
+                        🍔 Foods & Snacks <span class="badge bg-light text-dark ms-1" id="dept-count-food">0</span>
+                    </button>
+                </div>
+
+                <!-- Tier 2: Sub-Category Filter Pills -->
+                <div class="pos-subcat-bar d-flex gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar" id="pos-subcategory-pills" style="display: none;">
+                    <!-- Injected dynamically by JS -->
+                </div>
+
+                <!-- Product Cards Catalog Grid -->
+                <div class="row g-2 g-md-3 overflow-auto flex-grow-1" id="product-catalog-container" style="max-height: 60vh; padding-right: 4px;">
                     <!-- Products dynamically injected here -->
                 </div>
             </div>
@@ -389,102 +508,390 @@
         } catch (e) {}
     }
 
+    // Global Catalog & Navigation State
+    let rawProducts = [];
+    let groupedCatalog = [];
+    let currentDept = 'all';
+    let currentSubCat = 'all';
+
+    const DEPARTMENT_CONFIG = {
+        'all': {
+            name: 'All Menu',
+            categories: []
+        },
+        'cakes': {
+            name: '🎂 Cakes',
+            categories: ['Decorated Cakes', 'Everyday Cakes', 'Drip Cakes', 'Best Seller Cakes', 'Premium Cakes', 'Square Cakes']
+        },
+        'pastries': {
+            name: '🥐 Pastries',
+            categories: ['Pastries']
+        },
+        'beverages': {
+            name: '☕ Beverages',
+            categories: ['Milk Tea', 'Espresso Based', 'Non-Espresso Based', 'Fruit Tea', 'Frappe Coffee Based', 'Frappe Non-Coffee Based', 'Other Drinks']
+        },
+        'food': {
+            name: '🍔 Foods & Snacks',
+            categories: ['Rice Meals', 'Pasta', 'Finger Foods', 'Burgers & Sandwiches', 'Gourmet Burgers & Sandwiches']
+        }
+    };
+
+    const SIZE_TAG_REGEX = /\s*\(((?:Hot\s+|Cold\s+|Iced\s+)?(?:\d+x\d+|\d+[\"”]|12oz|16oz|22oz|Medio|Grande))\)\s*$/i;
+
     async function loadProducts() {
         const catalog = document.getElementById('product-catalog-container');
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('/api/pos/products/', { headers: { 'Authorization': `Bearer ${token}` } });
-            const products = await response.json();
-            
-            catalog.innerHTML = products.map(p => {
-                // Determine stock limits
+            rawProducts = await response.json();
+
+            // Group multi-size products
+            const groupsMap = new Map();
+            rawProducts.forEach(p => {
                 const stock = p.quantity_available ?? p.stock ?? p.quantity ?? 0;
-                const isOutOfStock = stock <= 0;
-                
-                // Safely build the click action outside the HTML string
-                // We also escape any apostrophes in the product name (e.g. "Chef's Cake") to prevent quotes breaking the HTML
-                const safeName = p.product_name.replace(/'/g, "\\'");
+                const m = p.product_name.match(SIZE_TAG_REGEX);
+                let baseName = p.product_name;
+                let sizeTag = null;
+                if (m) {
+                    baseName = p.product_name.substring(0, m.index).trim();
+                    sizeTag = m[1].trim();
+                }
+                const key = `${p.category_name}:::${baseName.toLowerCase()}`;
+                if (!groupsMap.has(key)) {
+                    let deptKey = 'all';
+                    for (const [dKey, dVal] of Object.entries(DEPARTMENT_CONFIG)) {
+                        if (dVal.categories.includes(p.category_name)) {
+                            deptKey = dKey;
+                            break;
+                        }
+                    }
+                    groupsMap.set(key, {
+                        key: key,
+                        base_name: baseName,
+                        category_name: p.category_name,
+                        department: deptKey,
+                        variants: [],
+                        activeVariantId: null
+                    });
+                }
+                const group = groupsMap.get(key);
+                group.variants.push({
+                    product_ID: p.product_ID,
+                    product_name: p.product_name,
+                    price: parseFloat(p.price),
+                    stock: stock,
+                    sizeTag: sizeTag || 'Regular'
+                });
+            });
+
+            groupedCatalog = Array.from(groupsMap.values());
+
+            // Set default active variant for each group
+            groupedCatalog.forEach(g => {
+                const inStockVariant = g.variants.find(v => v.stock > 0);
+                g.activeVariantId = inStockVariant ? inStockVariant.product_ID : g.variants[0].product_ID;
+            });
+
+            // Update department counts
+            updateDepartmentCounts();
+
+            // Render cards
+            renderCatalogCards();
+
+            // Apply filters
+            filterProducts();
+
+        } catch (error) {
+            console.error("Load products error:", error);
+            catalog.innerHTML = '<p class="text-danger py-4 text-center">Failed to load products.</p>';
+        }
+    }
+
+    function renderCatalogCards() {
+        const catalog = document.getElementById('product-catalog-container');
+        if (!catalog) return;
+
+        catalog.innerHTML = groupedCatalog.map((g, idx) => {
+            const activeV = g.variants.find(v => v.product_ID === g.activeVariantId) || g.variants[0];
+            const isMulti = g.variants.length > 1;
+            const isOutOfStock = activeV.stock <= 0;
+            const badgeClass = isOutOfStock ? 'badge-critical' : 'badge-instock';
+            const stockText = isOutOfStock ? 'Out of Stock' : `${activeV.stock} in stock`;
+            const safeBaseName = g.base_name.replace(/'/g, "\\'");
+
+            if (!isMulti) {
+                // Single-variant card
                 const clickAction = isOutOfStock 
                     ? "alert('Item out of stock!')" 
-                    : `addToCart(${p.product_ID}, '${safeName}', ${parseFloat(p.price)}, ${stock})`;
-                
-                const badgeClass = isOutOfStock ? 'badge-critical' : 'badge-instock';
-                const stockText = isOutOfStock ? 'Out of Stock' : `${stock} in stock`;
+                    : `addToCart(${activeV.product_ID}, '${safeBaseName}', ${activeV.price}, ${activeV.stock})`;
 
                 return `
-                <div class="col-6 col-sm-6 col-md-4 product-card" data-name="${p.product_name.toLowerCase()}">
-                    <div class="card h-100 item-card ${isOutOfStock ? 'opacity-50' : ''}" 
-                         onclick="${clickAction}">
+                <div class="col-6 col-sm-6 col-md-4 product-card" data-group-key="${g.key}">
+                    <div class="card h-100 item-card ${isOutOfStock ? 'opacity-50' : ''}" onclick="${clickAction}">
                         <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between">
                             <div>
-                                <span class="badge mb-2 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${p.category_name}</span>
-                                <h6 class="card-title fw-bold text-title mb-1 fs-6 text-truncate" title="${p.product_name}">${p.product_name}</h6>
+                                <span class="badge mb-2 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
+                                <h6 class="card-title fw-bold text-title mb-1 fs-6 text-truncate" title="${g.base_name}">${g.base_name}</h6>
                             </div>
                             <div class="mt-2">
-                                <p class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${parseFloat(p.price).toFixed(2)}</p>
+                                <p class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
                                 <span class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
                             </div>
                         </div>
                     </div>
                 </div>`;
-            }).join('');
-        } catch (error) { 
-            catalog.innerHTML = '<p class="text-danger">Failed to load products.</p>'; 
+            } else {
+                // Multi-size card with interactive size pills
+                const sizePillsHtml = g.variants.map(v => {
+                    const isActive = v.product_ID === activeV.product_ID;
+                    const isDis = v.stock <= 0;
+                    return `
+                    <button type="button" 
+                            class="btn size-pill-btn ${isActive ? 'active' : ''} ${isDis ? 'disabled-pill' : ''}"
+                            onclick="selectCardSize('${g.key}', ${v.product_ID}, ${idx}, event)"
+                            ondblclick="addVariantDirect(${v.product_ID}, event)"
+                            title="${v.sizeTag} - ₱${v.price.toFixed(2)} (${v.stock} in stock)">
+                        ${v.sizeTag}
+                    </button>`;
+                }).join('');
+
+                return `
+                <div class="col-6 col-sm-6 col-md-4 product-card" data-group-key="${g.key}">
+                    <div class="card h-100 item-card">
+                        <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between">
+                            <div>
+                                <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
+                                <h6 class="card-title fw-bold text-title mb-1 fs-6 text-truncate" title="${g.base_name}">${g.base_name}</h6>
+                            </div>
+                            <div class="my-1">
+                                <p id="price-disp-${idx}" class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
+                                <span id="stock-disp-${idx}" class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
+                            </div>
+                            <div>
+                                <div class="d-flex flex-wrap gap-1 justify-content-center my-2" id="size-pills-${idx}">
+                                    ${sizePillsHtml}
+                                </div>
+                                <button type="button" 
+                                        class="btn btn-sm btn-sb-gold fw-bold w-100 py-1 d-flex align-items-center justify-content-center gap-1 shadow-xs"
+                                        onclick="addSelectedVariant('${g.key}', event)">
+                                    <i class="fas fa-plus-circle"></i> Add to Order
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }).join('');
+    }
+
+    function selectCardSize(groupKey, variantId, cardIdx, event) {
+        if (event) event.stopPropagation();
+        const group = groupedCatalog.find(g => g.key === groupKey);
+        if (!group) return;
+        const variant = group.variants.find(v => v.product_ID === variantId);
+        if (!variant) return;
+
+        group.activeVariantId = variantId;
+
+        const priceEl = document.getElementById(`price-disp-${cardIdx}`);
+        const stockEl = document.getElementById(`stock-disp-${cardIdx}`);
+        const pillsContainer = document.getElementById(`size-pills-${cardIdx}`);
+
+        if (priceEl) priceEl.innerText = `₱${variant.price.toFixed(2)}`;
+        if (stockEl) {
+            const isOutOfStock = variant.stock <= 0;
+            stockEl.className = `badge ${isOutOfStock ? 'badge-critical' : 'badge-instock'}`;
+            stockEl.innerText = isOutOfStock ? 'Out of Stock' : `${variant.stock} in stock`;
+        }
+
+        if (pillsContainer) {
+            pillsContainer.querySelectorAll('.size-pill-btn').forEach((btn, vIdx) => {
+                const v = group.variants[vIdx];
+                if (v && v.product_ID === variantId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
         }
     }
 
-    function switchPosMobileView(view) {
-        const productCol = document.getElementById('pos-product-col');
-        const cartCol = document.getElementById('pos-cart-col');
-        const menuTab = document.getElementById('pos-btn-menu-tab');
-        const cartTab = document.getElementById('pos-btn-cart-tab');
-        const floatBar = document.getElementById('pos-floating-cart-bar');
-        
-        if (view === 'menu') {
-            if (productCol) {
-                productCol.classList.remove('d-none');
-                productCol.classList.add('d-block');
-            }
-            if (cartCol) {
-                cartCol.classList.remove('d-block');
-                cartCol.classList.add('d-none', 'd-md-block');
-            }
-            if (menuTab) menuTab.classList.add('active');
-            if (cartTab) cartTab.classList.remove('active');
-            if (floatBar) {
-                const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
-                floatBar.style.display = (totalItems > 0 && window.innerWidth < 768) ? 'flex' : 'none';
-            }
-        } else {
-            if (productCol) {
-                productCol.classList.remove('d-block');
-                productCol.classList.add('d-none');
-            }
-            if (cartCol) {
-                cartCol.classList.remove('d-none');
-                cartCol.classList.add('d-block');
-            }
-            if (menuTab) menuTab.classList.remove('active');
-            if (cartTab) cartTab.classList.add('active');
-            if (floatBar) floatBar.style.display = 'none';
+    function addSelectedVariant(groupKey, event) {
+        if (event) event.stopPropagation();
+        const group = groupedCatalog.find(g => g.key === groupKey);
+        if (!group) return;
+        const variant = group.variants.find(v => v.product_ID === group.activeVariantId) || group.variants[0];
+        if (!variant) return;
+
+        if (variant.stock <= 0) {
+            return alert(`Cannot add ${variant.product_name}. Item is out of stock!`);
         }
+        addToCart(variant.product_ID, variant.product_name, variant.price, variant.stock);
     }
 
-    window.addEventListener('resize', () => {
-        const floatBar = document.getElementById('pos-floating-cart-bar');
-        const productCol = document.getElementById('pos-product-col');
-        if (floatBar) {
-            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-            const isMenuVisible = productCol && !productCol.classList.contains('d-none');
-            floatBar.style.display = (totalItems > 0 && isMenuVisible && window.innerWidth < 768) ? 'flex' : 'none';
+    function addVariantDirect(variantId, event) {
+        if (event) event.stopPropagation();
+        const p = rawProducts.find(x => x.product_ID === variantId);
+        if (!p) return;
+        const stock = p.quantity_available ?? p.stock ?? p.quantity ?? 0;
+        if (stock <= 0) {
+            return alert(`Cannot add ${p.product_name}. Item is out of stock!`);
         }
-    });
+        addToCart(p.product_ID, p.product_name, parseFloat(p.price), stock);
+    }
+
+    function setDepartmentFilter(deptKey, btnElement) {
+        currentDept = deptKey;
+        currentSubCat = 'all';
+
+        document.querySelectorAll('#pos-department-pills .pos-pill-tab').forEach(b => b.classList.remove('active'));
+        if (btnElement) btnElement.classList.add('active');
+
+        renderSubcategoryPills(deptKey);
+        filterProducts();
+    }
+
+    function renderSubcategoryPills(deptKey) {
+        const subcatContainer = document.getElementById('pos-subcategory-pills');
+        if (deptKey === 'all' || !DEPARTMENT_CONFIG[deptKey]) {
+            subcatContainer.style.display = 'none';
+            subcatContainer.innerHTML = '';
+            return;
+        }
+
+        const categories = DEPARTMENT_CONFIG[deptKey].categories;
+        if (categories.length <= 1) {
+            subcatContainer.style.display = 'none';
+            subcatContainer.innerHTML = '';
+            return;
+        }
+
+        const subcatCounts = {};
+        groupedCatalog.forEach(g => {
+            if (g.department === deptKey) {
+                subcatCounts[g.category_name] = (subcatCounts[g.category_name] || 0) + 1;
+            }
+        });
+
+        const allDeptCount = Object.values(subcatCounts).reduce((a, b) => a + b, 0);
+
+        let pillsHtml = `
+            <button type="button" class="btn pos-subcat-pill active" onclick="setSubcategoryFilter('all', this)">
+                All ${DEPARTMENT_CONFIG[deptKey].name.replace(/[^\w\s&]/g, '').trim()} (${allDeptCount})
+            </button>
+        `;
+
+        categories.forEach(cat => {
+            const count = subcatCounts[cat] || 0;
+            if (count > 0) {
+                pillsHtml += `
+                    <button type="button" class="btn pos-subcat-pill" onclick="setSubcategoryFilter('${cat.replace(/'/g, "\\'")}', this)">
+                        ${cat} (${count})
+                    </button>
+                `;
+            }
+        });
+
+        subcatContainer.innerHTML = pillsHtml;
+        subcatContainer.style.display = 'flex';
+    }
+
+    function setSubcategoryFilter(subCatName, btnElement) {
+        currentSubCat = subCatName;
+        document.querySelectorAll('#pos-subcategory-pills .pos-subcat-pill').forEach(b => b.classList.remove('active'));
+        if (btnElement) btnElement.classList.add('active');
+        filterProducts();
+    }
+
+    function clearSearch() {
+        const input = document.getElementById('search-input');
+        if (input) input.value = '';
+        const clearBtn = document.getElementById('search-clear-btn');
+        if (clearBtn) clearBtn.style.display = 'none';
+        filterProducts();
+    }
+
+    function updateDepartmentCounts() {
+        const counts = { all: groupedCatalog.length, cakes: 0, pastries: 0, beverages: 0, food: 0 };
+        groupedCatalog.forEach(g => {
+            if (counts[g.department] !== undefined) {
+                counts[g.department]++;
+            }
+        });
+        const allEl = document.getElementById('dept-count-all');
+        if (allEl) allEl.innerText = counts.all;
+        const cakesEl = document.getElementById('dept-count-cakes');
+        if (cakesEl) cakesEl.innerText = counts.cakes;
+        const pastEl = document.getElementById('dept-count-pastries');
+        if (pastEl) pastEl.innerText = counts.pastries;
+        const bevEl = document.getElementById('dept-count-beverages');
+        if (bevEl) bevEl.innerText = counts.beverages;
+        const foodEl = document.getElementById('dept-count-food');
+        if (foodEl) foodEl.innerText = counts.food;
+    }
 
     function filterProducts() {
-        const query = document.getElementById('search-input').value.toLowerCase();
+        const searchInput = document.getElementById('search-input');
+        const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const clearBtn = document.getElementById('search-clear-btn');
+        if (clearBtn) {
+            clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+        }
+
+        const inStockSwitch = document.getElementById('instock-filter-switch');
+        const inStockOnly = inStockSwitch ? inStockSwitch.checked : false;
+
+        let visibleCount = 0;
+
         document.querySelectorAll('.product-card').forEach(card => {
-            card.style.display = card.getAttribute('data-name').includes(query) ? 'block' : 'none';
+            const groupKey = card.getAttribute('data-group-key');
+            const group = groupedCatalog.find(g => g.key === groupKey);
+            if (!group) return;
+
+            // 1. Department Filter
+            let deptMatch = (currentDept === 'all') || (group.department === currentDept);
+
+            // 2. Subcategory Filter
+            let subCatMatch = (currentSubCat === 'all') || (group.category_name === currentSubCat);
+
+            // 3. In-Stock Filter
+            let inStockMatch = true;
+            if (inStockOnly) {
+                inStockMatch = group.variants.some(v => v.stock > 0);
+            }
+
+            // 4. Query Filter
+            let queryMatch = true;
+            if (query.length > 0) {
+                const baseNameMatch = group.base_name.toLowerCase().includes(query);
+                const catMatch = group.category_name.toLowerCase().includes(query);
+                const variantMatch = group.variants.some(v => 
+                    v.product_name.toLowerCase().includes(query) || 
+                    (v.sizeTag && v.sizeTag.toLowerCase().includes(query))
+                );
+                queryMatch = baseNameMatch || catMatch || variantMatch;
+            }
+
+            const isVisible = deptMatch && subCatMatch && inStockMatch && queryMatch;
+            card.style.display = isVisible ? 'block' : 'none';
+            if (isVisible) visibleCount++;
         });
+
+        let emptyEl = document.getElementById('pos-empty-catalog-msg');
+        const container = document.getElementById('product-catalog-container');
+        if (visibleCount === 0) {
+            if (!emptyEl) {
+                emptyEl = document.createElement('div');
+                emptyEl.id = 'pos-empty-catalog-msg';
+                emptyEl.className = 'col-12 text-center py-5 text-muted';
+                emptyEl.innerHTML = '<i class="fas fa-search fs-1 mb-2 text-muted opacity-50"></i><p class="mb-0 fw-semibold">No menu items match your search or filters.</p>';
+                container.appendChild(emptyEl);
+            }
+            emptyEl.style.display = 'block';
+        } else if (emptyEl) {
+            emptyEl.style.display = 'none';
+        }
     }
 
     function addToCart(id, name, price, maxStock) {
