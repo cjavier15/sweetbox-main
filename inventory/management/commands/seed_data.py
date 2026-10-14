@@ -121,10 +121,17 @@ class Command(BaseCommand):
             team_user.save()
 
         # 3. Expanded Categories & Products
-        cat_cakes, _ = ProductCategory.objects.get_or_create(category_name="Cakes")
-        cat_pastries, _ = ProductCategory.objects.get_or_create(category_name="Pastries")
-        cat_coffee, _ = ProductCategory.objects.get_or_create(category_name="Coffee")
+        cat_cakes, _ = ProductCategory.objects.get_or_create(category_name="Cakes", defaults={'description': 'Whole and sliced cakes'})
+        cat_pastries, _ = ProductCategory.objects.get_or_create(category_name="Pastries", defaults={'description': 'Baked pastries and sweet treats'})
+        cat_coffee, _ = ProductCategory.objects.get_or_create(category_name="Coffee", defaults={'description': 'Hot and cold beverages'})
         
+        # Dedicated Ingredient Categories
+        cat_baking, _ = ProductCategory.objects.get_or_create(category_name="Baking Supplies", defaults={'description': 'Flour, sugar, cocoa, chips, and dry baking essentials'})
+        cat_dairy, _ = ProductCategory.objects.get_or_create(category_name="Dairy & Eggs", defaults={'description': 'Butter, eggs, cream cheese, milk, and refrigerated items'})
+        cat_syrups, _ = ProductCategory.objects.get_or_create(category_name="Syrups & Flavorings", defaults={'description': 'Vanilla extracts, flavored syrups, and baking essences'})
+        cat_produce, _ = ProductCategory.objects.get_or_create(category_name="Fresh Produce", defaults={'description': 'Fresh fruits and agricultural ingredients'})
+        cat_bev, _ = ProductCategory.objects.get_or_create(category_name="Beverage Supplies", defaults={'description': 'Coffee beans and beverage supplies'})
+
         products_data = [
             ("Chocolate Truffle Cake", cat_cakes, 650.00), ("Ube Chiffon Cake", cat_cakes, 550.00),
             ("Mango Bravo", cat_cakes, 850.00), ("Red Velvet Cake", cat_cakes, 700.00),
@@ -137,23 +144,41 @@ class Command(BaseCommand):
         products = {}
         product_list = []
         for p_name, cat, price in products_data:
-            p, _ = Product.objects.get_or_create(product_name=p_name, defaults={'category': cat, 'price': price, 'is_active': True})
+            p, created = Product.objects.get_or_create(product_name=p_name, defaults={'category': cat, 'price': price, 'is_active': True})
+            if not created and (p.category != cat or p.price != price):
+                p.category = cat
+                p.price = price
+                p.save()
             products[p_name] = p
             product_list.append(p)
 
-        # 4. Expanded Ingredients
+        # 4. Expanded Ingredients with Proper Categorization
         ingredients_data = [
-            ("All-Purpose Flour", "kg", 60.00), ("Refined Sugar", "kg", 80.00),
-            ("Cocoa Powder", "kg", 250.00), ("Unsalted Butter", "kg", 350.00),
-            ("Fresh Eggs", "tray", 220.00), ("Cream Cheese", "kg", 450.00),
-            ("Coffee Beans", "kg", 600.00), ("Milk", "L", 95.00),
-            ("Vanilla Extract", "L", 800.00), ("Fresh Mangoes", "kg", 150.00),
-            ("Chocolate Chips", "kg", 320.00), ("Caramel Syrup", "L", 250.00)
+            ("All-Purpose Flour", cat_baking, "kg", 60.00),
+            ("Refined Sugar", cat_baking, "kg", 80.00),
+            ("Cocoa Powder", cat_baking, "kg", 250.00),
+            ("Chocolate Chips", cat_baking, "kg", 320.00),
+            ("Unsalted Butter", cat_dairy, "kg", 350.00),
+            ("Fresh Eggs", cat_dairy, "tray", 220.00),
+            ("Cream Cheese", cat_dairy, "kg", 450.00),
+            ("Milk", cat_dairy, "L", 95.00),
+            ("Vanilla Extract", cat_syrups, "L", 800.00),
+            ("Caramel Syrup", cat_syrups, "L", 250.00),
+            ("Fresh Mangoes", cat_produce, "kg", 150.00),
+            ("Coffee Beans", cat_bev, "kg", 600.00)
         ]
         
         ingredients = {}
-        for i_name, unit, cost in ingredients_data:
-            ing, _ = Ingredient.objects.get_or_create(ingredient_name=i_name, defaults={'measurement_unit': unit, 'cost_per_unit': cost})
+        for i_name, cat, unit, cost in ingredients_data:
+            ing, created = Ingredient.objects.get_or_create(
+                ingredient_name=i_name,
+                defaults={'category': cat, 'measurement_unit': unit, 'cost_per_unit': cost}
+            )
+            if not created and (ing.category != cat or ing.measurement_unit != unit or ing.cost_per_unit != cost):
+                ing.category = cat
+                ing.measurement_unit = unit
+                ing.cost_per_unit = cost
+                ing.save()
             ingredients[i_name] = ing
 
         # 5. Bill of Materials (BOM) Recipes

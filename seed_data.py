@@ -63,9 +63,16 @@ def seed_database():
         front_staff_users.append(staff)
 
     print("Seeding Product Categories...")
-    cat_cakes = ProductCategory.objects.create(category_name="Cakes", description="Whole and sliced cakes")
-    cat_pastries = ProductCategory.objects.create(category_name="Pastries", description="Baked pastries")
-    cat_drinks = ProductCategory.objects.create(category_name="Drinks", description="Cold and hot beverages")
+    cat_cakes, _ = ProductCategory.objects.get_or_create(category_name="Cakes", defaults={'description': "Whole and sliced cakes"})
+    cat_pastries, _ = ProductCategory.objects.get_or_create(category_name="Pastries", defaults={'description': "Baked pastries"})
+    cat_drinks, _ = ProductCategory.objects.get_or_create(category_name="Drinks", defaults={'description': "Cold and hot beverages"})
+
+    # Dedicated Ingredient Categories
+    cat_baking, _ = ProductCategory.objects.get_or_create(category_name="Baking Supplies", defaults={'description': "Flour, sugar, cocoa, chips, and dry baking essentials"})
+    cat_dairy, _ = ProductCategory.objects.get_or_create(category_name="Dairy & Eggs", defaults={'description': "Butter, eggs, cream cheese, milk, and refrigerated items"})
+    cat_syrups, _ = ProductCategory.objects.get_or_create(category_name="Syrups & Flavorings", defaults={'description': "Vanilla extracts, flavored syrups, and baking essences"})
+    cat_produce, _ = ProductCategory.objects.get_or_create(category_name="Fresh Produce", defaults={'description': "Fresh fruits and agricultural ingredients"})
+    cat_bev, _ = ProductCategory.objects.get_or_create(category_name="Beverage Supplies", defaults={'description': "Coffee beans and beverage supplies"})
 
     print("Seeding Products...")
     products_data = [
@@ -80,24 +87,32 @@ def seed_database():
     
     products = {}
     for cat, name, price in products_data:
-        prod = Product.objects.create(category=cat, product_name=name, price=Decimal(str(price)))
+        prod, _ = Product.objects.get_or_create(product_name=name, defaults={'category': cat, 'price': Decimal(str(price))})
         products[name] = prod
 
-    print("Seeding Ingredients...")
+    print("Seeding Ingredients with Proper Categorization...")
     ingredients_data = [
-        ("All-Purpose Flour", "kg", 50.00),
-        ("Refined Sugar", "kg", 60.00),
-        ("Unsalted Butter", "kg", 200.00),
-        ("Fresh Eggs", "tray", 250.00),
-        ("Cocoa Powder", "kg", 300.00),
-        ("Cream Cheese", "kg", 450.00),
-        ("Coffee Beans", "kg", 500.00),
-        ("Milk", "liter", 90.00)
+        ("All-Purpose Flour", cat_baking, "kg", 50.00),
+        ("Refined Sugar", cat_baking, "kg", 60.00),
+        ("Unsalted Butter", cat_dairy, "kg", 200.00),
+        ("Fresh Eggs", cat_dairy, "tray", 250.00),
+        ("Cocoa Powder", cat_baking, "kg", 300.00),
+        ("Cream Cheese", cat_dairy, "kg", 450.00),
+        ("Coffee Beans", cat_bev, "kg", 500.00),
+        ("Milk", cat_dairy, "liter", 90.00)
     ]
     
     ingredients = {}
-    for name, unit, cost in ingredients_data:
-        ing = Ingredient.objects.create(ingredient_name=name, measurement_unit=unit, cost_per_unit=Decimal(str(cost)))
+    for name, cat, unit, cost in ingredients_data:
+        ing, created = Ingredient.objects.get_or_create(
+            ingredient_name=name,
+            defaults={'category': cat, 'measurement_unit': unit, 'cost_per_unit': Decimal(str(cost))}
+        )
+        if not created and (ing.category != cat or ing.measurement_unit != unit or ing.cost_per_unit != Decimal(str(cost))):
+            ing.category = cat
+            ing.measurement_unit = unit
+            ing.cost_per_unit = Decimal(str(cost))
+            ing.save()
         ingredients[name] = ing
 
     print("Seeding Bill of Materials (BOM)...")

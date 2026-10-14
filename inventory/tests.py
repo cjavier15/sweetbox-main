@@ -485,3 +485,123 @@ class InventoryTests(TestCase):
         names = [c['category_name'] for c in response.data]
         self.assertIn("Cakes", names)
 
+    def test_manual_stock_adjustment_attribute_updates_ingredient(self):
+        """Test editing ingredient attributes (name, category, unit, cost, threshold, batch, expiry)."""
+        baking_cat = ProductCategory.objects.create(category_name="Baking Supplies")
+        self.client.force_authenticate(user=self.owner)
+        payload = {
+            'item_type': 'ingredient',
+            'item_id': self.flour_stock.ingredient_inventory_ID,
+            'adjustment_mode': 'attribute_only',
+            'name': 'Premium Bread Flour',
+            'category': 'Baking Supplies',
+            'measurement_unit': 'kg',
+            'cost_per_unit': 65.50,
+            'reorder_threshold': 15.00,
+            'batch_number': 'BATCH-FLOUR-99',
+            'expiry_date': '2027-01-01',
+            'reason': 'Supplier rebranding and formula upgrade'
+        }
+        res = self.client.post('/api/inventory/adjust/', payload, format='json')
+        self.assertEqual(res.status_code, 200)
+
+        self.flour.refresh_from_db()
+        self.flour_stock.refresh_from_db()
+
+        self.assertEqual(self.flour.ingredient_name, 'Premium Bread Flour')
+        self.assertEqual(self.flour.category.category_name, 'Baking Supplies')
+        self.assertEqual(self.flour.cost_per_unit, Decimal('65.50'))
+        self.assertEqual(self.flour_stock.reorder_threshold, Decimal('15.00'))
+        self.assertEqual(self.flour_stock.batch_number, 'BATCH-FLOUR-99')
+        self.assertEqual(self.flour_stock.quantity_available, Decimal('100.00')) # Unchanged
+
+        # Check Audit Log
+        audit = AuditLog.objects.filter(module="Inventory Management", action="Item Attribute Edit").last()
+        self.assertIsNotNone(audit)
+        self.assertIn("Premium Bread Flour", audit.details)
+
+    def test_manual_stock_adjustment_direct_count_override(self):
+        """Test direct physical count override sets exact stock and logs Direct Count Audit."""
+        self.client.force_authenticate(user=self.owner)
+        payload = {
+            'item_type': 'ingredient',
+            'item_id': self.flour_stock.ingredient_inventory_ID,
+            'adjustment_mode': 'direct',
+            'direct_quantity': 82.50,
+            'reason': 'Monthly physical count verification'
+        }
+        res = self.client.post('/api/inventory/adjust/', payload, format='json')
+        self.assertEqual(res.status_code, 200)
+
+        self.flour_stock.refresh_from_db()
+        self.assertEqual(self.flour_stock.quantity_available, Decimal('82.50'))
+
+        adj = StockAdjustment.objects.filter(
+            ingredients_inventory=self.flour_stock,
+            adjustment_type='Direct Count Audit'
+        ).last()
+        self.assertIsNotNone(adj)
+        self.assertEqual(adj.quantity_change, Decimal('17.50')) # 100 - 82.50 = 17.50
+        self.assertIn("Monthly physical count", adj.reason)
+
+    def test_manual_stock_adjustment_attribute_and_price_product(self):
+        """Test editing product attributes (name, category, price, threshold) without changing stock."""
+        pastry_cat = ProductCategory.objects.create(category_name="Pastries")
+        ps = ProductStock.objects.create(
+            branch=self.hub, product=self.product, quantity_available=Decimal('20.00'), reorder_threshold=Decimal('5.00')
+        )
+        self.client.force_authenticate(user=self.owner)
+        payload = {
+            'item_type': 'product',
+            'item_id': ps.product_inventory_ID,
+            'adjustment_mode': 'none',
+            'name': 'Dark Chocolate Truffle Cake',
+            'category': 'Pastries',
+            'price': 650.00,
+            'reorder_threshold': 8.00,
+            'reason': 'Menu price adjustment & rebranding'
+        }
+        res = self.client.post('/api/inventory/adjust/', payload, format='json')
+        self.assertEqual(res.status_code, 200)
+
+        self.product.refresh_from_db()
+        ps.refresh_from_db()
+
+        self.assertEqual(self.product.product_name, 'Dark Chocolate Truffle Cake')
+        self.assertEqual(self.product.price, Decimal('650.00'))
+        self.assertEqual(self.product.category.category_name, 'Pastries')
+        self.assertEqual(ps.reorder_threshold, Decimal('8.00'))
+        self.assertEqual(ps.quantity_available, Decimal('20.00'))
+
+    def test_bom_update_view_success(self):
+        """Test updating an existing product's BOM recipe, price, and category via BOMUpdateView."""
+        self.client.force_authenticate(user=self.owner)
+        cocoa = Ingredient.objects.create(ingredient_name="Cocoa Powder", measurement_unit="kg", cost_per_unit=Decimal('120.00'))
+
+        payload = {
+            'product_name': 'Deluxe Chocolate Cake',
+            'category': 'Cakes',
+            'price': 720.00,
+            'reorder_threshold': 10.00,
+            'ingredients': [
+                {'name': 'Premium Bread Flour', 'unit': 'kg', 'deduction': 1.50},
+                {'name': 'Cocoa Powder', 'unit': 'kg', 'deduction': 0.75}
+            ]
+        }
+        res = self.client.post(f'/api/inventory/bom/update/{self.product.product_ID}/', payload, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("Successfully updated BOM", res.data['message'])
+
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.product_name, 'Deluxe Chocolate Cake')
+        self.assertEqual(self.product.price, Decimal('720.00'))
+
+        # Check BOM ingredients
+        boms = list(BillOfMaterial.objects.filter(product=self.product).order_by('ingredient__ingredient_name'))
+        self.assertEqual(len(boms), 2)
+        bom_names = [b.ingredient.ingredient_name for b in boms]
+        self.assertIn("Cocoa Powder", bom_names)
+        self.assertIn("Premium Bread Flour", bom_names)
+        self.assertNotIn("Sugar", bom_names) # Sugar was removed in updated recipe
+
+

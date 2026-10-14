@@ -60,14 +60,19 @@ class LiveStockView(APIView):
                 kpis['expiring'] += 1
                 
             ing_category = stock.ingredient.get_category_name()
+            raw_expiry_str = stock.expiry_date.strftime('%Y-%m-%d') if stock.expiry_date else ""
             
             inventory_data.append({
                 "id": stock.ingredient_inventory_ID,
+                "ingredient_id": stock.ingredient.ingredient_ID,
                 "ingredient_name": stock.ingredient.ingredient_name,
-                "category": ing_category, 
+                "category": ing_category,
+                "category_id": stock.ingredient.category_id,
                 "unit": unit, "cost_per_unit": cost, "quantity": qty, "threshold": threshold,
                 "branch": stock.branch.name, "branch_id": stock.branch.branch_ID,
-                "expiry": stock.expiry_date.strftime('%Y-%m-%d') if stock.expiry_date else "N/A", "status": status_flag
+                "batch_number": stock.batch_number or "",
+                "raw_expiry": raw_expiry_str,
+                "expiry": raw_expiry_str if raw_expiry_str else "N/A", "status": status_flag
             })
             
             if status_flag in ["Low Stock", "Critical"]:
@@ -89,28 +94,48 @@ class LiveStockView(APIView):
             else:
                 status_flag = "In Stock"
                 
+            raw_prod_expiry = p_stock.expiry_date.strftime('%Y-%m-%d') if p_stock.expiry_date else ""
             product_watch_data.append({
                 "id": p_stock.product_inventory_ID,
                 "product_id": p_stock.product.product_ID,
                 "product_name": p_stock.product.product_name,
                 "category": p_stock.product.category.category_name if p_stock.product.category else "General",
+                "category_id": p_stock.product.category_id,
                 "price": float(p_stock.product.price), "quantity": qty, "threshold": threshold,
                 "branch": p_stock.branch.name, "branch_id": p_stock.branch.branch_ID,
+                "batch_number": p_stock.batch_number or "",
+                "raw_expiry": raw_prod_expiry,
+                "expiry": raw_prod_expiry if raw_prod_expiry else "N/A",
                 "status": status_flag
             })
 
         # 3. BOM Data
         bom_data = []
-        for p in Product.objects.filter(is_active=True).prefetch_related('bom_ingredients__ingredient', 'category'):
+        for p in Product.objects.filter(is_active=True).prefetch_related('bom_ingredients__ingredient', 'category', 'stocks'):
             recipes = list(p.bom_ingredients.all())
             ings = ", ".join([r.ingredient.ingredient_name for r in recipes]) if recipes else "No ingredients configured"
             deducts = ", ".join([f"{float(r.quantity_required)} {r.measurement_unit} {r.ingredient.ingredient_name.split()[0].lower()}" for r in recipes]) if recipes else "-"
+            raw_recipes = [{
+                "name": r.ingredient.ingredient_name,
+                "unit": r.measurement_unit,
+                "deduction": float(r.quantity_required)
+            } for r in recipes]
+            
+            hub_stock = p.stocks.filter(branch_id=1).first() or p.stocks.first()
+            p_threshold = float(hub_stock.reorder_threshold) if hub_stock else 5.0
+            p_stock_qty = float(hub_stock.quantity_available) if hub_stock else 0.0
+
             bom_data.append({
                 "id": p.product_ID,
                 "product": p.product_name,
                 "category": p.category.category_name if p.category else "General",
+                "category_id": p.category_id,
+                "price": float(p.price),
+                "threshold": p_threshold,
+                "current_stock": p_stock_qty,
                 "ingredients": ings,
-                "deductions": deducts
+                "deductions": deducts,
+                "recipes": raw_recipes
             })
 
         # 4. Pending Restock Approvals
@@ -505,6 +530,133 @@ class ProductDeleteView(APIView):
         except Product.DoesNotExist:
             return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
 
+class BOMUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @db_transaction.atomic
+    def post(self, request, product_id):
+        return self._handle_update(request, product_id)
+
+    @db_transaction.atomic
+    def put(self, request, product_id):
+        return self._handle_update(request, product_id)
+
+    def _handle_update(self, request, product_id):
+        user = request.user
+        try:
+            product = Product.objects.select_for_update().get(product_ID=product_id)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        prod_name = data.get('product_name')
+        if prod_name:
+            prod_name = str(prod_name).strip()
+            if not prod_name:
+                return Response({"error": "Product name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+            if len(prod_name) > 100:
+                return Response({"error": "Product name cannot exceed 100 characters."}, status=status.HTTP_400_BAD_REQUEST)
+            if prod_name.replace(' ', '').isdigit():
+                return Response({"error": "Product name cannot be purely numeric."}, status=status.HTTP_400_BAD_REQUEST)
+            product.product_name = prod_name
+
+        cat_input = data.get('category') or data.get('category_name') or data.get('category_id')
+        if cat_input:
+            category = None
+            if isinstance(cat_input, int) or (isinstance(cat_input, str) and str(cat_input).isdigit()):
+                category = ProductCategory.objects.filter(category_ID=int(cat_input)).first()
+            if not category and cat_input:
+                category = ProductCategory.objects.filter(category_name__iexact=str(cat_input).strip()).first()
+            if not category and cat_input:
+                category, _ = ProductCategory.objects.get_or_create(category_name=str(cat_input).strip())
+            if category:
+                product.category = category
+
+        if 'price' in data and data['price'] is not None and str(data['price']).strip() != '':
+            try:
+                price = Decimal(str(data['price']))
+                if price < 0:
+                    return Response({"error": "Product price cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+                if price > Decimal('100000.00'):
+                    return Response({"error": "Product price cannot exceed ₱100,000.00."}, status=status.HTTP_400_BAD_REQUEST)
+                product.price = price
+            except Exception:
+                return Response({"error": "Invalid price provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        product.save()
+
+        # Update reorder threshold across product stock records if given
+        if 'reorder_threshold' in data and data['reorder_threshold'] is not None and str(data['reorder_threshold']).strip() != '':
+            try:
+                threshold = Decimal(str(data['reorder_threshold']))
+                if 0 <= threshold <= Decimal('10000.00'):
+                    ProductStock.objects.filter(product=product).update(reorder_threshold=threshold)
+            except Exception:
+                pass
+
+        # Update recipe ingredients if provided
+        if 'ingredients' in data and isinstance(data['ingredients'], list):
+            ingredients_list = data['ingredients']
+            if len(ingredients_list) == 0:
+                return Response({"error": "At least one ingredient deduction is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Delete existing BOM associations
+            BillOfMaterial.objects.filter(product=product).delete()
+
+            for item in ingredients_list:
+                ing_name = str(item.get('name', '')).strip()
+                if not ing_name:
+                    continue
+                try:
+                    deduction_qty = Decimal(str(item.get('deduction', 0.00)))
+                    if deduction_qty <= 0:
+                        return Response({"error": f"Deduction quantity for {ing_name} must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+                    if deduction_qty > Decimal('10000.00'):
+                        return Response({"error": f"Deduction quantity for {ing_name} cannot exceed 10,000 units."}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    return Response({"error": f"Invalid deduction quantity for {ing_name}."}, status=status.HTTP_400_BAD_REQUEST)
+
+                ing_unit = str(item.get('unit', 'kg')).strip() or 'kg'
+                try:
+                    ing_cost = Decimal(str(item.get('cost', 0.00))) if item.get('cost') is not None else Decimal('0.00')
+                    if ing_cost < 0: ing_cost = Decimal('0.00')
+                    elif ing_cost > Decimal('100000.00'): ing_cost = Decimal('100000.00')
+                except Exception:
+                    ing_cost = Decimal('0.00')
+
+                ingredient, created = Ingredient.objects.get_or_create(
+                    ingredient_name=ing_name,
+                    defaults={'measurement_unit': ing_unit, 'cost_per_unit': ing_cost}
+                )
+                if not created and 'unit' in item:
+                    ingredient.measurement_unit = ing_unit
+                    ingredient.save()
+
+                BillOfMaterial.objects.create(
+                    product=product,
+                    ingredient=ingredient,
+                    quantity_required=deduction_qty,
+                    measurement_unit=ing_unit
+                )
+
+                for branch in Branch.objects.all():
+                    IngredientStock.objects.get_or_create(
+                        branch=branch, ingredient=ingredient,
+                        defaults={'total_cost': Decimal('0.00'), 'quantity_available': Decimal('0.00'), 'reorder_threshold': Decimal('10.00')}
+                    )
+
+        AuditLog.objects.create(
+            user=user,
+            action="BOM Updated",
+            module="Inventory Management",
+            details=f"Updated product '{product.product_name}' (₱{product.price}) and BOM recipes."
+        )
+
+        return Response({
+            "message": f"Successfully updated BOM and product details for '{product.product_name}'.",
+            "product_id": product.product_ID
+        }, status=status.HTTP_200_OK)
+
 class ProduceProductView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -657,21 +809,19 @@ class ManualStockAdjustmentView(APIView):
         if item_type not in ['ingredient', 'product']:
             return Response({"error": "Invalid item type. Must be 'ingredient' or 'product'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        adj_type = data.get('adjustment_type', 'Stock-in') # 'Stock-in', 'Stock-out', 'Spoilage'
-        if adj_type not in ['Stock-in', 'Stock-out', 'Spoilage']:
-            return Response({"error": "Invalid adjustment type. Must be 'Stock-in', 'Stock-out', or 'Spoilage'."}, status=status.HTTP_400_BAD_REQUEST)
+        # Mode determination: 'relative', 'direct', or 'attribute_only'
+        raw_mode = str(data.get('adjustment_mode') or '').strip().lower()
+        adj_type = str(data.get('adjustment_type') or 'Stock-in').strip()
 
-        try:
-            raw_qty = data.get('quantity_change')
-            if raw_qty is None or str(raw_qty).strip() == '':
-                return Response({"error": "Quantity change is required."}, status=status.HTTP_400_BAD_REQUEST)
-            qty_change = Decimal(str(raw_qty))
-            if qty_change <= 0:
-                return Response({"error": "Quantity change must be a positive number greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
-            if qty_change > Decimal('50000.00'):
-                return Response({"error": "Quantity change cannot exceed 50,000 units."}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            return Response({"error": "Invalid quantity change. Must be a valid positive number."}, status=status.HTTP_400_BAD_REQUEST)
+        if raw_mode in ['direct', 'set-stock', 'override'] or adj_type in ['Set-stock', 'Direct Count Audit']:
+            adj_mode = 'direct'
+        elif raw_mode in ['attribute_only', 'none', 'attributes'] or adj_type in ['None', 'Attribute Update', 'No-change']:
+            adj_mode = 'attribute_only'
+        else:
+            adj_mode = 'relative'
+
+        if adj_mode == 'relative' and adj_type not in ['Stock-in', 'Stock-out', 'Spoilage']:
+            return Response({"error": "Invalid adjustment type for relative movement. Must be 'Stock-in', 'Stock-out', or 'Spoilage'."}, status=status.HTTP_400_BAD_REQUEST)
 
         reason = data.get('reason')
         if not reason or not str(reason).strip():
@@ -688,8 +838,6 @@ class ManualStockAdjustmentView(APIView):
         is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
 
         try:
-            adj_record = StockAdjustment(user=user, adjustment_type=adj_type, quantity_change=qty_change, reason=reason)
-            
             if item_type == 'ingredient':
                 if item_id:
                     stock = IngredientStock.objects.select_for_update().filter(ingredient_inventory_ID=item_id).first()
@@ -715,9 +863,9 @@ class ManualStockAdjustmentView(APIView):
                 if not is_owner and user.branch and stock.branch_id != user.branch.branch_ID:
                     return Response({"error": "Access Denied: You cannot adjust inventory for another branch."}, status=status.HTTP_403_FORBIDDEN)
 
-                adj_record.ingredients_inventory = stock
-                item_name = stock.ingredient.ingredient_name
-                
+                target_item = stock.ingredient
+                item_name = target_item.ingredient_name
+
             else: # product
                 if item_id:
                     stock = ProductStock.objects.select_for_update().filter(product_inventory_ID=item_id).first()
@@ -743,47 +891,218 @@ class ManualStockAdjustmentView(APIView):
                 if not is_owner and user.branch and stock.branch_id != user.branch.branch_ID:
                     return Response({"error": "Access Denied: You cannot adjust inventory for another branch."}, status=status.HTTP_403_FORBIDDEN)
 
-                adj_record.product_inventory = stock
-                item_name = stock.product.product_name
+                target_item = stock.product
+                item_name = target_item.product_name
 
-            # Apply mathematical deduction or addition with atomic row locking
-            if adj_type == 'Stock-in':
-                stock.quantity_available += qty_change
-                if expiry_date:
-                    stock.expiry_date = expiry_date
-                if batch_number:
-                    stock.batch_number = batch_number
-                if 'cost' in data and data['cost'] is not None and str(data['cost']).strip() != '':
+            # --- Attribute Updates ---
+            attribute_changes = []
+
+            # 1. Name update
+            new_name = data.get('name') or data.get('ingredient_name') or data.get('product_name')
+            if new_name is not None and str(new_name).strip() != '':
+                new_name = str(new_name).strip()
+                if len(new_name) > 100:
+                    return Response({"error": "Item name cannot exceed 100 characters."}, status=status.HTTP_400_BAD_REQUEST)
+                if new_name.replace(' ', '').isdigit():
+                    return Response({"error": "Item name cannot be purely numeric."}, status=status.HTTP_400_BAD_REQUEST)
+                if item_type == 'ingredient' and target_item.ingredient_name != new_name:
+                    attribute_changes.append(f"Name: '{target_item.ingredient_name}' -> '{new_name}'")
+                    target_item.ingredient_name = new_name
+                    item_name = new_name
+                elif item_type == 'product' and target_item.product_name != new_name:
+                    attribute_changes.append(f"Name: '{target_item.product_name}' -> '{new_name}'")
+                    target_item.product_name = new_name
+                    item_name = new_name
+
+            # 2. Category update
+            cat_input = data.get('category') or data.get('category_name') or data.get('category_id')
+            if cat_input is not None and str(cat_input).strip() != '':
+                resolved_cat = None
+                if isinstance(cat_input, int) or (isinstance(cat_input, str) and str(cat_input).isdigit()):
+                    resolved_cat = ProductCategory.objects.filter(category_ID=int(cat_input)).first()
+                if not resolved_cat and cat_input:
+                    resolved_cat = ProductCategory.objects.filter(category_name__iexact=str(cat_input).strip()).first()
+                if not resolved_cat and cat_input:
+                    resolved_cat, _ = ProductCategory.objects.get_or_create(category_name=str(cat_input).strip())
+                if resolved_cat and target_item.category != resolved_cat:
+                    old_cat = target_item.category.category_name if target_item.category else "None"
+                    attribute_changes.append(f"Category: '{old_cat}' -> '{resolved_cat.category_name}'")
+                    target_item.category = resolved_cat
+
+            # 3. Measurement Unit (ingredient only)
+            if item_type == 'ingredient':
+                new_unit = data.get('measurement_unit') or data.get('unit')
+                if new_unit is not None and str(new_unit).strip() != '':
+                    new_unit = str(new_unit).strip()
+                    if target_item.measurement_unit != new_unit:
+                        attribute_changes.append(f"Unit: '{target_item.measurement_unit}' -> '{new_unit}'")
+                        target_item.measurement_unit = new_unit
+
+            # 4. Cost per Unit (ingredient) or Selling Price (product)
+            if item_type == 'ingredient':
+                cost_val_input = data.get('cost_per_unit', data.get('cost'))
+                if cost_val_input is not None and str(cost_val_input).strip() != '':
                     try:
-                        cost_val = Decimal(str(data['cost']))
-                        if cost_val < 0:
-                            return Response({"error": "Cost cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
-                        stock.total_cost += (cost_val * qty_change)
+                        new_cost = Decimal(str(cost_val_input))
+                        if new_cost < 0:
+                            return Response({"error": "Cost per unit cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+                        if new_cost > Decimal('100000.00'):
+                            return Response({"error": "Cost per unit cannot exceed ₱100,000.00."}, status=status.HTTP_400_BAD_REQUEST)
+                        if target_item.cost_per_unit != new_cost:
+                            attribute_changes.append(f"Cost: ₱{target_item.cost_per_unit} -> ₱{new_cost}")
+                            target_item.cost_per_unit = new_cost
+                            if stock.quantity_available > 0:
+                                stock.total_cost = round(stock.quantity_available * new_cost, 2)
                     except Exception:
-                        return Response({"error": "Invalid cost value provided."}, status=status.HTTP_400_BAD_REQUEST)
-            else: # Stock-out or Spoilage
-                if stock.quantity_available < qty_change:
-                    return Response({"error": f"Cannot deduct {qty_change}. Only {stock.quantity_available} available in stock."}, status=status.HTTP_400_BAD_REQUEST)
-                # Deduct proportional cost
-                if stock.quantity_available > 0 and stock.total_cost > 0:
-                    cost_per_unit = stock.total_cost / stock.quantity_available
-                    stock.total_cost = max(Decimal('0.00'), stock.total_cost - (cost_per_unit * qty_change))
-                stock.quantity_available -= qty_change
+                        return Response({"error": "Invalid cost per unit provided."}, status=status.HTTP_400_BAD_REQUEST)
+            else: # product price
+                price_val_input = data.get('price')
+                if price_val_input is not None and str(price_val_input).strip() != '':
+                    try:
+                        new_price = Decimal(str(price_val_input))
+                        if new_price < 0:
+                            return Response({"error": "Selling price cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+                        if new_price > Decimal('100000.00'):
+                            return Response({"error": "Selling price cannot exceed ₱100,000.00."}, status=status.HTTP_400_BAD_REQUEST)
+                        if target_item.price != new_price:
+                            attribute_changes.append(f"Price: ₱{target_item.price} -> ₱{new_price}")
+                            target_item.price = new_price
+                    except Exception:
+                        return Response({"error": "Invalid price provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 5. Reorder Threshold
+            threshold_input = data.get('reorder_threshold') or data.get('threshold')
+            if threshold_input is not None and str(threshold_input).strip() != '':
+                try:
+                    new_threshold = Decimal(str(threshold_input))
+                    if new_threshold < 0:
+                        return Response({"error": "Reorder threshold cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+                    if new_threshold > Decimal('10000.00'):
+                        return Response({"error": "Reorder threshold cannot exceed 10,000 units."}, status=status.HTTP_400_BAD_REQUEST)
+                    if stock.reorder_threshold != new_threshold:
+                        attribute_changes.append(f"Threshold: {stock.reorder_threshold} -> {new_threshold}")
+                        stock.reorder_threshold = new_threshold
+                except Exception:
+                    return Response({"error": "Invalid reorder threshold provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 6. Batch # and Expiry Date
+            if batch_number is not None:
+                stock.batch_number = str(batch_number).strip()
+            if expiry_date is not None:
+                if str(expiry_date).strip() == '':
+                    stock.expiry_date = None
+                else:
+                    stock.expiry_date = expiry_date
+
+            # Save base item attributes
+            target_item.save()
+
+            # --- Stock Level Changes ---
+            stock_change_desc = ""
+
+            if adj_mode == 'direct':
+                direct_qty_input = data.get('direct_quantity', data.get('target_quantity', data.get('quantity_change')))
+                if direct_qty_input is None or str(direct_qty_input).strip() == '':
+                    return Response({"error": "Direct quantity is required for direct physical count adjustment."}, status=status.HTTP_400_BAD_REQUEST)
+                try:
+                    target_qty = Decimal(str(direct_qty_input))
+                    if target_qty < 0:
+                        return Response({"error": "Direct quantity cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+                    if target_qty > Decimal('50000.00'):
+                        return Response({"error": "Direct quantity cannot exceed 50,000 units."}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    return Response({"error": "Invalid direct quantity provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+                old_qty = stock.quantity_available
+                diff = target_qty - old_qty
+                stock.quantity_available = target_qty
+
+                if item_type == 'ingredient':
+                    stock.total_cost = round(target_qty * target_item.cost_per_unit, 2)
+
+                if diff != 0:
+                    adj_record = StockAdjustment(
+                        user=user,
+                        adjustment_type='Direct Count Audit',
+                        quantity_change=abs(diff),
+                        reason=f"{reason} (Physical count override: {old_qty} -> {target_qty})"
+                    )
+                    if item_type == 'ingredient':
+                        adj_record.ingredients_inventory = stock
+                    else:
+                        adj_record.product_inventory = stock
+                    adj_record.save()
+                    stock_change_desc = f"Stock overridden: {old_qty} -> {target_qty} (diff: {diff})"
+                else:
+                    stock_change_desc = f"Stock verified at {target_qty}"
+
+            elif adj_mode == 'relative':
+                raw_qty = data.get('quantity_change')
+                if raw_qty is None or str(raw_qty).strip() == '':
+                    return Response({"error": "Quantity change is required for relative stock adjustment."}, status=status.HTTP_400_BAD_REQUEST)
+                try:
+                    qty_change = Decimal(str(raw_qty))
+                    if qty_change <= 0:
+                        return Response({"error": "Quantity change must be a positive number greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+                    if qty_change > Decimal('50000.00'):
+                        return Response({"error": "Quantity change cannot exceed 50,000 units."}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    return Response({"error": "Invalid quantity change. Must be a valid positive number."}, status=status.HTTP_400_BAD_REQUEST)
+
+                adj_record = StockAdjustment(user=user, adjustment_type=adj_type, quantity_change=qty_change, reason=reason)
+                if item_type == 'ingredient':
+                    adj_record.ingredients_inventory = stock
+                else:
+                    adj_record.product_inventory = stock
+
+                if adj_type == 'Stock-in':
+                    stock.quantity_available += qty_change
+                    if item_type == 'ingredient':
+                        stock.total_cost += round(target_item.cost_per_unit * qty_change, 2)
+                else: # Stock-out or Spoilage
+                    if stock.quantity_available < qty_change:
+                        return Response({"error": f"Cannot deduct {qty_change}. Only {stock.quantity_available} available in stock."}, status=status.HTTP_400_BAD_REQUEST)
+                    if stock.quantity_available > 0 and stock.total_cost > 0:
+                        cost_per_unit = stock.total_cost / stock.quantity_available
+                        stock.total_cost = max(Decimal('0.00'), stock.total_cost - (cost_per_unit * qty_change))
+                    stock.quantity_available -= qty_change
+
+                adj_record.save()
+                stock_change_desc = f"Stock adjusted by {qty_change} ({adj_type})"
+
+            else: # attribute_only
+                stock_change_desc = "Attributes updated with no stock movement"
+                if item_type == 'ingredient' and stock.quantity_available > 0:
+                    stock.total_cost = round(stock.quantity_available * target_item.cost_per_unit, 2)
 
             stock.save()
-            adj_record.save()
 
             # Create immutable Audit Log
+            audit_details = f"Adjusted {item_name} at {stock.branch.name}. {stock_change_desc}."
+            if attribute_changes:
+                audit_details += f" Changes: {', '.join(attribute_changes)}."
+            audit_details += f" Reason: {reason}"
+
+            if adj_mode == 'relative':
+                audit_action = f"Manual {adj_type}"
+            elif adj_mode == 'direct':
+                audit_action = "Manual Direct Count Override"
+            else:
+                audit_action = "Item Attribute Edit"
+
             AuditLog.objects.create(
-                user=user, 
-                action=f"Manual {adj_type}", 
-                module="Inventory Management", 
-                details=f"Adjusted {item_name} at {stock.branch.name} by {qty_change} ({adj_type}). Reason: {reason}"
+                user=user,
+                action=audit_action,
+                module="Inventory Management",
+                details=audit_details
             )
 
             return Response({
-                "message": f"Successfully updated {item_name} inventory ({adj_type}: {qty_change}).",
-                "new_quantity": float(stock.quantity_available)
+                "message": f"Successfully updated {item_name} inventory ({stock_change_desc}).",
+                "new_quantity": float(stock.quantity_available),
+                "item_name": item_name,
+                "reorder_threshold": float(stock.reorder_threshold),
+                "category": target_item.category.category_name if target_item.category else "General"
             }, status=status.HTTP_200_OK)
 
         except Exception as e:

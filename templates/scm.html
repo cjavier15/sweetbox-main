@@ -221,7 +221,7 @@
                     </h5>
                     <small style="color: var(--sb-text-subtle);">Configure automated multi-ingredient deductions whenever a menu item is sold or produced</small>
                 </div>
-                <button class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#addBomModal">
+                <button class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center gap-2 shadow" onclick="openCreateBOMModal()">
                     <i class="fas fa-plus"></i> Add Product
                 </button>
             </div>
@@ -384,13 +384,14 @@
     <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
-                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="bom-modal-title">
                     <i class="fas fa-cube text-gold"></i> Configure Product & BOM
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="background-color: var(--sb-bg-app);">
                 <form id="bomForm" onsubmit="submitNewBOM(event)">
+                    <input type="hidden" id="bom-edit-product-id">
                     <h6 class="fw-bold text-title mb-3 d-flex align-items-center gap-2">
                         <span class="badge rounded-circle bg-dark text-gold" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;">1</span>
                         Product Details
@@ -601,13 +602,13 @@
     </div>
 </div>
 
-<!-- Stock Adjustment Modal -->
+<!-- Stock Adjustment & Attribute Edit Modal -->
 <div class="modal fade" id="stockAdjustModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
-                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
-                    <i class="fas fa-sliders text-gold"></i> Manual Stock Adjustment
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="adj-modal-title">
+                    <i class="fas fa-sliders text-gold"></i> Edit Attributes & Adjust Stock
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -616,47 +617,142 @@
                     <input type="hidden" id="adj-item-type">
                     <input type="hidden" id="adj-item-id">
                     
-                    <div class="mb-3 p-3 text-center rounded border" style="background-color: var(--sb-bg-surface);">
-                        <h4 class="fw-bold mb-1 text-title" id="adj-item-name">Item Name</h4>
-                        <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);" id="adj-current-qty">Current Stock: 0</span>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-title small">Adjustment Type</label>
-                        <select id="adj-type" class="form-select" required>
-                            <option value="Stock-in">Stock-In (Add to Inventory)</option>
-                            <option value="Stock-out">Stock-Out (Deduct Inventory)</option>
-                            <option value="Spoilage">Spoilage (Damage/Expired)</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-title small">Quantity Change</label>
-                        <input type="number" id="adj-qty" class="form-control" step="0.01" min="0.01" max="50000"
-                               placeholder="e.g., 5"
-                               onkeydown="return !['e','E','+','-'].includes(event.key)"
-                               oninput="if(+this.value > 50000) this.value = 50000;" required>
-                    </div>
-
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label fw-bold text-title small">Batch # (Optional)</label>
-                            <input type="text" id="adj-batch" class="form-control" placeholder="e.g., B-20260928">
+                    <!-- Overview Banner -->
+                    <div class="mb-3 p-3 rounded border d-flex justify-content-between align-items-center flex-wrap gap-2" style="background-color: var(--sb-bg-surface);">
+                        <div>
+                            <span class="badge mb-1" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark);" id="adj-item-type-badge">Ingredient</span>
+                            <h5 class="fw-bold mb-0 text-title" id="adj-item-subtitle">Item Name</h5>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold text-title small">Expiry Date (Optional)</label>
-                            <input type="date" id="adj-expiry" class="form-control">
+                        <div class="text-end">
+                            <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); font-size: 0.9rem;" id="adj-current-qty">Current Stock: 0</span>
+                            <div class="text-muted small mt-1" id="adj-current-branch">Branch: --</div>
                         </div>
                     </div>
 
+                    <!-- Section 1: Item Attributes & Metrics -->
+                    <div class="card border-0 shadow-sm p-3 mb-3" style="background: var(--sb-bg-surface);">
+                        <h6 class="fw-bold text-title mb-3 d-flex align-items-center gap-2">
+                            <i class="fas fa-tag text-gold"></i> Item Attributes & Specifications
+                        </h6>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-7">
+                                <label class="form-label fw-bold text-title small">Item Name</label>
+                                <input type="text" id="adj-name" class="form-control" maxlength="100" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold text-title small">Category</label>
+                                <select id="adj-category" class="form-select" required>
+                                    <!-- Injected dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-4" id="adj-unit-group">
+                                <label class="form-label fw-bold text-title small">Unit of Measure</label>
+                                <select id="adj-unit" class="form-select">
+                                    <optgroup label="Weight">
+                                        <option value="kg">kg</option>
+                                        <option value="g">g</option>
+                                    </optgroup>
+                                    <optgroup label="Volume">
+                                        <option value="L">L</option>
+                                        <option value="ml">ml</option>
+                                    </optgroup>
+                                    <optgroup label="Count">
+                                        <option value="pcs">pcs</option>
+                                        <option value="tray">tray</option>
+                                        <option value="box">box</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="col-md-4" id="adj-cost-group">
+                                <label class="form-label fw-bold text-title small">Cost per Unit (₱)</label>
+                                <input type="number" step="0.01" min="0" max="100000" id="adj-cost" class="form-control"
+                                       placeholder="e.g., 250.00"
+                                       onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                       oninput="if(+this.value > 100000) this.value = 100000;">
+                            </div>
+                            <div class="col-md-4 d-none" id="adj-price-group">
+                                <label class="form-label fw-bold text-title small">Selling Price (₱)</label>
+                                <input type="number" step="0.01" min="0" max="100000" id="adj-price" class="form-control"
+                                       placeholder="e.g., 550.00"
+                                       onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                       oninput="if(+this.value > 100000) this.value = 100000;">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold text-title small">Reorder Threshold</label>
+                                <input type="number" step="0.01" min="0" max="10000" id="adj-threshold" class="form-control"
+                                       placeholder="e.g., 10.00"
+                                       onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                       oninput="if(+this.value > 10000) this.value = 10000;" required>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-title small">Batch # (Optional)</label>
+                                <input type="text" id="adj-batch" class="form-control" placeholder="e.g., B-20261014" maxlength="100">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold text-title small">Expiry Date (Optional)</label>
+                                <input type="date" id="adj-expiry" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Stock Adjustment & Physical Count -->
+                    <div class="card border-0 shadow-sm p-3 mb-3" style="background: var(--sb-bg-surface);">
+                        <h6 class="fw-bold text-title mb-3 d-flex align-items-center gap-2">
+                            <i class="fas fa-boxes-stacked text-gold"></i> Stock Level & Inventory Adjustment
+                        </h6>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-title small">Adjustment Action</label>
+                            <select id="adj-action-mode" class="form-select" onchange="onAdjModeChanged()" required>
+                                <option value="relative" selected>Relative Movement (+ / - Stock)</option>
+                                <option value="direct">Direct Count Override (Set Exact Physical Stock)</option>
+                                <option value="none">Update Attributes Only (No Stock Count Change)</option>
+                            </select>
+                        </div>
+
+                        <!-- Relative Movement Controls -->
+                        <div id="adj-relative-container">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-title small">Movement Type</label>
+                                    <select id="adj-type" class="form-select">
+                                        <option value="Stock-in">Stock-In (+ Add to Inventory)</option>
+                                        <option value="Stock-out">Stock-Out (- Deduct Inventory)</option>
+                                        <option value="Spoilage">Spoilage (- Damage/Expired)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-title small">Quantity Change</label>
+                                    <input type="number" id="adj-qty" class="form-control" step="0.01" min="0.01" max="50000"
+                                           placeholder="e.g., 5"
+                                           onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                           oninput="if(+this.value > 50000) this.value = 50000;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Direct Count Override Controls -->
+                        <div id="adj-direct-container" class="d-none">
+                            <label class="form-label fw-bold text-title small">Exact Physical Stock Count</label>
+                            <input type="number" id="adj-direct-qty" class="form-control" step="0.01" min="0" max="50000"
+                                   placeholder="e.g., 25.00"
+                                   onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                   oninput="if(+this.value > 50000) this.value = 50000; updateDirectDeltaHint();">
+                            <div class="mt-1" id="adj-direct-hint"></div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Reason & Audit -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-title small">Reason (Mandatory)</label>
-                        <textarea id="adj-reason" class="form-control" rows="2" placeholder="e.g., Supplier delivery, kitchen restock, routine audit, damaged box..." required></textarea>
+                        <label class="form-label fw-bold text-title small">Adjustment Reason (Mandatory Audit Log)</label>
+                        <textarea id="adj-reason" class="form-control" rows="2" placeholder="e.g., Routine physical inventory audit count, supplier delivery, recipe cost correction, damaged carton write-off..." required></textarea>
                     </div>
                     
                     <button type="submit" id="btn-submit-adjust" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
-                        <i class="fas fa-check-circle"></i> Confirm Adjustment
+                        <i class="fas fa-save"></i> Save Changes & Apply Adjustment
                     </button>
                 </form>
             </div>
@@ -905,6 +1001,102 @@
         }
     };
 
+    window.openCreateBOMModal = function() {
+        const editIdInput = document.getElementById('bom-edit-product-id');
+        if (editIdInput) editIdInput.value = '';
+        const form = document.getElementById('bomForm');
+        if (form) form.reset();
+        
+        const title = document.getElementById('bom-modal-title');
+        if (title) title.innerHTML = '<i class="fas fa-cube text-gold"></i> Configure Product & BOM';
+        const btn = document.getElementById('btn-save-bom');
+        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> Save Configuration & Initialize Stock';
+        
+        // Clear all extra rows except first
+        const rows = document.querySelectorAll('#bom-ingredients-list .ingredient-row');
+        for (let i = 1; i < rows.length; i++) rows[i].remove();
+        const firstRow = document.querySelector('#bom-ingredients-list .ingredient-row');
+        if (firstRow) {
+            firstRow.querySelector('.ing-name').value = '';
+            firstRow.querySelector('.ing-unit').value = 'kg';
+            firstRow.querySelector('.ing-deduct').value = '';
+        }
+        const modalEl = document.getElementById('addBomModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
+    };
+
+    window.openEditBOMModal = function(productId) {
+        const bomItem = (window.cachedBOM || []).find(b => b.id === productId);
+        if (!bomItem) {
+            alert("Product BOM details not found.");
+            return;
+        }
+
+        const editIdInput = document.getElementById('bom-edit-product-id');
+        if (editIdInput) editIdInput.value = productId;
+
+        const title = document.getElementById('bom-modal-title');
+        if (title) title.innerHTML = `<i class="fas fa-edit text-gold"></i> Edit Product & BOM: ${bomItem.product}`;
+        const btn = document.getElementById('btn-save-bom');
+        if (btn) btn.innerHTML = '<i class="fas fa-save me-1"></i> Update Configuration & Recipes';
+
+        document.getElementById('bom-prod-name').value = bomItem.product;
+        
+        const catSelect = document.getElementById('bom-prod-cat');
+        if (catSelect && bomItem.category) {
+            catSelect.value = bomItem.category;
+        }
+        document.getElementById('bom-prod-price').value = bomItem.price !== undefined ? bomItem.price : '';
+        document.getElementById('bom-prod-stock').value = bomItem.current_stock !== undefined ? bomItem.current_stock : 0;
+        document.getElementById('bom-prod-threshold').value = bomItem.threshold !== undefined ? bomItem.threshold : 5;
+
+        // Populate ingredient deductions
+        const listContainer = document.getElementById('bom-ingredients-list');
+        listContainer.innerHTML = '';
+
+        const recipes = bomItem.recipes || [];
+        if (recipes.length > 0) {
+            recipes.forEach(r => {
+                const rowHtml = `
+                <div class="row g-2 mb-2 ingredient-row align-items-center">
+                    <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" value="${r.name}" placeholder="Name (e.g., Sugar)" maxlength="100" required></div>
+                    <div class="col-2">
+                        <select class="form-select ing-unit" required>
+                            <optgroup label="Weight">
+                                <option value="kg" ${r.unit === 'kg' ? 'selected' : ''}>kg</option>
+                                <option value="g" ${r.unit === 'g' ? 'selected' : ''}>g</option>
+                            </optgroup>
+                            <optgroup label="Volume">
+                                <option value="L" ${r.unit === 'L' ? 'selected' : ''}>L</option>
+                                <option value="ml" ${r.unit === 'ml' ? 'selected' : ''}>ml</option>
+                            </optgroup>
+                            <optgroup label="Count">
+                                <option value="pcs" ${r.unit === 'pcs' ? 'selected' : ''}>pcs</option>
+                                <option value="tray" ${r.unit === 'tray' ? 'selected' : ''}>tray</option>
+                                <option value="box" ${r.unit === 'box' ? 'selected' : ''}>box</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <input type="number" step="0.01" min="0.01" max="10000" class="form-control ing-deduct"
+                               placeholder="Deduction per Sale" value="${r.deduction}"
+                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                               oninput="if(+this.value > 10000) this.value = 10000;" required>
+                    </div>
+                    <div class="col-2 text-end">
+                        <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.ingredient-row').remove()">Remove</button>
+                    </div>
+                </div>`;
+                listContainer.insertAdjacentHTML('beforeend', rowHtml);
+            });
+        } else {
+            addIngredientRow();
+        }
+
+        const modalEl = document.getElementById('addBomModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
+    };
+
     window.submitNewBOM = async function(event) {
         event.preventDefault();
         
@@ -1008,6 +1200,9 @@
             ingredients: ingredients
         };
 
+        const editProductId = document.getElementById('bom-edit-product-id') ? document.getElementById('bom-edit-product-id').value : '';
+        const targetUrl = editProductId ? `/api/inventory/bom/update/${editProductId}/` : '/api/inventory/bom/create/';
+
         const btn = document.getElementById('btn-save-bom');
         const origHtml = btn ? btn.innerHTML : '';
         if (btn) {
@@ -1017,16 +1212,19 @@
 
         const token = localStorage.getItem('access_token');
         try {
-            const response = await fetch('/api/inventory/bom/create/', {
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(payload)
             });
             
             if (response.ok) {
-                alert("Product and BOM configured successfully! Branch stocks initialized.");
+                alert(editProductId ? "Product and BOM configuration updated successfully!" : "Product and BOM configured successfully! Branch stocks initialized.");
                 bootstrap.Modal.getInstance(document.getElementById('addBomModal')).hide();
                 document.getElementById('bomForm').reset();
+                if (document.getElementById('bom-edit-product-id')) {
+                    document.getElementById('bom-edit-product-id').value = '';
+                }
                 
                 // Clear any extra rows besides the first one
                 const rows = document.querySelectorAll('.ingredient-row');
@@ -1049,6 +1247,8 @@
 
     function populateCategoryDropdowns(categories) {
         if (!categories || !categories.length) return;
+        window.cachedCategories = categories;
+
         const bomCatSelect = document.getElementById('bom-prod-cat');
         if (bomCatSelect) {
             const currentVal = bomCatSelect.value;
@@ -1063,6 +1263,14 @@
             ingCatSelect.innerHTML = categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
             if (currentVal) ingCatSelect.value = currentVal;
         }
+
+        const adjCatSelect = document.getElementById('adj-category');
+        if (adjCatSelect) {
+            const currentVal = adjCatSelect.value;
+            adjCatSelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>' +
+                categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            if (currentVal) adjCatSelect.value = currentVal;
+        }
     }
 
     async function loadSCMData() {
@@ -1075,18 +1283,30 @@
             const uniqueIngs = [...new Map(data.inventory.map(item => [item.ingredient_name, item])).values()];
             document.getElementById('existing-ingredients').innerHTML = uniqueIngs.map(i => `<option value="${i.ingredient_name}" data-unit="${i.unit}" data-cost="${i.cost_per_unit}">`).join('');
             
-            if (data.categories) populateCategoryDropdowns(data.categories);
+            if (data.categories) {
+                window.cachedCategories = data.categories;
+                populateCategoryDropdowns(data.categories);
+            }
 
             renderKPIs(data.kpis);
-            renderInventory(data.inventory);
+
+            if (data.inventory) {
+                window.cachedInventory = data.inventory;
+                renderInventory(data.inventory);
+            }
             
             if (data.product_watch) {
                 window.cachedProductWatch = data.product_watch;
                 renderProductWatch(data.product_watch);
             }
-            renderBOM(data.bom);
+
+            if (data.bom) {
+                window.cachedBOM = data.bom;
+                renderBOM(data.bom);
+                populateProduceDropdown(data.bom);
+            }
+
             renderRestockQueue(data.restock_queue, data.pending_restocks);
-            populateProduceDropdown(data.bom); 
             
             if (data.prescriptive_actions) renderPrescriptiveActions(data.prescriptive_actions);
             
@@ -1299,8 +1519,11 @@
                             <td class="text-muted small">${b.ingredients}</td>
                             <td class="text-danger small fw-bold">${b.deductions}</td>
                             <td><span class="badge bg-success bg-opacity-25 text-success rounded-pill">Active</span></td>
-                            <td class="text-end pe-4">
-                                <button class="btn btn-sm btn-outline-danger fw-bold" onclick="deleteProduct(${b.id}, '${b.product}')">
+                            <td class="text-end pe-4 text-nowrap">
+                                <button class="btn btn-sm btn-sb-outline-gold fw-bold me-2" onclick="openEditBOMModal(${b.id})">
+                                    <i class="fas fa-edit me-1"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger fw-bold" onclick="deleteProduct(${b.id}, '${b.product.replace(/'/g, "\\'")}')">
                                     <i class="fas fa-trash-alt me-1"></i> Delete
                                 </button>
                             </td>
@@ -1505,26 +1728,200 @@
     window.openAdjustModal = function(type, id, name, currentQty) {
         document.getElementById('adj-item-type').value = type;
         document.getElementById('adj-item-id').value = id;
-        document.getElementById('adj-item-name').innerText = name;
-        document.getElementById('adj-current-qty').innerText = `Current Stock: ${currentQty}`;
         document.getElementById('adjustForm').reset();
-        const expiryEl = document.getElementById('adj-expiry');
-        if (expiryEl) {
-            expiryEl.min = new Date().toISOString().split('T')[0];
+
+        let item = null;
+        if (type === 'ingredient') {
+            item = (window.cachedInventory || []).find(x => x.id === id);
+        } else {
+            item = (window.cachedProductWatch || []).find(x => x.id === id);
         }
-        new bootstrap.Modal(document.getElementById('stockAdjustModal')).show();
+
+        const itemName = item ? (item.ingredient_name || item.product_name) : name;
+        const itemQty = item ? item.quantity : currentQty;
+        const itemUnit = (item && item.unit) ? item.unit : (type === 'ingredient' ? 'kg' : 'units');
+        const itemBranch = item ? item.branch : (window.currentUserBranchName || 'Main Hub');
+
+        const titleEl = document.getElementById('adj-modal-title');
+        if (titleEl) {
+            titleEl.innerHTML = `<i class="fas fa-sliders text-gold"></i> Edit & Adjust ${type === 'ingredient' ? 'Ingredient' : 'Product'}: ${itemName}`;
+        }
+        const badgeEl = document.getElementById('adj-item-type-badge');
+        if (badgeEl) {
+            badgeEl.innerText = type === 'ingredient' ? 'Ingredient' : 'Finished Product';
+        }
+        const subEl = document.getElementById('adj-item-subtitle');
+        if (subEl) {
+            subEl.innerText = itemName;
+        }
+        const qtyEl = document.getElementById('adj-current-qty');
+        if (qtyEl) {
+            qtyEl.innerText = `Current Stock: ${itemQty} ${itemUnit}`;
+        }
+        const branchEl = document.getElementById('adj-current-branch');
+        if (branchEl) {
+            branchEl.innerText = `Branch: ${itemBranch}`;
+        }
+
+        const nameInput = document.getElementById('adj-name');
+        if (nameInput) {
+            nameInput.value = itemName;
+        }
+
+        if (window.cachedCategories) {
+            populateCategoryDropdowns(window.cachedCategories);
+        }
+        const catSelect = document.getElementById('adj-category');
+        if (catSelect && item && item.category) {
+            catSelect.value = item.category;
+        }
+
+        const unitGroup = document.getElementById('adj-unit-group');
+        const costGroup = document.getElementById('adj-cost-group');
+        const priceGroup = document.getElementById('adj-price-group');
+
+        if (type === 'ingredient') {
+            if (unitGroup) unitGroup.classList.remove('d-none');
+            if (costGroup) costGroup.classList.remove('d-none');
+            if (priceGroup) priceGroup.classList.add('d-none');
+            const unitSelect = document.getElementById('adj-unit');
+            if (unitSelect && item && item.unit) unitSelect.value = item.unit;
+            const costInput = document.getElementById('adj-cost');
+            if (costInput) costInput.value = (item && item.cost_per_unit !== undefined) ? item.cost_per_unit : '';
+        } else {
+            if (unitGroup) unitGroup.classList.add('d-none');
+            if (costGroup) costGroup.classList.add('d-none');
+            if (priceGroup) priceGroup.classList.remove('d-none');
+            const priceInput = document.getElementById('adj-price');
+            if (priceInput) priceInput.value = (item && item.price !== undefined) ? item.price : '';
+        }
+
+        const thresholdInput = document.getElementById('adj-threshold');
+        if (thresholdInput) {
+            thresholdInput.value = (item && item.threshold !== undefined) ? item.threshold : 10;
+        }
+
+        const batchInput = document.getElementById('adj-batch');
+        if (batchInput) {
+            batchInput.value = (item && item.batch_number) ? item.batch_number : '';
+        }
+
+        const expiryInput = document.getElementById('adj-expiry');
+        if (expiryInput) {
+            expiryInput.value = (item && item.raw_expiry) ? item.raw_expiry : '';
+        }
+
+        const modeSelect = document.getElementById('adj-action-mode');
+        if (modeSelect) {
+            modeSelect.value = 'relative';
+        }
+        onAdjModeChanged();
+
+        const directInput = document.getElementById('adj-direct-qty');
+        if (directInput) {
+            directInput.value = itemQty;
+            updateDirectDeltaHint();
+        }
+
+        const modalEl = document.getElementById('stockAdjustModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
+    };
+
+    window.onAdjModeChanged = function() {
+        const mode = document.getElementById('adj-action-mode').value;
+        const relContainer = document.getElementById('adj-relative-container');
+        const dirContainer = document.getElementById('adj-direct-container');
+        const qtyInput = document.getElementById('adj-qty');
+        const directQtyInput = document.getElementById('adj-direct-qty');
+
+        if (mode === 'relative') {
+            if (relContainer) relContainer.classList.remove('d-none');
+            if (dirContainer) dirContainer.classList.add('d-none');
+            if (qtyInput) qtyInput.required = true;
+            if (directQtyInput) directQtyInput.required = false;
+        } else if (mode === 'direct') {
+            if (relContainer) relContainer.classList.add('d-none');
+            if (dirContainer) dirContainer.classList.remove('d-none');
+            if (qtyInput) qtyInput.required = false;
+            if (directQtyInput) directQtyInput.required = true;
+            updateDirectDeltaHint();
+        } else { // 'none'
+            if (relContainer) relContainer.classList.add('d-none');
+            if (dirContainer) dirContainer.classList.add('d-none');
+            if (qtyInput) qtyInput.required = false;
+            if (directQtyInput) directQtyInput.required = false;
+        }
+    };
+
+    window.updateDirectDeltaHint = function() {
+        const directInput = document.getElementById('adj-direct-qty');
+        const hintEl = document.getElementById('adj-direct-hint');
+        if (!directInput || !hintEl) return;
+
+        const directVal = parseFloat(directInput.value);
+        const itemType = document.getElementById('adj-item-type').value;
+        const itemId = parseInt(document.getElementById('adj-item-id').value);
+
+        let currentQty = 0;
+        let itemUnit = 'units';
+        if (itemType === 'ingredient') {
+            const itm = (window.cachedInventory || []).find(x => x.id === itemId);
+            if (itm) { currentQty = itm.quantity; itemUnit = itm.unit || 'kg'; }
+        } else {
+            const itm = (window.cachedProductWatch || []).find(x => x.id === itemId);
+            if (itm) { currentQty = itm.quantity; }
+        }
+
+        if (isNaN(directVal)) {
+            hintEl.innerText = '';
+            return;
+        }
+
+        const diff = directVal - currentQty;
+        if (diff > 0) {
+            hintEl.innerHTML = `<span class="badge bg-success bg-opacity-25 text-success px-2 py-1"><i class="fas fa-arrow-up me-1"></i>Stock Addition of +${diff.toFixed(2)} ${itemUnit}</span> <span class="small text-muted ms-2">(Current: ${currentQty} -> New: ${directVal})</span>`;
+        } else if (diff < 0) {
+            hintEl.innerHTML = `<span class="badge bg-danger bg-opacity-25 text-danger px-2 py-1"><i class="fas fa-arrow-down me-1"></i>Stock Deduction of ${diff.toFixed(2)} ${itemUnit}</span> <span class="small text-muted ms-2">(Current: ${currentQty} -> New: ${directVal})</span>`;
+        } else {
+            hintEl.innerHTML = `<span class="badge bg-secondary bg-opacity-25 text-muted px-2 py-1"><i class="fas fa-check me-1"></i>Exact Match</span> <span class="small text-muted ms-2">(Count verified at ${currentQty} ${itemUnit})</span>`;
+        }
     };
 
     window.submitStockAdjustment = async function(event) {
         event.preventDefault();
 
-        const qtyVal = parseFloat(document.getElementById('adj-qty').value);
-        if (isNaN(qtyVal) || qtyVal <= 0) {
-            alert("Quantity must be a positive number greater than zero.");
+        const itemType = document.getElementById('adj-item-type').value;
+        const itemId = document.getElementById('adj-item-id').value;
+        const mode = document.getElementById('adj-action-mode').value;
+
+        const nameVal = document.getElementById('adj-name').value.trim();
+        if (!nameVal) {
+            alert("Item name cannot be empty.");
             return;
         }
-        if (qtyVal > 50000) {
-            alert("Quantity change cannot exceed 50,000 units.");
+        if (nameVal.length > 100) {
+            alert("Item name cannot exceed 100 characters.");
+            return;
+        }
+        if (!isNaN(nameVal)) {
+            alert("Item name cannot be purely numeric.");
+            return;
+        }
+
+        const catSelect = document.getElementById('adj-category');
+        const categoryVal = catSelect ? catSelect.value : '';
+        if (!categoryVal) {
+            alert("Please select a category.");
+            return;
+        }
+
+        const thresholdVal = parseFloat(document.getElementById('adj-threshold').value);
+        if (isNaN(thresholdVal) || thresholdVal < 0) {
+            alert("Reorder threshold must be a non-negative number.");
+            return;
+        }
+        if (thresholdVal > 10000) {
+            alert("Reorder threshold cannot exceed 10,000 units.");
             return;
         }
 
@@ -1535,22 +1932,74 @@
         }
 
         const payload = {
-            item_type: document.getElementById('adj-item-type').value,
-            item_id: document.getElementById('adj-item-id').value,
-            adjustment_type: document.getElementById('adj-type').value,
-            quantity_change: qtyVal,
+            item_type: itemType,
+            item_id: itemId,
+            adjustment_mode: mode,
+            name: nameVal,
+            category: categoryVal,
+            reorder_threshold: thresholdVal,
             reason: reasonVal
         };
 
-        const batch = document.getElementById('adj-batch') ? document.getElementById('adj-batch').value.trim() : '';
-        const expiry = document.getElementById('adj-expiry') ? document.getElementById('adj-expiry').value : '';
-        if (batch) payload.batch_number = batch;
-        if (expiry) payload.expiry_date = expiry;
+        if (itemType === 'ingredient') {
+            payload.measurement_unit = document.getElementById('adj-unit').value;
+            const costVal = parseFloat(document.getElementById('adj-cost').value);
+            if (!isNaN(costVal)) {
+                if (costVal < 0 || costVal > 100000) {
+                    alert("Cost per unit must be between ₱0.00 and ₱100,000.00.");
+                    return;
+                }
+                payload.cost_per_unit = costVal;
+            }
+        } else {
+            const priceVal = parseFloat(document.getElementById('adj-price').value);
+            if (!isNaN(priceVal)) {
+                if (priceVal < 0 || priceVal > 100000) {
+                    alert("Selling price must be between ₱0.00 and ₱100,000.00.");
+                    return;
+                }
+                payload.price = priceVal;
+            }
+        }
+
+        const batchVal = document.getElementById('adj-batch').value.trim();
+        if (batchVal) payload.batch_number = batchVal;
+
+        const expiryVal = document.getElementById('adj-expiry').value;
+        if (expiryVal) payload.expiry_date = expiryVal;
+
+        if (mode === 'relative') {
+            const qtyVal = parseFloat(document.getElementById('adj-qty').value);
+            if (isNaN(qtyVal) || qtyVal <= 0) {
+                alert("Quantity change must be a positive number greater than zero.");
+                return;
+            }
+            if (qtyVal > 50000) {
+                alert("Quantity change cannot exceed 50,000 units.");
+                return;
+            }
+            payload.adjustment_type = document.getElementById('adj-type').value;
+            payload.quantity_change = qtyVal;
+        } else if (mode === 'direct') {
+            const directVal = parseFloat(document.getElementById('adj-direct-qty').value);
+            if (isNaN(directVal) || directVal < 0) {
+                alert("Direct physical count must be a non-negative number.");
+                return;
+            }
+            if (directVal > 50000) {
+                alert("Direct physical count cannot exceed 50,000 units.");
+                return;
+            }
+            payload.adjustment_type = 'Direct Count Audit';
+            payload.direct_quantity = directVal;
+        } else {
+            payload.adjustment_type = 'None';
+        }
 
         const btn = document.getElementById('btn-submit-adjust');
         const origHtml = btn ? btn.innerHTML : '';
         if (btn) {
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing Adjustment...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving Changes...';
             btn.disabled = true;
         }
 
@@ -1565,7 +2014,7 @@
             if (response.ok) {
                 alert(data.message);
                 bootstrap.Modal.getInstance(document.getElementById('stockAdjustModal')).hide();
-                loadSCMData(); // Refresh tables instantly
+                loadSCMData();
             } else {
                 alert(`Adjustment Failed: ${data.error || 'Server error'}`);
             }
