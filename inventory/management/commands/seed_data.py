@@ -1,4 +1,8 @@
 import random
+from inventory.models import (
+    Ingredient, BillOfMaterial, IngredientStock, ProductStock,
+    RestockRequest, ConstraintParameter, StockAdjustment, ProductTransfer
+)
 from decimal import Decimal
 from datetime import timedelta
 from django.utils import timezone
@@ -18,11 +22,26 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **kwargs):
+        PaymentRecord.objects.all().delete()
+        TransactionItem.objects.all().delete()
+        Transaction.objects.all().delete()
+        StockAdjustment.objects.all().delete()
+        RestockRequest.objects.all().delete()
+        ProductTransfer.objects.all().delete()
+        PrescriptiveOutput.objects.all().delete()
+        ConstraintParameter.objects.all().delete()
+        BillOfMaterial.objects.all().delete()
+        ProductStock.objects.all().delete()
+        IngredientStock.objects.all().delete()
+        Product.objects.all().delete()
+        Ingredient.objects.all().delete()
+        ProductCategory.objects.all().delete()
         self.stdout.write("Starting official Sweet Box database seeding...")
 
         # -----------------------------------------------------------------
         # 1. Establish Branches (with duplicate deduplication)
         # -----------------------------------------------------------------
+        
         branch_names = [
             'Ibaan (Main Hub)', 'Padre Garcia', 'San Jose', 
             'Sampaguita', 'South Supermarket Lipa', 'San Antonio Quezon', 'Cuenca'
