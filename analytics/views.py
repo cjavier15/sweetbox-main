@@ -403,12 +403,42 @@ class ExternalVariableView(APIView):
 
     def post(self, request):
         try:
+            name = request.data.get('name', '').strip()
+            variable_type = request.data.get('variable_type', '').strip()
+            start_date_str = request.data.get('start_date')
+            end_date_str = request.data.get('end_date')
+            impact_level = request.data.get('impact_level', 'Low').strip()
+
+            if not name:
+                return Response({"error": "Event name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+            if not variable_type:
+                return Response({"error": "Event type is required."}, status=status.HTTP_400_BAD_REQUEST)
+            if not start_date_str or not end_date_str:
+                return Response({"error": "Both start date and end date are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # --- TASK 5: Cross-field date validation ---
+            from datetime import date as date_type
+            try:
+                from datetime import datetime
+                start_date = datetime.strptime(str(start_date_str), '%Y-%m-%d').date()
+                end_date = datetime.strptime(str(end_date_str), '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+            today = timezone.now().date()
+            if start_date > today:
+                return Response({"error": "Start date cannot be in the future."}, status=status.HTTP_400_BAD_REQUEST)
+            if end_date > today:
+                return Response({"error": "End date cannot be in the future."}, status=status.HTTP_400_BAD_REQUEST)
+            if start_date > end_date:
+                return Response({"error": "Start date cannot be after end date."}, status=status.HTTP_400_BAD_REQUEST)
+
             ExternalVariable.objects.create(
-                name=request.data.get('name'),
-                variable_type=request.data.get('variable_type'),
-                start_date=request.data.get('start_date'),
-                end_date=request.data.get('end_date'),
-                impact_level=request.data.get('impact_level'),
+                name=name,
+                variable_type=variable_type,
+                start_date=start_date,
+                end_date=end_date,
+                impact_level=impact_level,
                 description="Manually logged via Enterprise Dashboard"
             )
             return Response({"message": "Event successfully logged for AI context."}, status=status.HTTP_201_CREATED)

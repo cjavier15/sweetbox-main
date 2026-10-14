@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 from rest_framework import generics, status
 from rest_framework.views import APIView
@@ -68,6 +69,22 @@ class TransactionCreateView(APIView):
             discount_amount = Decimal(str(data.get('discount_amount', '0.00')))
             total_amount = Decimal(str(data['total_amount'])) if 'total_amount' in data else (calculated_subtotal - discount_amount)
 
+            # --- TASK 4: E-Wallet Reference Number Validation ---
+            payment_method = data.get('payment_method', 'Cash')
+            reference_number = str(data.get('reference_number', '') or '').strip()
+
+            if payment_method in ('E-Wallet', 'Split Payment'):
+                if not reference_number:
+                    return Response(
+                        {"error": "An E-Wallet reference number is required for this payment method."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if not re.fullmatch(r'^\d{13}$', reference_number):
+                    return Response(
+                        {"error": "E-Wallet reference number must be exactly 13 digits (numbers only)."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
             # 1. Create Transaction Record
             txn = Transaction.objects.create(
                 branch=branch,
@@ -104,11 +121,12 @@ class TransactionCreateView(APIView):
                 stock_record.quantity_available = Decimal(str(stock_record.quantity_available)) - Decimal(str(quantity_sold))
                 stock_record.save()
                     
-            # 3. Record the Payment
+            # 3. Record the Payment — store reference_number for E-Wallet/Split
             PaymentRecord.objects.create(
                 transaction=txn,
                 amount_paid=total_amount,
-                payment_method=data.get('payment_method', 'Cash')
+                payment_method=payment_method,
+                reference_number=reference_number if reference_number else None
             )
 
             AuditLog.objects.create(
@@ -124,6 +142,7 @@ class TransactionCreateView(APIView):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class TransactionRefundView(APIView):
     permission_classes = [IsAuthenticated]

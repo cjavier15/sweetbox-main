@@ -204,7 +204,7 @@
             <div class="modal-body bg-light">
                 <form id="eventForm" onsubmit="submitEvent(event)">
                     <div class="mb-3">
-                        <input type="text" id="ev-name" class="form-control" placeholder="Event Name (e.g., 15th Payday, Town Fiesta)" required>
+                        <input type="text" id="ev-name" class="form-control" placeholder="Event Name (e.g., 15th Payday, Town Fiesta)" maxlength="100" required>
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
@@ -232,7 +232,9 @@
                             <input type="date" id="ev-end" class="form-control" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-success w-100 fw-bold py-2">Save for AI Context</button>
+                    <button type="submit" id="btn-submit-event" class="btn btn-success w-100 fw-bold py-2 d-flex align-items-center justify-content-center gap-2">
+                        <i class="fas fa-check"></i> Save for AI Context
+                    </button>
                 </form>
             </div>
         </div>
@@ -549,30 +551,97 @@
 
     async function submitEvent(e) {
         e.preventDefault();
+        const evName = document.getElementById('ev-name').value.trim();
+        const evType = document.getElementById('ev-type').value;
+        const evImpact = document.getElementById('ev-impact').value;
+        const startDate = document.getElementById('ev-start').value;
+        const endDate = document.getElementById('ev-end').value;
+
+        if (!evName) {
+            alert("Event name cannot be empty.");
+            return;
+        }
+        if (evName.length > 100) {
+            alert("Event name cannot exceed 100 characters.");
+            return;
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (startDate > todayStr) {
+            alert("Start date cannot be in the future.");
+            return;
+        }
+        if (endDate > todayStr) {
+            alert("End date cannot be in the future.");
+            return;
+        }
+        if (startDate > endDate) {
+            alert("Start date cannot be after end date.");
+            return;
+        }
+
         const payload = {
-            name: document.getElementById('ev-name').value,
-            variable_type: document.getElementById('ev-type').value,
-            impact_level: document.getElementById('ev-impact').value,
-            start_date: document.getElementById('ev-start').value,
-            end_date: document.getElementById('ev-end').value
+            name: evName,
+            variable_type: evType,
+            impact_level: evImpact,
+            start_date: startDate,
+            end_date: endDate
         };
+
+        const btn = document.getElementById('btn-submit-event');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving Event...';
+            btn.disabled = true;
+        }
+
         const token = localStorage.getItem('access_token');
-        await fetch('/api/analytics/external-variables/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify(payload)
-        });
-        
-        bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-        document.getElementById('eventForm').reset();
-        loadEvents();
+        try {
+            const res = await fetch('/api/analytics/external-variables/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message || "Event successfully logged for AI context.");
+                bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+                document.getElementById('eventForm').reset();
+                const evStart = document.getElementById('ev-start');
+                const evEnd = document.getElementById('ev-end');
+                if (evStart && evEnd) {
+                    evStart.max = todayStr;
+                    evEnd.max = todayStr;
+                    evEnd.removeAttribute('min');
+                }
+                loadEvents();
+            } else {
+                alert(`Error: ${data.error || 'Failed to save event.'}`);
+            }
+        } catch (err) {
+            alert("Network Error: Could not save event.");
+        } finally {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+        }
     }
 
     async function deleteEvent(id) {
         if (!confirm("Are you sure you want to remove this event from the AI context?")) return;
         const token = localStorage.getItem('access_token');
-        await fetch(`/api/analytics/external-variables/${id}/`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-        loadEvents();
+        try {
+            const res = await fetch(`/api/analytics/external-variables/${id}/`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                loadEvents();
+            } else {
+                const data = await res.json();
+                alert(`Error: ${data.error || 'Failed to delete event.'}`);
+            }
+        } catch (err) {
+            alert("Network Error: Could not delete event.");
+        }
     }
 
     async function runETLPipeline() {
@@ -590,7 +659,7 @@
             const data = await res.json();
             
             if (res.ok) alert(data.message);
-            else alert(`ETL Error: ${data.error}`);
+            else alert(`ETL Error: ${data.error || 'Failed to execute ETL'}`);
         } catch (error) {
             alert("Network Error: Could not execute ETL pipeline.");
         } finally {
@@ -600,12 +669,24 @@
     }
 
     function exportKPIs() {
+        const btn = document.querySelector('button[onclick="exportKPIs()"]');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Exporting...';
+            btn.disabled = true;
+        }
+
         const token = localStorage.getItem('access_token');
         fetch('/api/analytics/etl/export/', {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(response => response.blob())
+        .then(async response => {
+            if (!response.ok) {
+                throw new Error("Failed to export report.");
+            }
+            return response.blob();
+        })
         .then(blob => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -616,7 +697,13 @@
             a.click();
             window.URL.revokeObjectURL(url);
         })
-        .catch(err => alert("Error downloading report."));
+        .catch(err => alert("Error downloading report: " + err.message))
+        .finally(() => {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+        });
     }
 
     document.addEventListener("DOMContentLoaded", async () => {
@@ -635,6 +722,31 @@
             }
         } catch (e) {
             console.warn("Could not load user info:", e);
+        }
+
+        // Initialize and bind date range pickers
+        const todayStr = new Date().toISOString().split('T')[0];
+        const evStart = document.getElementById('ev-start');
+        const evEnd = document.getElementById('ev-end');
+        if (evStart && evEnd) {
+            evStart.max = todayStr;
+            evEnd.max = todayStr;
+
+            evStart.addEventListener('change', () => {
+                if (evStart.value) {
+                    evEnd.min = evStart.value;
+                } else {
+                    evEnd.removeAttribute('min');
+                }
+            });
+
+            evEnd.addEventListener('change', () => {
+                if (evEnd.value) {
+                    evStart.max = evEnd.value < todayStr ? evEnd.value : todayStr;
+                } else {
+                    evStart.max = todayStr;
+                }
+            });
         }
 
         await renderEnterpriseCharts();

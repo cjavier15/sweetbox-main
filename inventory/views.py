@@ -184,6 +184,10 @@ class IngredientCreateView(APIView):
         if not name or not str(name).strip():
             return Response({"error": "Ingredient name is required and cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
         name = str(name).strip()
+        if len(name) > 100:
+            return Response({"error": "Ingredient name cannot exceed 100 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        if name.replace(' ', '').isdigit():
+            return Response({"error": "Ingredient name cannot be purely numeric."}, status=status.HTTP_400_BAD_REQUEST)
 
         unit = str(data.get('measurement_unit') or data.get('unit', 'kg')).strip() or 'kg'
 
@@ -195,6 +199,8 @@ class IngredientCreateView(APIView):
                 cost = Decimal(str(raw_cost))
             if cost < 0:
                 return Response({"error": "Cost per unit cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+            if cost > Decimal('100000.00'):
+                return Response({"error": "Cost per unit cannot exceed ₱100,000.00."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Invalid cost per unit. Must be a valid non-negative number."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -206,6 +212,8 @@ class IngredientCreateView(APIView):
                 initial_qty = Decimal(str(raw_qty))
             if initial_qty < 0:
                 return Response({"error": "Initial quantity cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+            if initial_qty > Decimal('50000.00'):
+                return Response({"error": "Initial quantity cannot exceed 50,000 units."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Invalid initial quantity. Must be a valid non-negative number."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -217,8 +225,11 @@ class IngredientCreateView(APIView):
                 threshold = Decimal(str(raw_threshold))
             if threshold < 0:
                 return Response({"error": "Reorder threshold cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+            if threshold > Decimal('10000.00'):
+                return Response({"error": "Reorder threshold cannot exceed 10,000 units."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Invalid reorder threshold. Must be a valid non-negative number."}, status=status.HTTP_400_BAD_REQUEST)
+
 
         branch_id = data.get('branch_id')
 
@@ -319,6 +330,10 @@ class BOMCreateView(APIView):
             if not prod_name or not str(prod_name).strip():
                 return Response({"error": "Product name is required."}, status=status.HTTP_400_BAD_REQUEST)
             prod_name = str(prod_name).strip()
+            if len(prod_name) > 100:
+                return Response({"error": "Product name cannot exceed 100 characters."}, status=status.HTTP_400_BAD_REQUEST)
+            if prod_name.replace(' ', '').isdigit():
+                return Response({"error": "Product name cannot be purely numeric."}, status=status.HTTP_400_BAD_REQUEST)
 
             cat_input = data.get('category') or data.get('category_name') or data.get('category_id') or 'General'
             category = None
@@ -333,6 +348,8 @@ class BOMCreateView(APIView):
                 price = Decimal(str(data.get('price', 0.00)))
                 if price < 0:
                     return Response({"error": "Product price cannot be negative."}, status=status.HTTP_400_BAD_REQUEST)
+                if price > Decimal('100000.00'):
+                    return Response({"error": "Product price cannot exceed ₱100,000.00."}, status=status.HTTP_400_BAD_REQUEST)
             except Exception:
                 return Response({"error": "Invalid price provided."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -346,6 +363,8 @@ class BOMCreateView(APIView):
                     ing_cost = Decimal(str(item.get('cost', 0.00)))
                     if ing_cost < 0:
                         ing_cost = Decimal('0.00')
+                    elif ing_cost > Decimal('100000.00'):
+                        ing_cost = Decimal('100000.00')
                 except Exception:
                     ing_cost = Decimal('0.00')
 
@@ -353,6 +372,8 @@ class BOMCreateView(APIView):
                     deduction_qty = Decimal(str(item.get('deduction', 0.00)))
                     if deduction_qty <= 0:
                         return Response({"error": f"Deduction quantity for {ing_name} must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+                    if deduction_qty > Decimal('10000.00'):
+                        return Response({"error": f"Deduction quantity for {ing_name} cannot exceed 10,000 units."}, status=status.HTTP_400_BAD_REQUEST)
                 except Exception:
                     return Response({"error": f"Invalid deduction quantity for {ing_name}."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -396,6 +417,8 @@ class BOMCreateView(APIView):
                 initial_stock = Decimal(str(data.get('initial_stock', data.get('initial_quantity', 0.00))))
                 if initial_stock < 0:
                     initial_stock = Decimal('0.00')
+                elif initial_stock > Decimal('50000.00'):
+                    return Response({"error": "Initial stock cannot exceed 50,000 units."}, status=status.HTTP_400_BAD_REQUEST)
             except Exception:
                 initial_stock = Decimal('0.00')
 
@@ -403,8 +426,11 @@ class BOMCreateView(APIView):
                 threshold = Decimal(str(data.get('reorder_threshold', 5.00)))
                 if threshold < 0:
                     threshold = Decimal('5.00')
+                elif threshold > Decimal('10000.00'):
+                    return Response({"error": "Reorder threshold cannot exceed 10,000 units."}, status=status.HTTP_400_BAD_REQUEST)
             except Exception:
                 threshold = Decimal('5.00')
+
 
             for branch in Branch.objects.all():
                 is_hub = bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
@@ -505,6 +531,8 @@ class ProduceProductView(APIView):
             quantity = int(raw_qty)
             if quantity <= 0:
                 return Response({"error": "Production quantity must be an integer greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+            if quantity > 10000:
+                return Response({"error": "Production quantity cannot exceed 10,000 units per batch."}, status=status.HTTP_400_BAD_REQUEST)
         except (ValueError, TypeError):
             return Response({"error": "Invalid production quantity. Must be a valid positive integer."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -640,6 +668,8 @@ class ManualStockAdjustmentView(APIView):
             qty_change = Decimal(str(raw_qty))
             if qty_change <= 0:
                 return Response({"error": "Quantity change must be a positive number greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+            if qty_change > Decimal('50000.00'):
+                return Response({"error": "Quantity change cannot exceed 50,000 units."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
             return Response({"error": "Invalid quantity change. Must be a valid positive number."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -945,6 +975,8 @@ class ProductTransferView(APIView):
 
         if qty <= 0:
             return Response({"error": "Transfer quantity must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+        if qty > Decimal('50000.00'):
+            return Response({"error": "Transfer quantity cannot exceed 50,000 units."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Resolve Source Branch
         if is_main_hub and not is_owner:

@@ -49,6 +49,11 @@ class IngredientStock(models.Model):
     def __str__(self):
         return f"{self.branch.name} - {self.ingredient.ingredient_name}: {self.quantity_available}"
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['branch', 'ingredient'], name='unique_branch_ingredient_stock')
+        ]
+
 class ProductStock(models.Model):
     product_inventory_ID = models.AutoField(primary_key=True)
     branch = models.ForeignKey('accounts.Branch', related_name='product_stocks', on_delete=models.CASCADE)
@@ -62,6 +67,11 @@ class ProductStock(models.Model):
 
     def __str__(self):
         return f"{self.branch.name} - {self.product.product_name}: {self.quantity_available}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['branch', 'product'], name='unique_branch_product_stock')
+        ]
 
 class BillOfMaterial(models.Model):
     bom_ID = models.AutoField(primary_key=True)

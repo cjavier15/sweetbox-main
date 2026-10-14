@@ -175,7 +175,7 @@
                 <!-- Footer / Input -->
                 <div class="modal-footer border-0 p-3" style="background-color: var(--sb-bg-surface); border-top: 1px solid var(--sb-border-subtle) !important;">
                     <div class="input-group">
-                        <input type="text" id="user-input" class="form-control" placeholder="Ask about sales trends, event demand, or inventory orders..." onkeydown="if(event.key==='Enter') askGemini()" style="border-radius: var(--sb-radius-md) 0 0 var(--sb-radius-md); font-size: 0.88rem; border-color: var(--sb-border-subtle);">
+                        <input type="text" id="user-input" class="form-control" placeholder="Ask about sales trends, event demand, or inventory orders..." maxlength="500" onkeydown="if(event.key==='Enter') askGemini()" style="border-radius: var(--sb-radius-md) 0 0 var(--sb-radius-md); font-size: 0.88rem; border-color: var(--sb-border-subtle);">
                         <button class="btn btn-warning fw-bold px-3 px-md-4 d-flex align-items-center gap-2" id="btn-send-gemini" onclick="askGemini()" style="background: linear-gradient(135deg, var(--sb-gold) 0%, var(--sb-gold-dark) 100%); border-color: var(--sb-gold-dark); color: #1C0E08; border-radius: 0 var(--sb-radius-md) var(--sb-radius-md) 0;">
                             <i class="fas fa-paper-plane"></i> <span class="d-none d-sm-inline">Send</span>
                         </button>
@@ -409,7 +409,11 @@
 
             renderUserMessage(query);
             inputField.value = '';
-            if (sendBtn) sendBtn.disabled = true;
+            const origBtnHtml = sendBtn ? sendBtn.innerHTML : '';
+            if (sendBtn) {
+                sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> <span class="d-none d-sm-inline">Sending...</span>';
+                sendBtn.disabled = true;
+            }
 
             const loadingId = 'loading-' + Date.now();
             const loadingDiv = document.createElement('div');
@@ -469,7 +473,10 @@
                     </div>`;
                 if (messages) messages.appendChild(errDiv);
             } finally {
-                if (sendBtn) sendBtn.disabled = false;
+                if (sendBtn) {
+                    sendBtn.innerHTML = origBtnHtml;
+                    sendBtn.disabled = false;
+                }
                 if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
             }
         }

@@ -306,20 +306,30 @@ class Command(BaseCommand):
             destination_branch=branches["Padre Garcia"], requested_quantity=15.00, status='Pending'
         )
 
-        # 8. Generate Pending AI Prescriptions
-        PrescriptiveOutput.objects.create(
-            branch=main_hub, ingredient=ingredients["Unsalted Butter"],
+        # 8. Generate Pending AI Prescriptions (idempotent - skips if already exists)
+        PrescriptiveOutput.objects.get_or_create(
+            branch=main_hub,
+            ingredient=ingredients["Unsalted Butter"],
             output_type='Restock Prescription',
             recommendation="Order 50.0 kg of Unsalted Butter",
-            justification="(Auto-bounded to satisfy constraints) Given current trends, a 50kg order is the maximum feasible replenishment to avoid stockouts before the weekend.",
-            recommended_quantity=50.00, estimated_cost=17500.00, status="Pending Review"
+            defaults={
+                "justification": "(Auto-bounded to satisfy constraints) Given current trends, a 50kg order is the maximum feasible replenishment to avoid stockouts before the weekend.",
+                "recommended_quantity": 50.00,
+                "estimated_cost": 17500.00,
+                "status": "Pending Review"
+            }
         )
-        PrescriptiveOutput.objects.create(
-            branch=branches["Padre Garcia"], ingredient=ingredients["Cream Cheese"],
+        PrescriptiveOutput.objects.get_or_create(
+            branch=branches["Padre Garcia"],
+            ingredient=ingredients["Cream Cheese"],
             output_type='Restock Prescription',
             recommendation="Order 100.0 kg of Cream Cheese",
-            justification="WARNING: AI quantity fails Supplier Minimum. Suggest manual override to combine orders with adjacent branches.",
-            recommended_quantity=100.00, estimated_cost=45000.00, status="Flagged - Needs Override"
+            defaults={
+                "justification": "WARNING: AI quantity fails Supplier Minimum. Suggest manual override to combine orders with adjacent branches.",
+                "recommended_quantity": 100.00,
+                "estimated_cost": 45000.00,
+                "status": "Flagged - Needs Override"
+            }
         )
 
-        self.stdout.write(self.style.SUCCESS("Database seeded with full operational test data!"))
+        self.stdout.write(self.style.SUCCESS("Database seeded with full operational test data!"))

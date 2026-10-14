@@ -44,7 +44,7 @@
                 <div id="chat-page-messages" class="d-flex flex-column gap-3"></div>
             </div>
             <div class="card-footer bg-white p-2 p-md-3 border-top d-flex gap-2" style="border-color: var(--sb-border-subtle) !important;">
-                <input type="text" id="user-input" class="form-control" placeholder="Ask Gemini about sales, top performers, or product trends..." onkeydown="if(event.key==='Enter') askGeminiPage()">
+                <input type="text" id="user-input" class="form-control" placeholder="Ask Gemini about sales, top performers, or product trends..." maxlength="500" onkeydown="if(event.key==='Enter') askGeminiPage()">
                 <button class="btn btn-sb-gold fw-bold px-3 px-md-4 d-flex align-items-center gap-2 shadow-sm text-nowrap" id="btn-page-send" onclick="askGeminiPage()">
                     <i class="fas fa-paper-plane"></i> <span class="d-none d-sm-inline">Send</span>
                 </button>
@@ -142,7 +142,11 @@
 
         renderPageUserMsg(query);
         inputField.value = '';
-        if (sendBtn) sendBtn.disabled = true;
+        const origBtnHtml = sendBtn ? sendBtn.innerHTML : '';
+        if (sendBtn) {
+            sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> <span class="d-none d-sm-inline">Sending...</span>';
+            sendBtn.disabled = true;
+        }
 
         const loadingId = 'loading-' + Date.now();
         const loadingDiv = document.createElement('div');
@@ -202,7 +206,10 @@
                 </div>`;
             if (messages) messages.appendChild(errDiv);
         } finally {
-            if (sendBtn) sendBtn.disabled = false;
+            if (sendBtn) {
+                sendBtn.innerHTML = origBtnHtml;
+                sendBtn.disabled = false;
+            }
             if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
         }
     }

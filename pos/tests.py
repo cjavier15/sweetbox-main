@@ -114,3 +114,64 @@ class POSTransactionTests(TestCase):
         # Stock rolled back (+2)
         self.stock.refresh_from_db()
         self.assertEqual(self.stock.quantity_available, 12)
+
+    def test_ewallet_checkout_valid_13_digit_reference(self):
+        """Valid 13-digit reference number is saved in PaymentRecord."""
+        self.client.force_authenticate(user=self.staff)
+        payload = {
+            'items': [{'product_id': self.product.product_ID, 'quantity': 1, 'unit_price': 120.00}],
+            'total_amount': 120.00,
+            'payment_method': 'E-Wallet',
+            'reference_number': '1234567890123'
+        }
+        res = self.client.post('/api/pos/checkout/', payload, format='json')
+        self.assertEqual(res.status_code, 201)
+        txn_id = res.data['transaction_ID']
+        payment = PaymentRecord.objects.get(transaction_id=txn_id)
+        self.assertEqual(payment.payment_method, 'E-Wallet')
+        self.assertEqual(payment.reference_number, '1234567890123')
+
+    def test_ewallet_checkout_invalid_reference(self):
+        """Non-13-digit or alphabetic references must be rejected with 400."""
+        self.client.force_authenticate(user=self.staff)
+
+        # Missing reference
+        res1 = self.client.post('/api/pos/checkout/', {
+            'items': [{'product_id': self.product.product_ID, 'quantity': 1, 'unit_price': 120.00}],
+            'total_amount': 120.00,
+            'payment_method': 'E-Wallet',
+            'reference_number': ''
+        }, format='json')
+        self.assertEqual(res1.status_code, 400)
+        self.assertIn("reference number is required", res1.data['error'])
+
+        # 12 digits (too short)
+        res2 = self.client.post('/api/pos/checkout/', {
+            'items': [{'product_id': self.product.product_ID, 'quantity': 1, 'unit_price': 120.00}],
+            'total_amount': 120.00,
+            'payment_method': 'E-Wallet',
+            'reference_number': '123456789012'
+        }, format='json')
+        self.assertEqual(res2.status_code, 400)
+        self.assertIn("must be exactly 13 digits", res2.data['error'])
+
+        # 14 digits (too long)
+        res3 = self.client.post('/api/pos/checkout/', {
+            'items': [{'product_id': self.product.product_ID, 'quantity': 1, 'unit_price': 120.00}],
+            'total_amount': 120.00,
+            'payment_method': 'E-Wallet',
+            'reference_number': '12345678901234'
+        }, format='json')
+        self.assertEqual(res3.status_code, 400)
+        self.assertIn("must be exactly 13 digits", res3.data['error'])
+
+        # Non-digits
+        res4 = self.client.post('/api/pos/checkout/', {
+            'items': [{'product_id': self.product.product_ID, 'quantity': 1, 'unit_price': 120.00}],
+            'total_amount': 120.00,
+            'payment_method': 'E-Wallet',
+            'reference_number': '12345ABC90123'
+        }, format='json')
+        self.assertEqual(res4.status_code, 400)
+        self.assertIn("must be exactly 13 digits", res4.data['error'])
+

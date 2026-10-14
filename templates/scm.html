@@ -311,10 +311,11 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="background-color: var(--sb-bg-app);">
+                <form id="ingredientForm" onsubmit="submitNewIngredient(event)">
                     <div class="row g-2 mb-3">
                         <div class="col-7">
                             <label class="form-label fw-bold text-title small">Ingredient Name</label>
-                            <input type="text" id="ing-new-name" class="form-control" placeholder="e.g., Matcha Powder" required>
+                            <input type="text" id="ing-new-name" class="form-control" placeholder="e.g., Matcha Powder" maxlength="100" required>
                         </div>
                         <div class="col-5">
                             <label class="form-label fw-bold text-title small">Category</label>
@@ -347,20 +348,29 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-title small">Cost per Unit (₱)</label>
-                            <input type="number" step="0.01" id="ing-new-cost" class="form-control" placeholder="e.g., 250.00" required>
+                            <input type="number" step="0.01" min="0.01" max="100000" id="ing-new-cost" class="form-control"
+                                   placeholder="e.g., 250.00"
+                                   onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                   oninput="if(+this.value > 100000) this.value = 100000;" required>
                         </div>
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label fw-bold text-title small">Initial Stock (Main Hub)</label>
-                            <input type="number" step="0.01" id="ing-new-stock" class="form-control" placeholder="e.g., 50.00" value="0.00">
+                            <input type="number" step="0.01" min="0" max="50000" id="ing-new-stock" class="form-control"
+                                   placeholder="e.g., 50.00" value="0.00"
+                                   onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                   oninput="if(+this.value > 50000) this.value = 50000;">
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-bold text-title small">Reorder Threshold</label>
-                            <input type="number" step="0.01" id="ing-new-threshold" class="form-control" value="10.00" required>
+                            <input type="number" step="0.01" min="0.01" max="10000" id="ing-new-threshold" class="form-control"
+                                   value="10.00"
+                                   onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                   oninput="if(+this.value > 10000) this.value = 10000;" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <button type="submit" id="btn-save-ingredient" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
                         <i class="fas fa-check-circle"></i> Save & Initialize Across Branches
                     </button>
                 </form>
@@ -386,20 +396,33 @@
                         Product Details
                     </h6>
                     <div class="row g-2 mb-2">
-                        <div class="col-md-6"><input type="text" id="bom-prod-name" class="form-control" placeholder="Product Name (e.g., Mango Cake)" required></div>
+                        <div class="col-md-6">
+                            <input type="text" id="bom-prod-name" class="form-control" placeholder="Product Name (e.g., Mango Cake)" maxlength="100" required>
+                        </div>
                         <div class="col-md-3">
                             <select id="bom-prod-cat" class="form-select" required>
                                 <option value="" disabled selected>-- Select Category --</option>
                             </select>
                         </div>
-                        <div class="col-md-3"><input type="number" id="bom-prod-price" step="0.01" class="form-control" placeholder="Selling Price (₱)" required></div>
+                        <div class="col-md-3">
+                            <input type="number" id="bom-prod-price" step="0.01" min="0.01" max="100000" class="form-control"
+                                   placeholder="Selling Price (₱)"
+                                   onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                   oninput="if(+this.value > 100000) this.value = 100000;" required>
+                        </div>
                     </div>
                     <div class="row g-2 mb-4">
                         <div class="col-md-6">
-                            <input type="number" id="bom-prod-stock" step="1" class="form-control" placeholder="Initial Finished Stock (Main Hub, default: 0)" value="0">
+                            <input type="number" id="bom-prod-stock" step="1" min="0" max="10000" class="form-control"
+                                   placeholder="Initial Finished Stock (Main Hub, default: 0)" value="0"
+                                   onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                   oninput="if(+this.value > 10000) this.value = 10000;">
                         </div>
                         <div class="col-md-6">
-                            <input type="number" id="bom-prod-threshold" step="1" class="form-control" placeholder="Reorder Threshold (default: 5)" value="5">
+                            <input type="number" id="bom-prod-threshold" step="1" min="1" max="10000" class="form-control"
+                                   placeholder="Reorder Threshold (default: 5)" value="5"
+                                   onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                   oninput="if(+this.value > 10000) this.value = 10000;">
                         </div>
                     </div>
                     
@@ -413,7 +436,7 @@
                     
                     <div id="bom-ingredients-list" class="mb-4">
                         <div class="row g-2 mb-2 ingredient-row align-items-center">
-                            <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" placeholder="Name (e.g., Sugar)" required></div>
+                            <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" placeholder="Name (e.g., Sugar)" maxlength="100" required></div>
                             <div class="col-2">
                                 <select class="form-select ing-unit" required>
                                     <optgroup label="Weight">
@@ -431,13 +454,18 @@
                                     </optgroup>
                                 </select>
                             </div>
-                            <div class="col-3"><input type="number" step="0.01" class="form-control ing-deduct" placeholder="Deduction per Sale" required></div>
+                            <div class="col-3">
+                                <input type="number" step="0.01" min="0.01" max="10000" class="form-control ing-deduct"
+                                       placeholder="Deduction per Sale"
+                                       onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                       oninput="if(+this.value > 10000) this.value = 10000;" required>
+                            </div>
                             <div class="col-2 text-end">
                                 <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.ingredient-row').remove()">Remove</button>
                             </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <button type="submit" id="btn-save-bom" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
                         <i class="fas fa-check"></i> Save Configuration & Initialize Stock
                     </button>
                 </form>
@@ -483,9 +511,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold text-title small">Quantity to Produce</label>
-                        <input type="number" id="produce-quantity" class="form-control" min="1" placeholder="e.g., 10" required>
+                        <input type="number" id="produce-quantity" class="form-control" min="1" max="10000" step="1"
+                               placeholder="e.g., 10"
+                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                               oninput="if(+this.value > 10000) this.value = 10000;" required>
                     </div>
-                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <button type="submit" id="btn-submit-produce" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
                         <i class="fas fa-check-circle"></i> Execute Production & Deduct Ingredients
                     </button>
                 </form>
@@ -549,13 +580,16 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold text-title small">Quantity to Transfer (Units)</label>
-                        <input type="number" id="transfer-quantity" class="form-control" min="1" step="1" placeholder="e.g., 5" required>
+                        <input type="number" id="transfer-quantity" class="form-control" min="1" max="50000" step="1"
+                               placeholder="e.g., 5"
+                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                               oninput="if(this.max && +this.value > +this.max) this.value = this.max;" required>
                         <small class="text-muted" id="transfer-qty-hint">Quantity will be deducted from hub and added to satellite display counter.</small>
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label fw-bold text-title small">Transfer Notes / Waybill (Optional)</label>
-                        <input type="text" id="transfer-notes" class="form-control" placeholder="e.g., Delivery dispatch via Van #1">
+                        <input type="text" id="transfer-notes" class="form-control" placeholder="e.g., Delivery dispatch via Van #1" maxlength="255">
                     </div>
 
                     <button type="submit" id="btn-submit-transfer" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
@@ -598,8 +632,12 @@
                     
                     <div class="mb-3">
                         <label class="form-label fw-bold text-title small">Quantity Change</label>
-                        <input type="number" id="adj-qty" class="form-control" step="0.01" min="0.01" placeholder="e.g., 5" required>
+                        <input type="number" id="adj-qty" class="form-control" step="0.01" min="0.01" max="50000"
+                               placeholder="e.g., 5"
+                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                               oninput="if(+this.value > 50000) this.value = 50000;" required>
                     </div>
+
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
@@ -617,7 +655,7 @@
                         <textarea id="adj-reason" class="form-control" rows="2" placeholder="e.g., Supplier delivery, kitchen restock, routine audit, damaged box..." required></textarea>
                     </div>
                     
-                    <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <button type="submit" id="btn-submit-adjust" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
                         <i class="fas fa-check-circle"></i> Confirm Adjustment
                     </button>
                 </form>
@@ -741,15 +779,30 @@
     window.addIngredientRow = function() {
         const row = `
             <div class="row g-2 mb-2 ingredient-row align-items-center">
-                <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" placeholder="Name" required></div>
+                <div class="col-5"><input type="text" class="form-control ing-name" list="existing-ingredients" onchange="autofillIngredient(this)" placeholder="Name (e.g., Sugar)" maxlength="100" required></div>
                 <div class="col-2">
                     <select class="form-select ing-unit" required>
-                        <option value="kg">kg</option><option value="g">g</option>
-                        <option value="L">L</option><option value="ml">ml</option>
-                        <option value="pcs">pcs</option><option value="tray">tray</option><option value="box">box</option>
+                        <optgroup label="Weight">
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                        </optgroup>
+                        <optgroup label="Volume">
+                            <option value="L">L</option>
+                            <option value="ml">ml</option>
+                        </optgroup>
+                        <optgroup label="Count">
+                            <option value="pcs">pcs</option>
+                            <option value="tray">tray</option>
+                            <option value="box">box</option>
+                        </optgroup>
                     </select>
                 </div>
-                <div class="col-3"><input type="number" step="0.01" class="form-control ing-deduct" placeholder="Deduct" required></div>
+                <div class="col-3">
+                    <input type="number" step="0.01" min="0.01" max="10000" class="form-control ing-deduct"
+                           placeholder="Deduction per Sale"
+                           onkeydown="return !['e','E','+','-'].includes(event.key)"
+                           oninput="if(+this.value > 10000) this.value = 10000;" required>
+                </div>
                 <div class="col-2 text-end"><button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.ingredient-row').remove()">Remove</button></div>
             </div>`;
         document.getElementById('bom-ingredients-list').insertAdjacentHTML('beforeend', row);
@@ -768,10 +821,22 @@
             alert("Ingredient name cannot be empty.");
             return;
         }
+        if (nameVal.length > 100) {
+            alert("Ingredient name cannot exceed 100 characters.");
+            return;
+        }
+        if (!isNaN(nameVal)) {
+            alert("Ingredient name must not be solely numeric.");
+            return;
+        }
 
         const costVal = parseFloat(document.getElementById('ing-new-cost').value);
         if (isNaN(costVal) || costVal < 0) {
             alert("Cost per unit must be a non-negative number.");
+            return;
+        }
+        if (costVal > 100000) {
+            alert("Cost per unit cannot exceed ₱100,000.");
             return;
         }
 
@@ -780,10 +845,18 @@
             alert("Initial stock must be a non-negative number.");
             return;
         }
+        if (initialStockVal > 50000) {
+            alert("Initial stock cannot exceed 50,000.");
+            return;
+        }
 
         const thresholdVal = parseFloat(document.getElementById('ing-new-threshold').value || 10);
         if (isNaN(thresholdVal) || thresholdVal < 0) {
             alert("Reorder threshold must be a non-negative number.");
+            return;
+        }
+        if (thresholdVal > 10000) {
+            alert("Reorder threshold cannot exceed 10,000.");
             return;
         }
 
@@ -799,6 +872,13 @@
             reorder_threshold: thresholdVal,
             branch_id: targetBranch
         };
+
+        const btn = document.getElementById('btn-save-ingredient');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving Ingredient...';
+            btn.disabled = true;
+        }
 
         try {
             const response = await fetch('/api/inventory/ingredient/add/', {
@@ -817,6 +897,11 @@
             }
         } catch (e) {
             alert("Network Error: Could not add ingredient.");
+        } finally {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
         }
     };
 
@@ -830,24 +915,105 @@
             return;
         }
 
+        const prodName = document.getElementById('bom-prod-name').value.trim();
+        if (!prodName) {
+            alert("Product name cannot be empty.");
+            return;
+        }
+        if (prodName.length > 100) {
+            alert("Product name cannot exceed 100 characters.");
+            return;
+        }
+        if (!isNaN(prodName)) {
+            alert("Product name must not be solely numeric.");
+            return;
+        }
+
         const priceVal = parseFloat(document.getElementById('bom-prod-price').value);
         if (isNaN(priceVal) || priceVal < 0) {
             alert("Selling price must be a non-negative number.");
             return;
         }
+        if (priceVal > 100000) {
+            alert("Selling price cannot exceed ₱100,000.");
+            return;
+        }
+
+        const initialStock = parseFloat(document.getElementById('bom-prod-stock').value || 0);
+        if (isNaN(initialStock) || initialStock < 0) {
+            alert("Initial stock must be a non-negative number.");
+            return;
+        }
+        if (initialStock > 50000) {
+            alert("Initial stock cannot exceed 50,000.");
+            return;
+        }
+
+        const threshold = parseFloat(document.getElementById('bom-prod-threshold').value || 5);
+        if (isNaN(threshold) || threshold < 0) {
+            alert("Reorder threshold must be a non-negative number.");
+            return;
+        }
+        if (threshold > 10000) {
+            alert("Reorder threshold cannot exceed 10,000.");
+            return;
+        }
+
+        const ingredientRows = Array.from(document.querySelectorAll('.ingredient-row'));
+        if (ingredientRows.length === 0) {
+            alert("At least one ingredient deduction is required.");
+            return;
+        }
+
+        const ingredients = [];
+        for (const row of ingredientRows) {
+            const ingName = row.querySelector('.ing-name').value.trim();
+            const ingUnit = row.querySelector('.ing-unit').value;
+            const ingDeduct = parseFloat(row.querySelector('.ing-deduct').value);
+
+            if (!ingName) {
+                alert("Ingredient name in deduction row cannot be empty.");
+                return;
+            }
+            if (ingName.length > 100) {
+                alert("Ingredient name cannot exceed 100 characters.");
+                return;
+            }
+            if (!isNaN(ingName)) {
+                alert("Ingredient name must not be solely numeric.");
+                return;
+            }
+            if (isNaN(ingDeduct) || ingDeduct <= 0) {
+                alert("Ingredient deduction must be greater than zero.");
+                return;
+            }
+            if (ingDeduct > 10000) {
+                alert("Ingredient deduction cannot exceed 10,000.");
+                return;
+            }
+
+            ingredients.push({
+                name: ingName,
+                unit: ingUnit,
+                deduction: ingDeduct
+            });
+        }
 
         const payload = {
-            product_name: document.getElementById('bom-prod-name').value.trim(),
+            product_name: prodName,
             category: selectedCat,
             price: priceVal,
-            initial_stock: parseFloat(document.getElementById('bom-prod-stock').value || 0),
-            reorder_threshold: parseFloat(document.getElementById('bom-prod-threshold').value || 5),
-            ingredients: Array.from(document.querySelectorAll('.ingredient-row')).map(row => ({
-                name: row.querySelector('.ing-name').value.trim(),
-                unit: row.querySelector('.ing-unit').value,
-                deduction: parseFloat(row.querySelector('.ing-deduct').value)
-            }))
+            initial_stock: initialStock,
+            reorder_threshold: threshold,
+            ingredients: ingredients
         };
+
+        const btn = document.getElementById('btn-save-bom');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving Configuration...';
+            btn.disabled = true;
+        }
 
         const token = localStorage.getItem('access_token');
         try {
@@ -869,10 +1035,15 @@
                 loadSCMData(); 
             } else {
                 const err = await response.json();
-                alert(`Configuration Failed: ${err.error}`);
+                alert(`Configuration Failed: ${err.error || 'Server error'}`);
             }
         } catch (error) { 
             alert("Network Error: Could not connect to API."); 
+        } finally {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
         }
     };
 
@@ -1265,12 +1436,23 @@
             alert("Production quantity must be a positive integer greater than zero.");
             return;
         }
+        if (qtyVal > 10000) {
+            alert("Production quantity cannot exceed 10,000 units per batch.");
+            return;
+        }
 
         const payload = {
             product_id: document.getElementById('produce-product-id').value,
             quantity: qtyVal,
             branch_id: targetBranchId
         };
+
+        const btn = document.getElementById('btn-submit-produce');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Executing Production...';
+            btn.disabled = true;
+        }
 
         const token = localStorage.getItem('access_token');
         try {
@@ -1287,10 +1469,15 @@
                 document.getElementById('produceForm').reset();
                 loadSCMData(); // Reload all tables
             } else {
-                alert(`Production Failed: ${data.error}`);
+                alert(`Production Failed: ${data.error || 'Server error'}`);
             }
         } catch (error) { 
             alert("Network Error: Could not execute production."); 
+        } finally {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
         }
     };
 
@@ -1314,12 +1501,17 @@
             });
         }
     });
+
     window.openAdjustModal = function(type, id, name, currentQty) {
         document.getElementById('adj-item-type').value = type;
         document.getElementById('adj-item-id').value = id;
         document.getElementById('adj-item-name').innerText = name;
         document.getElementById('adj-current-qty').innerText = `Current Stock: ${currentQty}`;
         document.getElementById('adjustForm').reset();
+        const expiryEl = document.getElementById('adj-expiry');
+        if (expiryEl) {
+            expiryEl.min = new Date().toISOString().split('T')[0];
+        }
         new bootstrap.Modal(document.getElementById('stockAdjustModal')).show();
     };
 
@@ -1329,6 +1521,10 @@
         const qtyVal = parseFloat(document.getElementById('adj-qty').value);
         if (isNaN(qtyVal) || qtyVal <= 0) {
             alert("Quantity must be a positive number greater than zero.");
+            return;
+        }
+        if (qtyVal > 50000) {
+            alert("Quantity change cannot exceed 50,000 units.");
             return;
         }
 
@@ -1351,6 +1547,13 @@
         if (batch) payload.batch_number = batch;
         if (expiry) payload.expiry_date = expiry;
 
+        const btn = document.getElementById('btn-submit-adjust');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing Adjustment...';
+            btn.disabled = true;
+        }
+
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('/api/inventory/adjust/', {
@@ -1364,10 +1567,15 @@
                 bootstrap.Modal.getInstance(document.getElementById('stockAdjustModal')).hide();
                 loadSCMData(); // Refresh tables instantly
             } else {
-                alert(`Adjustment Failed: ${data.error}`);
+                alert(`Adjustment Failed: ${data.error || 'Server error'}`);
             }
         } catch (error) {
             alert("Network Error: Could not execute adjustment.");
+        } finally {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
         }
     };
 

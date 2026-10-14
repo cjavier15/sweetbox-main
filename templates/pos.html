@@ -224,7 +224,11 @@
                 <!-- Cash Tendered Section -->
                 <div id="cash-payment-section" class="text-start mb-3 p-3 bg-white rounded border">
                     <label class="form-label text-title fw-bold small">Amount Tendered (₱)</label>
-                    <input type="number" id="cash-tendered" class="form-control" placeholder="Enter cash received" oninput="calculateChange()">
+                    <input type="number" id="cash-tendered" class="form-control"
+                           placeholder="Enter cash received"
+                           min="0" max="100000" step="0.01"
+                           onkeydown="return !['e','E','+','-'].includes(event.key)"
+                           oninput="if(+this.value > 100000) this.value = 100000; calculateChange()">
                     <div class="d-flex flex-wrap gap-1 mt-2">
                         <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashExact()">Exact</button>
                         <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="setCashTendered(50)">₱50</button>
@@ -239,17 +243,34 @@
                 <!-- E-Wallet Section -->
                 <div id="ewallet-payment-section" class="d-none text-start mb-3 p-3 bg-white rounded border">
                     <label class="form-label text-title fw-bold small">Reference Number (GCash / Maya)</label>
-                    <input type="text" id="ewallet-reference" class="form-control" placeholder="Enter transaction reference #">
+                    <input type="text" id="ewallet-reference" class="form-control font-monospace"
+                           placeholder="13-digit reference number"
+                           inputmode="numeric"
+                           maxlength="13"
+                           minlength="13"
+                           pattern="^\d{13}$"
+                           autocomplete="off"
+                           oninput="this.value = this.value.replace(/\D/g, '').slice(0, 13); validateEwalletRef();">
+                    <div id="ewallet-ref-feedback" class="invalid-feedback" style="display:none; font-size:0.82rem; color: var(--bs-danger);">
+                        <i class="fas fa-exclamation-circle me-1"></i>Reference number must be exactly 13 digits.
+                    </div>
+                    <div id="ewallet-ref-ok" class="mt-1 small fw-bold text-success" style="display:none;">
+                        <i class="fas fa-check-circle me-1"></i>Valid reference number.
+                    </div>
                 </div>
 
                 <!-- Split Payment Section -->
                 <div id="split-payment-section" class="d-none text-start mb-3 p-3 bg-white rounded border">
                     <label class="form-label text-title fw-bold small">Cash Portion (₱)</label>
-                    <input type="number" id="cash-portion" class="form-control" placeholder="Enter cash amount" oninput="calculateSplit()">
+                    <input type="number" id="cash-portion" class="form-control"
+                           placeholder="Enter cash amount"
+                           min="0.01" max="100000" step="0.01"
+                           onkeydown="return !['e','E','+','-'].includes(event.key)"
+                           oninput="if(+this.value > 100000) this.value = 100000; calculateSplit()">
                     <div class="mt-2 small text-primary fw-bold tabular-nums" id="ewallet-portion-display">E-Wallet Portion: ₱0.00</div>
                 </div>
 
-                <button class="btn btn-sb-gold w-100 fw-bold py-2 mt-2 shadow d-flex align-items-center justify-content-center gap-2 fs-6" onclick="processCheckout()">
+                <button class="btn btn-sb-gold w-100 fw-bold py-2 mt-2 shadow d-flex align-items-center justify-content-center gap-2 fs-6" id="btn-confirm-payment" onclick="processCheckout()">
                     <i class="fas fa-check-circle"></i> Confirm Payment
                 </button>
             </div>
@@ -568,7 +589,9 @@
     function selectPayment(method) {
         currentPaymentMethod = method;
         document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.remove('active', 'text-white'));
-        event.target.classList.add('active', 'text-white');
+        // Use closest('.pay-method-btn') to safely handle clicks on inner <i> icon elements
+        const btn = event.target.closest('.pay-method-btn');
+        if (btn) btn.classList.add('active', 'text-white');
         
         document.getElementById('split-payment-section').classList.toggle('d-none', method !== 'Split Payment');
         document.getElementById('cash-payment-section').classList.toggle('d-none', method !== 'Cash');
@@ -611,6 +634,36 @@
         }
     }
 
+    function validateEwalletRef() {
+        const input = document.getElementById('ewallet-reference');
+        if (!input) return false;
+        const val = input.value.trim();
+        const feedback = document.getElementById('ewallet-ref-feedback');
+        const ok = document.getElementById('ewallet-ref-ok');
+
+        if (!val) {
+            if (feedback) feedback.style.display = 'none';
+            if (ok) ok.style.display = 'none';
+            input.classList.remove('is-invalid', 'is-valid');
+            return false;
+        }
+
+        const isValid = /^\d{13}$/.test(val);
+        if (isValid) {
+            if (feedback) feedback.style.display = 'none';
+            if (ok) ok.style.display = 'block';
+            input.classList.remove('is-invalid');
+            input.classList.add('is-valid');
+            return true;
+        } else {
+            if (feedback) feedback.style.display = 'block';
+            if (ok) ok.style.display = 'none';
+            input.classList.add('is-invalid');
+            input.classList.remove('is-valid');
+            return false;
+        }
+    }
+
     async function processCheckout() {
         if (cart.length === 0) return alert("Cart is empty!");
         
@@ -624,6 +677,7 @@
         
         // DETAILED STRING for the Frontend Digital Receipt
         let receiptPaymentDetails = currentPaymentMethod;
+        let refNumber = null;
         
         if (currentPaymentMethod === 'Cash') {
             const tendered = parseFloat(document.getElementById('cash-tendered').value) || 0;
@@ -631,19 +685,43 @@
             receiptPaymentDetails = `Cash (Tendered: ₱${tendered.toFixed(2)} | Change: ₱${cashChange.toFixed(2)})`;
             
         } else if (currentPaymentMethod === 'E-Wallet') {
-            const refNumber = document.getElementById('ewallet-reference').value;
-            if (!refNumber) return alert("Please enter the E-Wallet reference number.");
+            refNumber = document.getElementById('ewallet-reference').value.trim();
+            if (!refNumber) {
+                alert("Please enter the 13-digit E-Wallet reference number.");
+                document.getElementById('ewallet-reference').focus();
+                return;
+            }
+            if (!/^\d{13}$/.test(refNumber)) {
+                alert("E-Wallet reference number must be exactly 13 digits (numbers only).");
+                document.getElementById('ewallet-reference').focus();
+                return;
+            }
             receiptPaymentDetails = `E-Wallet (Ref: ${refNumber})`;
             
         } else if (currentPaymentMethod === 'Split Payment') {
-            const refNumber = document.getElementById('ewallet-reference').value;
-            if (!refNumber) return alert("Please enter the E-Wallet reference number for the split payment.");
+            refNumber = document.getElementById('ewallet-reference').value.trim();
+            if (!refNumber) {
+                alert("Please enter the 13-digit E-Wallet reference number for the split payment.");
+                document.getElementById('ewallet-reference').focus();
+                return;
+            }
+            if (!/^\d{13}$/.test(refNumber)) {
+                alert("E-Wallet reference number must be exactly 13 digits (numbers only).");
+                document.getElementById('ewallet-reference').focus();
+                return;
+            }
             if (splitEwallet < 0 || splitCash <= 0) return alert("Invalid split amounts.");
             
             receiptPaymentDetails = `Split (Cash: ₱${splitCash.toFixed(2)} | E-Wallet: ₱${splitEwallet.toFixed(2)} - Ref: ${refNumber})`;
         }
         
         const token = localStorage.getItem('access_token');
+        const confirmBtn = document.getElementById('btn-confirm-payment');
+        const origBtnHtml = confirmBtn ? confirmBtn.innerHTML : '';
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing Payment...';
+        }
         
         try {
             const response = await fetch('/api/pos/checkout/', {
@@ -653,7 +731,8 @@
                     total_amount: totalAmount,
                     discount_type: isPwd ? "Senior / PWD (20%)" : "",
                     discount_amount: discountAmount,
-                    payment_method: finalPaymentMethod, // Send strictly "Split Payment" to avoid DB crash
+                    payment_method: finalPaymentMethod,
+                    reference_number: (currentPaymentMethod === 'E-Wallet' || currentPaymentMethod === 'Split Payment') ? refNumber : null,
                     items: cart.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.price }))
                 })
             });
@@ -677,18 +756,25 @@
                 document.getElementById('cash-change-display').classList.replace('text-danger', 'text-success');
                 
                 document.getElementById('ewallet-reference').value = '';
+                validateEwalletRef();
                 
                 document.getElementById('cash-portion').value = '';
                 document.getElementById('ewallet-portion-display').innerText = 'E-Wallet Portion: ₱0.00';
                 document.getElementById('ewallet-portion-display').classList.replace('text-danger', 'text-primary');
             } else {
-                // Catch any future backend rejections so the UI doesn't silently freeze
-                alert(`Transaction Failed: ${data.error || "Unknown database error"}`);
+                // Catch backend rejections so the UI displays the exact error message
+                alert(`Transaction Failed: ${data.error || "Unknown error"}`);
             }
         } catch (error) { 
             alert("Network Error Processing Payment. Please check connection."); 
+        } finally {
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = origBtnHtml;
+            }
         }
     }
+
 
     function generateReceipt(txnId, subtotal, discount, total, method) {
         document.getElementById('receipt-txn').innerText = `TXN-${txnId}`;
@@ -740,7 +826,7 @@
                 const isCompleted = t.transaction_status === 'Completed';
                 const badgeClass = isCompleted ? 'badge-instock' : 'badge-critical';
                 const actionBtn = isCompleted 
-                    ? `<button class="btn btn-sm btn-outline-danger fw-bold" onclick="processRefund(${t.transaction_ID})"><i class="fas fa-undo me-1"></i>Refund</button>`
+                    ? `<button class="btn btn-sm btn-outline-danger fw-bold" onclick="processRefund(${t.transaction_ID}, this)"><i class="fas fa-undo me-1"></i>Refund</button>`
                     : `<span class="badge bg-light text-muted border">Refunded</span>`;
 
                 return `
@@ -758,12 +844,17 @@
         } catch (error) { tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center">Failed to load history</td></tr>'; }
     }
 
-    async function processRefund(txnId) {
-        if (!confirm(`CRITICAL WARNING:\n\nAre you sure you want to refund TXN-${txnId}?\nThis action will permanently delete the transaction and restock the inventory ingredients. This cannot be undone.`)) {
+    async function processRefund(txnId, btn) {
+        if (!confirm(`CRITICAL WARNING:\n\nAre you sure you want to refund TXN-${txnId}?\nThis action will permanently mark the transaction as refunded and restock finished inventory. This cannot be undone.`)) {
             return;
         }
 
         const token = localStorage.getItem('access_token');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refunding...';
+        }
         try {
             const response = await fetch(`/api/pos/refund/${txnId}/`, {
                 method: 'DELETE',
@@ -771,15 +862,24 @@
             });
 
             if (response.ok) {
-                alert(`TXN-${txnId} has been successfully refunded and removed from the database.`);
+                alert(`TXN-${txnId} has been successfully refunded and finished goods restored.`);
                 fetchHistory(); // Refresh table
             } else {
                 const data = await response.json();
                 alert(`Refund Error: ${data.error}`);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                }
             }
         } catch (error) {
             alert("Network Error during refund processing.");
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
         }
     }
+
 </script>
 {% endblock %}
