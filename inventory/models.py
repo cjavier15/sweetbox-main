@@ -25,13 +25,16 @@ class Ingredient(models.Model):
 
     def is_cake_or_pastry(self):
         cat_name = (self.get_category_name() or "").strip().lower()
-        if cat_name in ['cakes', 'cake', 'pastries', 'pastry', 'baking supplies']:
+        if any(k in cat_name for k in ['cake', 'pastry', 'pastries', 'baking']):
             return True
         boms = list(self.billofmaterial_set.select_related('product__category').all())
         if not boms:
             return False
         return all(
-            b.product.category and b.product.category.category_name.strip().lower() in ['cakes', 'cake', 'pastries', 'pastry']
+            b.product.category and any(
+                k in b.product.category.category_name.strip().lower()
+                for k in ['cake', 'pastry', 'pastries', 'baking']
+            )
             for b in boms
         )
 

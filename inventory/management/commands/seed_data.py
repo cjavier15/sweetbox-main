@@ -1,36 +1,63 @@
 import random
+from decimal import Decimal
 from datetime import timedelta
 from django.utils import timezone
+from django.db import transaction
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from accounts.models import Branch
 from pos.models import Product, ProductCategory, Transaction, TransactionItem, PaymentRecord
 from inventory.models import Ingredient, BillOfMaterial, IngredientStock, ProductStock, RestockRequest, ConstraintParameter
 from analytics.models import PrescriptiveOutput
+from inventory.menu_loader import MASTER_INGREDIENTS, make_recipe, parse_excel_menu
 
 User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Seeds the database with full RBAC accounts, products, inventory, historical sales, and pending AI tasks.'
+    help = 'Seeds the database with full RBAC accounts, official Sweet Box menu, recipes, inventory, and analytics.'
 
+    @transaction.atomic
     def handle(self, *args, **kwargs):
-        self.stdout.write("Seeding database with full mock environment...")
-        
-        # 1. Establish Branches
+        self.stdout.write("Starting official Sweet Box database seeding...")
+
+        # -----------------------------------------------------------------
+        # 1. Establish Branches (with duplicate deduplication)
+        # -----------------------------------------------------------------
         branch_names = [
             'Ibaan (Main Hub)', 'Padre Garcia', 'San Jose', 
             'Sampaguita', 'South Supermarket Lipa', 'San Antonio Quezon', 'Cuenca'
         ]
-        branches = {name: Branch.objects.get_or_create(name=name)[0] for name in branch_names}
-        main_hub = branches['Ibaan (Main Hub)']
-        main_hub.main_hub = True
-        main_hub.save()
+        branches = {}
+        for name in branch_names:
+            is_hub = ('Ibaan' in name)
+            branch_qs = Branch.objects.filter(name__iexact=name).order_by('branch_ID')
+            if branch_qs.count() > 1:
+                b = branch_qs.first()
+                for dup_b in branch_qs[1:]:
+                    User.objects.filter(branch=dup_b).update(branch=b)
+                    IngredientStock.objects.filter(branch=dup_b).delete()
+                    ProductStock.objects.filter(branch=dup_b).delete()
+                    Transaction.objects.filter(branch=dup_b).update(branch=b)
+                    dup_b.delete()
+            elif branch_qs.exists():
+                b = branch_qs.first()
+            else:
+                b = Branch.objects.create(name=name, main_hub=is_hub, address=f"{name}, Batangas")
 
+            if b.main_hub != is_hub:
+                b.main_hub = is_hub
+                b.save()
+            branches[name] = b
+
+        main_hub = branches['Ibaan (Main Hub)']
+
+        # -----------------------------------------------------------------
         # 2. Establish Branch-Specific RBAC Accounts
+        # -----------------------------------------------------------------
         for i, name in enumerate(branch_names):
             idx = i + 1
             branch = branches[name]
-            
+
             # Staff (POS)
             staff, _ = User.objects.get_or_create(email=f"staff_{idx}@sweetbox.ph")
             staff.set_password('sweetbox123')
@@ -39,7 +66,7 @@ class Command(BaseCommand):
             staff.branch = branch
             staff.save()
 
-            # Branch Manager (Strictly SCM/Inventory)
+            # Branch Manager (SCM/Inventory)
             mgr, _ = User.objects.get_or_create(email=f"manager_{idx}@sweetbox.ph")
             mgr.set_password('sweetbox123')
             mgr.name = f"{name} Manager"
@@ -54,7 +81,7 @@ class Command(BaseCommand):
         owner.role = 'Business Owner'
         owner.branch = main_hub
         owner.save()
-        
+
         # Dedicated Admin (Privileges and Accounts only)
         admin_user, _ = User.objects.get_or_create(email="admin@sweetbox.ph")
         admin_user.set_password('sweetbox123')
@@ -64,7 +91,7 @@ class Command(BaseCommand):
         admin_user.is_superuser = True
         admin_user.save()
 
-        # 2b. Official Sweet Box Team Accounts
+        # Official Sweet Box Team Accounts
         official_team = [
             {
                 'name': 'Cristian Javier',
@@ -120,218 +147,215 @@ class Command(BaseCommand):
             team_user.is_active = True
             team_user.save()
 
-        # 3. Expanded Categories & Products
-        cat_cakes, _ = ProductCategory.objects.get_or_create(category_name="Cakes", defaults={'description': 'Whole and sliced cakes'})
-        cat_pastries, _ = ProductCategory.objects.get_or_create(category_name="Pastries", defaults={'description': 'Baked pastries and sweet treats'})
-        cat_coffee, _ = ProductCategory.objects.get_or_create(category_name="Coffee", defaults={'description': 'Hot and cold beverages'})
-        
-        # Dedicated Ingredient Categories
-        cat_baking, _ = ProductCategory.objects.get_or_create(category_name="Baking Supplies", defaults={'description': 'Flour, sugar, cocoa, chips, and dry baking essentials'})
-        cat_dairy, _ = ProductCategory.objects.get_or_create(category_name="Dairy & Eggs", defaults={'description': 'Butter, eggs, cream cheese, milk, and refrigerated items'})
-        cat_syrups, _ = ProductCategory.objects.get_or_create(category_name="Syrups & Flavorings", defaults={'description': 'Vanilla extracts, flavored syrups, and baking essences'})
-        cat_produce, _ = ProductCategory.objects.get_or_create(category_name="Fresh Produce", defaults={'description': 'Fresh fruits and agricultural ingredients'})
-        cat_bev, _ = ProductCategory.objects.get_or_create(category_name="Beverage Supplies", defaults={'description': 'Coffee beans and beverage supplies'})
+        # -----------------------------------------------------------------
+        # 3. Seed Validated Commercial Master Ingredients
+        # -----------------------------------------------------------------
+        self.stdout.write("Seeding master ingredients...")
+        ingredients = {}
+        for ing_name, (unit, cost_val, cat_name) in MASTER_INGREDIENTS.items():
+            cat_obj, _ = ProductCategory.objects.get_or_create(category_name=cat_name)
+            cost_dec = Decimal(str(cost_val))
+            ing_obj, _ = Ingredient.objects.update_or_create(
+                ingredient_name=ing_name,
+                defaults={
+                    'category': cat_obj,
+                    'measurement_unit': unit,
+                    'cost_per_unit': cost_dec
+                }
+            )
+            ingredients[ing_name] = ing_obj
 
-        products_data = [
-            ("Chocolate Truffle Cake", cat_cakes, 650.00), ("Ube Chiffon Cake", cat_cakes, 550.00),
-            ("Mango Bravo", cat_cakes, 850.00), ("Red Velvet Cake", cat_cakes, 700.00),
-            ("Classic Ensaymada", cat_pastries, 85.00), ("Leche Flan", cat_pastries, 150.00),
-            ("Cheese Crinkles", cat_pastries, 120.00), ("Fudge Brownies", cat_pastries, 180.00),
-            ("Cafe Latte", cat_coffee, 120.00), ("Iced Caramel Macchiato", cat_coffee, 150.00),
-            ("Americano", cat_coffee, 100.00)
-        ]
-        
+        # -----------------------------------------------------------------
+        # 4. Parse Excel Menu & Clean Legacy Mock Products
+        # -----------------------------------------------------------------
+        self.stdout.write("Parsing Excel workbooks (Sweetboox_Menu.xlsx & SweetBox_Cakes_Pastries.xlsx)...")
+        all_menu_items = parse_excel_menu()
+        self.stdout.write(f"Parsed {len(all_menu_items)} commercial items from Excel sheets.")
+
+        official_names_lower = {item['name'].strip().lower() for item in all_menu_items}
+
+        # Deduplicate & clear legacy mock products not in official menu
+        legacy_products = [p for p in Product.objects.all() if p.product_name.strip().lower() not in official_names_lower]
+        if legacy_products:
+            self.stdout.write(f"Clearing {len(legacy_products)} legacy mock product records...")
+            for lp in legacy_products:
+                BillOfMaterial.objects.filter(product=lp).delete()
+                ProductStock.objects.filter(product=lp).delete()
+                TransactionItem.objects.filter(product=lp).delete()
+                lp.delete()
+
+        # Seed official products
         products = {}
         product_list = []
-        for p_name, cat, price in products_data:
-            p, created = Product.objects.get_or_create(product_name=p_name, defaults={'category': cat, 'price': price, 'is_active': True})
-            if not created and (p.category != cat or p.price != price):
-                p.category = cat
-                p.price = price
-                p.save()
-            products[p_name] = p
-            product_list.append(p)
-
-        # 4. Expanded Ingredients with Proper Categorization
-        ingredients_data = [
-            ("All-Purpose Flour", cat_baking, "kg", 60.00),
-            ("Refined Sugar", cat_baking, "kg", 80.00),
-            ("Cocoa Powder", cat_baking, "kg", 250.00),
-            ("Chocolate Chips", cat_baking, "kg", 320.00),
-            ("Unsalted Butter", cat_dairy, "kg", 350.00),
-            ("Fresh Eggs", cat_dairy, "tray", 220.00),
-            ("Cream Cheese", cat_dairy, "kg", 450.00),
-            ("Milk", cat_dairy, "L", 95.00),
-            ("Vanilla Extract", cat_syrups, "L", 800.00),
-            ("Caramel Syrup", cat_syrups, "L", 250.00),
-            ("Fresh Mangoes", cat_produce, "kg", 150.00),
-            ("Coffee Beans", cat_bev, "kg", 600.00)
-        ]
-        
-        ingredients = {}
-        for i_name, cat, unit, cost in ingredients_data:
-            ing, created = Ingredient.objects.get_or_create(
-                ingredient_name=i_name,
-                defaults={'category': cat, 'measurement_unit': unit, 'cost_per_unit': cost}
+        for p_data in all_menu_items:
+            cat_obj, _ = ProductCategory.objects.get_or_create(category_name=p_data['category'])
+            price_dec = Decimal(str(p_data['price']))
+            prod_obj, _ = Product.objects.update_or_create(
+                product_name=p_data['name'],
+                defaults={
+                    'category': cat_obj,
+                    'price': price_dec,
+                    'is_active': True
+                }
             )
-            if not created and (ing.category != cat or ing.measurement_unit != unit or ing.cost_per_unit != cost):
-                ing.category = cat
-                ing.measurement_unit = unit
-                ing.cost_per_unit = cost
-                ing.save()
-            ingredients[i_name] = ing
+            products[p_data['name']] = prod_obj
+            product_list.append(prod_obj)
 
-        # 5. Bill of Materials (BOM) Recipes
-        recipes = {
-            "Chocolate Truffle Cake": [
-                ("All-Purpose Flour", 0.50, "kg"), ("Cocoa Powder", 0.20, "kg"),
-                ("Refined Sugar", 0.30, "kg"), ("Unsalted Butter", 0.20, "kg"),
-                ("Fresh Eggs", 0.20, "tray"), ("Chocolate Chips", 0.15, "kg")
-            ],
-            "Ube Chiffon Cake": [
-                ("All-Purpose Flour", 0.50, "kg"), ("Refined Sugar", 0.25, "kg"),
-                ("Unsalted Butter", 0.15, "kg"), ("Fresh Eggs", 0.25, "tray"),
-                ("Vanilla Extract", 0.02, "L")
-            ],
-            "Mango Bravo": [
-                ("All-Purpose Flour", 0.40, "kg"), ("Fresh Mangoes", 0.50, "kg"),
-                ("Cream Cheese", 0.30, "kg"), ("Refined Sugar", 0.30, "kg"),
-                ("Fresh Eggs", 0.20, "tray")
-            ],
-            "Red Velvet Cake": [
-                ("All-Purpose Flour", 0.50, "kg"), ("Cocoa Powder", 0.10, "kg"),
-                ("Cream Cheese", 0.35, "kg"), ("Refined Sugar", 0.30, "kg"),
-                ("Unsalted Butter", 0.20, "kg"), ("Fresh Eggs", 0.20, "tray")
-            ],
-            "Classic Ensaymada": [
-                ("All-Purpose Flour", 0.15, "kg"), ("Refined Sugar", 0.05, "kg"),
-                ("Unsalted Butter", 0.08, "kg"), ("Cream Cheese", 0.05, "kg"),
-                ("Fresh Eggs", 0.07, "tray")
-            ],
-            "Leche Flan": [
-                ("Fresh Eggs", 0.33, "tray"), ("Refined Sugar", 0.20, "kg"),
-                ("Vanilla Extract", 0.02, "L"), ("Caramel Syrup", 0.05, "L")
-            ],
-            "Cheese Crinkles": [
-                ("All-Purpose Flour", 0.20, "kg"), ("Refined Sugar", 0.10, "kg"),
-                ("Cream Cheese", 0.10, "kg"), ("Unsalted Butter", 0.05, "kg")
-            ],
-            "Fudge Brownies": [
-                ("All-Purpose Flour", 0.20, "kg"), ("Cocoa Powder", 0.15, "kg"),
-                ("Chocolate Chips", 0.15, "kg"), ("Refined Sugar", 0.20, "kg"),
-                ("Unsalted Butter", 0.15, "kg"), ("Fresh Eggs", 0.10, "tray")
-            ],
-            "Cafe Latte": [
-                ("Coffee Beans", 0.02, "kg"), ("Milk", 0.25, "L")
-            ],
-            "Iced Caramel Macchiato": [
-                ("Coffee Beans", 0.02, "kg"), ("Milk", 0.25, "L"),
-                ("Caramel Syrup", 0.03, "L"), ("Vanilla Extract", 0.01, "L")
-            ],
-            "Americano": [
-                ("Coffee Beans", 0.025, "kg")
-            ]
-        }
+        # -----------------------------------------------------------------
+        # 5. Seed Commercial Bill of Materials (BOM) Recipes
+        # -----------------------------------------------------------------
+        self.stdout.write("Generating commercial BOM recipes with 31%-37% COGS target...")
+        bom_count = 0
+        for p_data in all_menu_items:
+            prod_obj = products[p_data['name']]
+            recipe = make_recipe(p_data['name'], p_data['category'], p_data['size_tag'])
+            for ing_name, req_qty, req_unit in recipe:
+                ing_obj = ingredients.get(ing_name)
+                if ing_obj:
+                    BillOfMaterial.objects.update_or_create(
+                        product=prod_obj,
+                        ingredient=ing_obj,
+                        defaults={
+                            'quantity_required': Decimal(str(req_qty)),
+                            'measurement_unit': req_unit
+                        }
+                    )
+                    bom_count += 1
 
-        for p_name, ing_list in recipes.items():
-            prod = products.get(p_name)
-            if prod:
-                for ing_name, req_qty, req_unit in ing_list:
-                    ing_obj = ingredients.get(ing_name)
-                    if ing_obj:
-                        BillOfMaterial.objects.update_or_create(
-                            product=prod, ingredient=ing_obj,
-                            defaults={'quantity_required': req_qty, 'measurement_unit': req_unit}
-                        )
+        self.stdout.write(f"Seeded {bom_count} Bill of Material deductions across {len(products)} products.")
 
-        # 6. Distribute Dynamic Inventory & Constraints
+        # -----------------------------------------------------------------
+        # 6. Distribute Initial Stock & Constraints Across All 7 Branches
+        # -----------------------------------------------------------------
+        self.stdout.write("Seeding branch inventory and constraint parameters...")
         now = timezone.now()
-        
+
         for branch_name, branch in branches.items():
-            for ing_name, ing in ingredients.items():
-                qty = random.choice([2, 4, 15, 25, 50])
-                days_to_expiry = random.choice([5, 12, 45, 90, None])
+            is_hub = branch.main_hub
+
+            # Ingredient Stocks & Constraints
+            for ing_name, ing_obj in ingredients.items():
+                if is_hub:
+                    qty = Decimal(str(random.choice([50, 75, 100, 150])))
+                else:
+                    qty = Decimal(str(random.choice([15, 25, 40, 60])))
+
+                days_to_expiry = random.choice([30, 60, 90, 180, None])
                 expiry = (now + timedelta(days=days_to_expiry)) if days_to_expiry else None
-                
+
                 IngredientStock.objects.update_or_create(
-                    branch=branch, ingredient=ing,
+                    branch=branch,
+                    ingredient=ing_obj,
                     defaults={
-                        'quantity_available': qty, 
-                        'reorder_threshold': 10, 
-                        'total_cost': qty * ing.cost_per_unit,
-                        'expiry_date': expiry
+                        'quantity_available': qty,
+                        'reorder_threshold': Decimal('10.00'),
+                        'total_cost': round(qty * ing_obj.cost_per_unit, 2),
+                        'expiry_date': expiry,
+                        'batch_number': f"BATCH-{branch.pk}-{random.randint(100, 999)}"
                     }
                 )
-                
+
                 ConstraintParameter.objects.update_or_create(
-                    branch=branch, ingredient=ing,
+                    branch=branch,
+                    ingredient=ing_obj,
                     defaults={
                         'lead_time_days': 2,
-                        'min_order_quantity': 5.00,
-                        'max_order_quantity': 100.00,
-                        'production_limit': 50.00,
-                        'capacity_limit': 200.00
+                        'min_order_quantity': Decimal('5.00'),
+                        'max_order_quantity': Decimal('100.00'),
+                        'production_limit': Decimal('50.00'),
+                        'capacity_limit': Decimal('200.00')
                     }
                 )
-                
-            for p_name, prod in products.items():
-                qty = random.choice([0, 2, 8, 15])
+
+            # Product Stocks
+            for prod_name, prod_obj in products.items():
+                if is_hub:
+                    p_qty = Decimal(str(random.choice([5, 10, 15, 20])))
+                else:
+                    p_qty = Decimal(str(random.choice([2, 4, 8, 12])))
+
                 ProductStock.objects.update_or_create(
-                    branch=branch, product=prod,
-                    defaults={'quantity_available': qty, 'total_cost': 0, 'reorder_threshold': 5}
+                    branch=branch,
+                    product=prod_obj,
+                    defaults={
+                        'quantity_available': p_qty,
+                        'reorder_threshold': Decimal('5.00'),
+                        'total_cost': Decimal('0.00')
+                    }
                 )
 
-        # 7. Generate Mock POS Transactions for Charts
+        # -----------------------------------------------------------------
+        # 7. Generate Mock POS Transactions for Live Analytics & Charts
+        # -----------------------------------------------------------------
+        self.stdout.write("Generating POS transactions for branch analytics...")
         payment_methods = ['Cash', 'GCash', 'Maya', 'Split Payment']
         for branch in branches.values():
             staff = User.objects.filter(branch=branch, role='Staff').first()
-            for _ in range(15): # 15 transactions per branch
+            if not staff:
+                continue
+            for _ in range(15):
                 past_date = now - timedelta(days=random.randint(0, 30))
-                
                 selected_products = random.sample(product_list, random.randint(1, 4))
-                total_amount = 0
-                
+                total_amount = Decimal('0.00')
+
                 txn = Transaction.objects.create(
                     branch=branch,
                     user=staff,
-                    subtotal_amount=0,
-                    total_amount=0,
+                    subtotal_amount=Decimal('0.00'),
+                    total_amount=Decimal('0.00'),
                     transaction_status='Completed'
                 )
-                
+
                 for prod in selected_products:
                     qty = random.randint(1, 3)
-                    subtotal = float(prod.price) * qty
+                    subtotal = prod.price * qty
                     total_amount += subtotal
                     TransactionItem.objects.create(
-                        transaction=txn, product=prod, quantity=qty, unit_price=prod.price, subtotal=subtotal
+                        transaction=txn,
+                        product=prod,
+                        quantity=qty,
+                        unit_price=prod.price,
+                        subtotal=subtotal
                     )
-                
+
                 txn.subtotal_amount = total_amount
                 txn.total_amount = total_amount
                 txn.save()
-                
-                # Force the historical date
+
                 Transaction.objects.filter(pk=txn.pk).update(transaction_date=past_date)
-                
+
                 PaymentRecord.objects.create(
                     transaction=txn,
                     amount_paid=total_amount,
                     payment_method=random.choice(payment_methods)
                 )
 
-        # 7. Generate Pending Restock Requests for the Queue
-        padre_garcia_mgr = User.objects.get(email="manager_2@sweetbox.ph")
-        RestockRequest.objects.create(
-            ingredient=ingredients["Fresh Eggs"], user=padre_garcia_mgr, source_branch=main_hub,
-            destination_branch=branches["Padre Garcia"], requested_quantity=20.00, status='Pending'
-        )
-        RestockRequest.objects.create(
-            ingredient=ingredients["Coffee Beans"], user=padre_garcia_mgr, source_branch=main_hub,
-            destination_branch=branches["Padre Garcia"], requested_quantity=15.00, status='Pending'
-        )
+        # -----------------------------------------------------------------
+        # 8. Generate Pending Restock Queue & AI Prescriptions
+        # -----------------------------------------------------------------
+        padre_garcia_mgr = User.objects.filter(email="manager_2@sweetbox.ph").first()
+        if padre_garcia_mgr:
+            RestockRequest.objects.get_or_create(
+                ingredient=ingredients["Fresh Eggs"],
+                destination_branch=branches["Padre Garcia"],
+                status='Pending',
+                defaults={
+                    'user': padre_garcia_mgr,
+                    'source_branch': main_hub,
+                    'requested_quantity': Decimal('20.00')
+                }
+            )
+            RestockRequest.objects.get_or_create(
+                ingredient=ingredients["Espresso Coffee Beans"],
+                destination_branch=branches["Padre Garcia"],
+                status='Pending',
+                defaults={
+                    'user': padre_garcia_mgr,
+                    'source_branch': main_hub,
+                    'requested_quantity': Decimal('15.00')
+                }
+            )
 
-        # 8. Generate Pending AI Prescriptions (idempotent - skips if already exists)
         PrescriptiveOutput.objects.get_or_create(
             branch=main_hub,
             ingredient=ingredients["Unsalted Butter"],
@@ -339,11 +363,12 @@ class Command(BaseCommand):
             recommendation="Order 50.0 kg of Unsalted Butter",
             defaults={
                 "justification": "(Auto-bounded to satisfy constraints) Given current trends, a 50kg order is the maximum feasible replenishment to avoid stockouts before the weekend.",
-                "recommended_quantity": 50.00,
-                "estimated_cost": 17500.00,
+                "recommended_quantity": Decimal('50.00'),
+                "estimated_cost": Decimal('18000.00'),
                 "status": "Pending Review"
             }
         )
+
         PrescriptiveOutput.objects.get_or_create(
             branch=branches["Padre Garcia"],
             ingredient=ingredients["Cream Cheese"],
@@ -351,10 +376,10 @@ class Command(BaseCommand):
             recommendation="Order 100.0 kg of Cream Cheese",
             defaults={
                 "justification": "WARNING: AI quantity fails Supplier Minimum. Suggest manual override to combine orders with adjacent branches.",
-                "recommended_quantity": 100.00,
-                "estimated_cost": 45000.00,
+                "recommended_quantity": Decimal('100.00'),
+                "estimated_cost": Decimal('45000.00'),
                 "status": "Flagged - Needs Override"
             }
         )
 
-        self.stdout.write(self.style.SUCCESS("Database seeded with full operational test data!"))
+        self.stdout.write(self.style.SUCCESS("Database seeded successfully with official Sweet Box commercial menu!"))
