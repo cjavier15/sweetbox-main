@@ -15,23 +15,27 @@ from pos.models import ProductCategory, Product
 from analytics.models import PrescriptiveOutput
 import logging
 
+from accounts.models import Branch
+from django.db.models import Q
+
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Deduplicates IngredientStock, ProductStock, Ingredient, and ProductCategory records. Run before adding UniqueConstraints.'
+    help = 'Deduplicates records and enforces strict Hub-and-Spoke inventory architecture.'
 
     @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write(self.style.WARNING('Starting database deduplication sweep...'))
+        self.stdout.write(self.style.WARNING('Starting database deduplication & Hub-and-Spoke sweep...'))
 
         self._dedup_product_categories()
         self._dedup_ingredients()
         self._dedup_ingredient_stocks()
         self._dedup_product_stocks()
+        self._enforce_hub_and_spoke_isolation()
         self._dedup_prescriptive_outputs()
 
-        self.stdout.write(self.style.SUCCESS('Deduplication complete. Database is clean.'))
+        self.stdout.write(self.style.SUCCESS('Deduplication & Hub-and-Spoke sweep complete. Database is clean.'))
 
     # -----------------------------------------------------------------
     # 1. ProductCategory — deduplicate case-insensitively by category_name
@@ -125,7 +129,40 @@ class Command(BaseCommand):
         self.stdout.write(f'  ProductStock: {deleted} duplicate(s) merged and removed.')
 
     # -----------------------------------------------------------------
-    # 5. PrescriptiveOutput — remove exact duplicates from seed re-runs
+    # 5. Hub-and-Spoke Isolation Sweep
+    #    - Raw materials (IngredientStock, ConstraintParameter, RestockRequest)
+    #      are strictly centralized at Ibaan (Main Hub).
+    #    - Satellite branches only carry Cake and Pastry products in ProductStock.
+    # -----------------------------------------------------------------
+    def _enforce_hub_and_spoke_isolation(self):
+        hub_branch = Branch.objects.filter(
+            Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')
+        ).first()
+
+        if not hub_branch:
+            self.stdout.write(self.style.WARNING('  Hub-and-spoke: Main Hub (Ibaan) branch not found, skipping isolation.'))
+            return
+
+        # 1. Delete non-hub raw material stock, constraints, and ingredient restock requests
+        del_stocks, _ = IngredientStock.objects.exclude(branch=hub_branch).delete()
+        del_constraints, _ = ConstraintParameter.objects.filter(ingredient__isnull=False).exclude(branch=hub_branch).delete()
+        del_restocks, _ = RestockRequest.objects.filter(ingredient__isnull=False).exclude(destination_branch=hub_branch).delete()
+        self.stdout.write(f'  Hub-and-Spoke: Removed non-hub raw materials ({del_stocks} IngredientStock, {del_constraints} ConstraintParameter, {del_restocks} RestockRequest).')
+
+        # 2. Scope satellite branches to Cake and Pastry products only
+        satellite_branches = Branch.objects.exclude(branch_ID=hub_branch.branch_ID)
+        non_cp_ids = []
+        for ps in ProductStock.objects.filter(branch__in=satellite_branches).select_related('product__category'):
+            cat_name = (ps.product.category.category_name if ps.product.category else '').strip().lower()
+            if not any(k in cat_name for k in ['cake', 'pastry', 'pastries']):
+                non_cp_ids.append(ps.pk)
+
+        if non_cp_ids:
+            ProductStock.objects.filter(pk__in=non_cp_ids).delete()
+            self.stdout.write(f'  Hub-and-Spoke: Removed {len(non_cp_ids)} non-cake/pastry ProductStock records from satellite branches.')
+
+    # -----------------------------------------------------------------
+    # 6. PrescriptiveOutput — remove exact duplicates from seed re-runs
     #    (same branch + ingredient + output_type + status)
     # -----------------------------------------------------------------
     def _dedup_prescriptive_outputs(self):
@@ -140,4 +177,5 @@ class Command(BaseCommand):
             else:
                 seen.add(key)
         self.stdout.write(f'  PrescriptiveOutput: {deleted} exact duplicate(s) removed.')
+
 

@@ -1,13 +1,14 @@
 import json
 import re
+from decimal import Decimal
 from google import genai
 from django.conf import settings
 from django.db.models import F, Sum
-from inventory.models import IngredientStock, ConstraintParameter, Ingredient, BillOfMaterial
+from inventory.models import IngredientStock, ConstraintParameter, Ingredient, BillOfMaterial, ProductStock
 from analytics.models import PrescriptiveOutput, ExternalVariable, ChatbotLog
 from django.utils import timezone
 from datetime import timedelta
-from pos.models import Transaction, TransactionItem
+from pos.models import Transaction, TransactionItem, Product
 from accounts.models import Branch
 
 # Cascade through stable supported models
@@ -201,13 +202,190 @@ def _generate_rule_based_prescriptions(branch, low_stocks, hist_consumption=None
         
     return {"status": "generated", "outputs": output_ids, "fallback": True}
 
+def _generate_satellite_prescriptions(branch):
+    """
+    Generates finished Cake & Pastry dispatch transfer recommendations from Ibaan Main Hub
+    to the satellite branch based on low ProductStock and historical sales velocity.
+    """
+    low_prod_stocks = list(ProductStock.objects.filter(
+        branch=branch,
+        quantity_available__lte=F('reorder_threshold')
+    ).select_related('product', 'product__category'))
+
+    # If no items are strictly at or below threshold, check items with low quantity <= 5.0
+    if not low_prod_stocks:
+        low_prod_stocks = list(ProductStock.objects.filter(
+            branch=branch,
+            quantity_available__lte=5.0
+        ).select_related('product', 'product__category'))
+
+    if not low_prod_stocks:
+        return {"status": "optimal", "message": f"All finished product display stock levels at {branch.name} are sufficient."}
+
+    # 1. Historical Sales Velocity Telemetry (last 30 days)
+    cutoff = timezone.now() - timedelta(days=30)
+    txns = Transaction.objects.filter(
+        branch=branch,
+        transaction_status='Completed',
+        transaction_date__gte=cutoff
+    )
+    if not txns.exists():
+        txns = Transaction.objects.filter(branch=branch, transaction_status='Completed')
+
+    items = TransactionItem.objects.filter(transaction__in=txns).values('product_id').annotate(total_sold=Sum('quantity'))
+    velocity_map = {i['product_id']: round(float(i['total_sold']) / 30.0, 2) for i in items}
+
+    # 2. Local Events & Variables Context
+    event_list, event_multiplier, impact_events = _get_active_events_context(branch)
+
+    # 3. Product Recipe Costs for estimated commissary cost
+    boms = BillOfMaterial.objects.select_related('ingredient').all()
+    recipe_costs = {}
+    for b in boms:
+        recipe_costs[b.product_id] = recipe_costs.get(b.product_id, 0.0) + (
+            float(b.quantity_required) * float(b.ingredient.cost_per_unit)
+        )
+
+    output_ids = []
+    data_pipeline = []
+    target_coverage_days = 7.0
+
+    for stock in low_prod_stocks:
+        prod = stock.product
+        current_stock = float(stock.quantity_available)
+        threshold = float(stock.reorder_threshold)
+        daily_vel = velocity_map.get(prod.product_ID, 0.0)
+        if daily_vel <= 0.0:
+            daily_vel = max(round(threshold / 5.0, 2), 0.50)
+
+        days_runway = round(current_stock / daily_vel, 1) if daily_vel > 0 else 0.0
+        needed = round((target_coverage_days * daily_vel * event_multiplier) - current_stock)
+        recommended_qty = float(max(needed, 5.0))
+        if recommended_qty > 50.0:
+            recommended_qty = 50.0
+
+        unit_cost = recipe_costs.get(prod.product_ID, float(prod.price) * 0.35)
+        estimated_cost = round(recommended_qty * unit_cost, 2)
+
+        data_pipeline.append({
+            'product': prod,
+            'current_stock': current_stock,
+            'threshold': threshold,
+            'daily_vel': daily_vel,
+            'days_runway': days_runway,
+            'recommended_qty': recommended_qty,
+            'estimated_cost': estimated_cost,
+            'unit_cost': unit_cost
+        })
+
+    # Try Gemini AI for satellite branch
+    prompt = f"""
+    You are the dedicated Sweet Box Supply Chain AI for the {branch.name} satellite branch.
+    The business operates on a Hub-and-Spoke model where all raw materials and baking are centralized at Ibaan (Main Hub).
+    Satellite branches carry finished Cakes & Pastries and receive dispatch transfers from Ibaan Commissary.
+    
+    Generate realistic, measurable dispatch transfer prescriptions from Ibaan Main Hub to {branch.name} for the following low finished product stocks:
+    
+    Active Local Events:
+    {json.dumps(event_list, indent=2) if event_list else "No active external events."}
+    
+    Low-Stock Products & Sales Telemetry:
+    """ + "\n".join([
+        f"- {d['product'].product_name}: Current Stock: {d['current_stock']:.0f} units, "
+        f"Reorder Threshold: {d['threshold']:.0f} units, Daily Sales Velocity: {d['daily_vel']:.1f} units/day, "
+        f"Runway: {d['days_runway']:.1f} days, Recommended Batch: {d['recommended_qty']:.0f} units, Unit Cost: ₱{d['unit_cost']:.2f}"
+        for d in data_pipeline
+    ]) + """
+    
+    Return ONLY a valid JSON array of objects with exact keys:
+    - "product": string
+    - "recommended_qty": float
+    - "estimated_cost": float
+    - "coverage_days": float
+    - "justification": string (must reference sales velocity, remaining runway, Ibaan commissary dispatch, and event context)
+    Do not use markdown formatting like ```json.
+    """
+
+    try:
+        raw_ai_text = _call_gemini_api(prompt)
+        if raw_ai_text:
+            clean_text = _clean_json_text(raw_ai_text)
+            ai_data = json.loads(clean_text)
+            for item in ai_data:
+                prod_obj = Product.objects.filter(product_name=item['product']).first()
+                if not prod_obj:
+                    continue
+                qty = float(item['recommended_qty'])
+                if qty <= 0:
+                    qty = 5.0
+                cost = float(item.get('estimated_cost', qty * recipe_costs.get(prod_obj.product_ID, float(prod_obj.price) * 0.35)))
+                rec_text = _clean_db_text(f"Dispatch transfer {int(qty)} units of {prod_obj.product_name} from Ibaan (Main Hub) to {branch.name}")
+                just_text = _clean_db_text(item.get('justification', ''))
+
+                record = PrescriptiveOutput.objects.create(
+                    branch=branch,
+                    product=prod_obj,
+                    output_type='Dispatch Transfer Prescription',
+                    recommendation=rec_text,
+                    justification=just_text,
+                    recommended_quantity=Decimal(str(qty)),
+                    estimated_cost=Decimal(str(round(cost, 2))),
+                    status="Pending Review"
+                )
+                output_ids.append(record.prescriptive_output_ID)
+            if output_ids:
+                return {"status": "generated", "outputs": output_ids}
+    except Exception:
+        pass # Fallback to deterministic rule-based below
+
+    # Deterministic rule-based satellite dispatch prescription
+    event_clause = f" accounting for {', '.join(impact_events)} ({int((event_multiplier - 1.0) * 100)}% demand surge)" if impact_events and event_multiplier > 1.0 else ""
+    for d in data_pipeline:
+        prod = d['product']
+        qty = d['recommended_qty']
+        cost = d['estimated_cost']
+        justification = (
+            f"Historical sales velocity is {d['daily_vel']:.1f} units/day at {branch.name}. "
+            f"Current display stock of {d['current_stock']:.0f} units provides only {d['days_runway']:.1f} days runway "
+            f"(threshold: {d['threshold']:.0f} units). "
+            f"Recommended dispatch transfer of {int(qty)} units from Ibaan Commissary secures a {target_coverage_days:.0f}-day sales buffer{event_clause}. "
+            f"Estimated commissary transfer cost: ₱{cost:,.2f}."
+        )
+        record = PrescriptiveOutput.objects.create(
+            branch=branch,
+            product=prod,
+            output_type='Dispatch Transfer Prescription',
+            recommendation=f"Dispatch transfer {int(qty)} units of {prod.product_name} from Ibaan (Main Hub) to {branch.name}",
+            justification=_clean_db_text(justification),
+            recommended_quantity=Decimal(str(qty)),
+            estimated_cost=Decimal(str(cost)),
+            status="Pending Review"
+        )
+        output_ids.append(record.prescriptive_output_ID)
+
+    return {"status": "generated", "outputs": output_ids, "fallback": True}
+
 def generate_restock_directive(branch):
     """
     Generates realistic, measurable prescriptive recommendations grounded strictly in
     historical consumption data, stock parameters, and active local events.
+    Enforces Hub-and-Spoke architecture:
+    - Satellite branches: Cake & Pastry dispatch transfer recommendations from Ibaan Main Hub
+    - Ibaan (Main Hub): Raw ingredient replenishment and commissary kitchen production batch targets
     """
+    is_satellite = not bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
+    if is_satellite:
+        return _generate_satellite_prescriptions(branch)
+
     low_stocks = IngredientStock.objects.filter(branch=branch, quantity_available__lte=F('reorder_threshold'))
-    if not low_stocks.exists():
+    
+    # Also check low finished goods at Ibaan Commissary
+    low_prod_stocks = ProductStock.objects.filter(
+        branch=branch,
+        quantity_available__lte=F('reorder_threshold')
+    ).select_related('product')
+
+    if not low_stocks.exists() and not low_prod_stocks.exists():
         return {"status": "optimal", "message": "All inventory levels are sufficient."}
     
     # 1. Historical Consumption Telemetry
@@ -280,60 +458,90 @@ def generate_restock_directive(branch):
     Do not use markdown formatting like ```json.
     """
     
+    output_ids = []
     try:
         raw_ai_text = _call_gemini_api(prompt)
         if not raw_ai_text:
-            return _generate_rule_based_prescriptions(branch, low_stocks, hist_consumption, event_multiplier, impact_events)
-        
-        clean_text = _clean_json_text(raw_ai_text)
-        ai_data = json.loads(clean_text)
-        output_ids = []
-        
-        for item in ai_data:
-            ingredient = Ingredient.objects.get(ingredient_name=item['ingredient'])
-            constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).first()
-            stock_record = IngredientStock.objects.filter(branch=branch, ingredient=ingredient).first()
+            res = _generate_rule_based_prescriptions(branch, low_stocks, hist_consumption, event_multiplier, impact_events)
+            output_ids.extend(res.get('outputs', []))
+        else:
+            clean_text = _clean_json_text(raw_ai_text)
+            ai_data = json.loads(clean_text)
             
-            raw_qty = float(item['recommended_qty'])
-            current_stock = float(stock_record.quantity_available) if stock_record else 0.0
-            
-            # HARD BOUNDING: Enforce physical capacity and supplier limits mathematically
-            min_qty = float(constraint.min_order_quantity) if constraint else 0.0
-            max_supplier_qty = float(constraint.max_order_quantity) if constraint else 9999.0
-            capacity_limit = float(constraint.capacity_limit) if constraint else 9999.0
-            
-            room_available = max(0.0, capacity_limit - current_stock)
-            absolute_max = min(max_supplier_qty, room_available)
-            bounded_qty = min(max(raw_qty, min_qty), absolute_max)
-            if bounded_qty <= 0:
-                bounded_qty = max(min_qty, 1.0)
-            
-            cost_per_unit = float(ingredient.cost_per_unit)
-            estimated_cost = round(bounded_qty * cost_per_unit, 2)
-            
-            justification = item.get('justification', '')
-            if raw_qty != bounded_qty:
-                justification = f"(System Auto-Bounded from {raw_qty} to {bounded_qty} to obey physical capacity constraints) " + justification
-            
-            coverage_days = item.get('coverage_days')
-            cov_text = f" ({coverage_days:.1f} days operational buffer)" if coverage_days else ""
-            
-            rec_text = _clean_db_text(f"Procure {bounded_qty:.2f} {ingredient.measurement_unit} of {ingredient.ingredient_name}{cov_text}")
-            just_text = _clean_db_text(justification)
-            
-            record = PrescriptiveOutput.objects.create(
-                branch=branch, ingredient=ingredient, constraint=constraint,
-                output_type='Restock Prescription',
-                recommendation=rec_text,
-                justification=just_text, recommended_quantity=bounded_qty,
-                estimated_cost=estimated_cost, status="Pending Review"
-            )
-            output_ids.append(record.prescriptive_output_ID)
-            
-        return {"status": "generated", "outputs": output_ids}
+            for item in ai_data:
+                ingredient = Ingredient.objects.get(ingredient_name=item['ingredient'])
+                constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).first()
+                stock_record = IngredientStock.objects.filter(branch=branch, ingredient=ingredient).first()
+                
+                raw_qty = float(item['recommended_qty'])
+                current_stock = float(stock_record.quantity_available) if stock_record else 0.0
+                
+                # HARD BOUNDING: Enforce physical capacity and supplier limits mathematically
+                min_qty = float(constraint.min_order_quantity) if constraint else 0.0
+                max_supplier_qty = float(constraint.max_order_quantity) if constraint else 9999.0
+                capacity_limit = float(constraint.capacity_limit) if constraint else 9999.0
+                
+                room_available = max(0.0, capacity_limit - current_stock)
+                absolute_max = min(max_supplier_qty, room_available)
+                bounded_qty = min(max(raw_qty, min_qty), absolute_max)
+                if bounded_qty <= 0:
+                    bounded_qty = max(min_qty, 1.0)
+                
+                cost_per_unit = float(ingredient.cost_per_unit)
+                estimated_cost = round(bounded_qty * cost_per_unit, 2)
+                
+                justification = item.get('justification', '')
+                if raw_qty != bounded_qty:
+                    justification = f"(System Auto-Bounded from {raw_qty} to {bounded_qty} to obey physical capacity constraints) " + justification
+                
+                coverage_days = item.get('coverage_days')
+                cov_text = f" ({coverage_days:.1f} days operational buffer)" if coverage_days else ""
+                
+                rec_text = _clean_db_text(f"Procure {bounded_qty:.2f} {ingredient.measurement_unit} of {ingredient.ingredient_name}{cov_text}")
+                just_text = _clean_db_text(justification)
+                
+                record = PrescriptiveOutput.objects.create(
+                    branch=branch, ingredient=ingredient, constraint=constraint,
+                    output_type='Restock Prescription',
+                    recommendation=rec_text,
+                    justification=just_text, recommended_quantity=bounded_qty,
+                    estimated_cost=estimated_cost, status="Pending Review"
+                )
+                output_ids.append(record.prescriptive_output_ID)
     except Exception:
-        # Graceful fallback to deterministic rule-based replenishment on AI quota/network failure
-        return _generate_rule_based_prescriptions(branch, low_stocks, hist_consumption, event_multiplier, impact_events)
+        res = _generate_rule_based_prescriptions(branch, low_stocks, hist_consumption, event_multiplier, impact_events)
+        output_ids.extend(res.get('outputs', []))
+
+    # Add commissary batch production targets for Ibaan Hub
+    if low_prod_stocks.exists():
+        for ps in low_prod_stocks[:5]:
+            p = ps.product
+            boms = list(p.bom_ingredients.select_related('ingredient').all())
+            if not boms:
+                continue
+            p_threshold = float(ps.reorder_threshold)
+            p_qty = float(ps.quantity_available)
+            batch_qty = max(round(p_threshold * 2 - p_qty), 10.0)
+            recipe_cost = sum(float(b.quantity_required) * float(b.ingredient.cost_per_unit) for b in boms)
+            est_cost = round(batch_qty * recipe_cost, 2)
+            
+            prod_rec = PrescriptiveOutput.objects.create(
+                branch=branch,
+                product=p,
+                output_type='Production Target',
+                recommendation=f"Commissary batch production of {int(batch_qty)} units of {p.product_name}",
+                justification=_clean_db_text(
+                    f"Commissary display stock is low ({p_qty:.0f} units remaining, threshold: {p_threshold:.0f} units). "
+                    f"Batch production of {int(batch_qty)} units satisfies network demand across Ibaan and satellite branches. "
+                    f"Estimated BOM ingredient production cost: ₱{est_cost:,.2f}."
+                ),
+                recommended_quantity=Decimal(str(batch_qty)),
+                estimated_cost=Decimal(str(est_cost)),
+                status="Pending Review"
+            )
+            output_ids.append(prod_rec.prescriptive_output_ID)
+
+    return {"status": "generated", "outputs": output_ids}
 
 def is_sweetbox_related_query(query_text):
     """
@@ -399,6 +607,27 @@ def _build_dynamic_sales_response(
     # Intent 2: Inventory / Stock Levels / Low Stock / Restocks / Ingredients / Runway
     stock_keywords = ['stock', 'stocks', 'inventory', 'low', 'restock', 'ingredient', 'ingredients', 'supply', 'supplies', 'runway', 'burn', 'reorder', 'capacity', 'procure']
     if any(k in q for k in stock_keywords):
+        is_satellite = not bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
+        if is_satellite:
+            low_prods = ProductStock.objects.filter(branch=branch, quantity_available__lte=F('reorder_threshold')).select_related('product')
+            if not low_prods.exists():
+                return (
+                    f"📦 **Sweet Box Finished Product Inventory Status ({branch.name})**\n\n"
+                    f"✅ **All finished cake and pastry display stock levels are optimal at {branch.name}.** "
+                    f"Display chillers and counters are fully stocked."
+                )
+            lines = [
+                f"⚠️ **Low Finished Goods Watch — {branch.name}**\n",
+                f"We have identified **{low_prods.count()} finished product line(s)** currently operating below display reorder thresholds:\n"
+            ]
+            for ps in low_prods[:6]:
+                prod = ps.product
+                qty = float(ps.quantity_available)
+                thresh = float(ps.reorder_threshold)
+                lines.append(f"- **{prod.product_name}**: {qty:.0f} units remaining (Reorder Threshold: {thresh:.0f} units, Selling Price: ₱{float(prod.price):,.2f})")
+            lines.append(f"\n💡 **Prescriptive Action:** Submit a dispatch transfer request from Ibaan Main Hub Commissary to replenish these lines and prevent counter stockouts.")
+            return "\n".join(lines)
+
         if not low_stocks.exists():
             return (
                 f"📦 **Sweet Box Inventory Status ({branch.name})**\n\n"

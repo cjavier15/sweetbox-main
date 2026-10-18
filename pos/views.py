@@ -18,7 +18,16 @@ class ProductListView(generics.ListAPIView):
         user = self.request.user
         if user.role != 'Staff' and not user.is_superuser:
             return Product.objects.none()
-        return Product.objects.filter(is_active=True)
+
+        branch = user.branch
+        if branch:
+            # Satellite and Hub cashiers: strictly filter by active ProductStock at this branch
+            return Product.objects.filter(
+                is_active=True,
+                stocks__branch=branch
+            ).select_related('category').distinct().order_by('product_name')
+
+        return Product.objects.filter(is_active=True).select_related('category').order_by('product_name')
 
 class TransactionListView(generics.ListAPIView):
     serializer_class = TransactionSerializer

@@ -244,57 +244,81 @@ class Command(BaseCommand):
         self.stdout.write(f"Seeded {bom_count} Bill of Material deductions across {len(products)} products.")
 
         # -----------------------------------------------------------------
-        # 6. Distribute Initial Stock & Constraints Across All 7 Branches
+        # 6. Strict Hub-and-Spoke Inventory & Constraint Distribution
         # -----------------------------------------------------------------
-        self.stdout.write("Seeding branch inventory and constraint parameters...")
+        self.stdout.write("Enforcing Hub-and-Spoke raw material isolation and branch product assignment...")
         now = timezone.now()
 
-        for branch_name, branch in branches.items():
-            is_hub = branch.main_hub
+        # Step 6.1: Clean up any non-hub raw material records
+        IngredientStock.objects.exclude(branch=main_hub).delete()
+        ConstraintParameter.objects.filter(ingredient__isnull=False).exclude(branch=main_hub).delete()
+        RestockRequest.objects.filter(ingredient__isnull=False).exclude(destination_branch=main_hub).delete()
 
-            # Ingredient Stocks & Constraints
-            for ing_name, ing_obj in ingredients.items():
-                if is_hub:
-                    qty = Decimal(str(random.choice([50, 75, 100, 150])))
-                else:
-                    qty = Decimal(str(random.choice([15, 25, 40, 60])))
+        # Step 6.2: Seed IngredientStock and ConstraintParameter EXCLUSIVELY for Ibaan (Main Hub)
+        for ing_name, ing_obj in ingredients.items():
+            qty = Decimal(str(random.choice([50, 75, 100, 150])))
+            days_to_expiry = random.choice([30, 60, 90, 180, None])
+            expiry = (now + timedelta(days=days_to_expiry)) if days_to_expiry else None
 
-                days_to_expiry = random.choice([30, 60, 90, 180, None])
-                expiry = (now + timedelta(days=days_to_expiry)) if days_to_expiry else None
+            IngredientStock.objects.update_or_create(
+                branch=main_hub,
+                ingredient=ing_obj,
+                defaults={
+                    'quantity_available': qty,
+                    'reorder_threshold': Decimal('10.00'),
+                    'total_cost': round(qty * ing_obj.cost_per_unit, 2),
+                    'expiry_date': expiry,
+                    'batch_number': f"BATCH-{main_hub.pk}-{random.randint(100, 999)}"
+                }
+            )
 
-                IngredientStock.objects.update_or_create(
-                    branch=branch,
-                    ingredient=ing_obj,
-                    defaults={
-                        'quantity_available': qty,
-                        'reorder_threshold': Decimal('10.00'),
-                        'total_cost': round(qty * ing_obj.cost_per_unit, 2),
-                        'expiry_date': expiry,
-                        'batch_number': f"BATCH-{branch.pk}-{random.randint(100, 999)}"
-                    }
-                )
+            ConstraintParameter.objects.update_or_create(
+                branch=main_hub,
+                ingredient=ing_obj,
+                defaults={
+                    'lead_time_days': 2,
+                    'min_order_quantity': Decimal('5.00'),
+                    'max_order_quantity': Decimal('100.00'),
+                    'production_limit': Decimal('50.00'),
+                    'capacity_limit': Decimal('200.00')
+                }
+            )
 
-                ConstraintParameter.objects.update_or_create(
-                    branch=branch,
-                    ingredient=ing_obj,
-                    defaults={
-                        'lead_time_days': 2,
-                        'min_order_quantity': Decimal('5.00'),
-                        'max_order_quantity': Decimal('100.00'),
-                        'production_limit': Decimal('50.00'),
-                        'capacity_limit': Decimal('200.00')
-                    }
-                )
+        # Step 6.3: Helper to identify Cake & Pastry products
+        def is_cake_or_pastry_prod(p):
+            cat = (p.category.category_name if p.category else '').strip().lower()
+            return any(k in cat for k in ['cake', 'pastry', 'pastries'])
 
-            # Product Stocks
-            for prod_name, prod_obj in products.items():
-                if is_hub:
-                    p_qty = Decimal(str(random.choice([5, 10, 15, 20])))
-                else:
-                    p_qty = Decimal(str(random.choice([2, 4, 8, 12])))
+        cake_pastry_products = [p for p in product_list if is_cake_or_pastry_prod(p)]
 
+        # Step 6.4: Seed ProductStock
+        # - Ibaan (Main Hub): All 433 products across all 19 categories (15-30 units)
+        for prod_obj in product_list:
+            p_qty = Decimal(str(random.choice([15, 20, 25, 30])))
+            ProductStock.objects.update_or_create(
+                branch=main_hub,
+                product=prod_obj,
+                defaults={
+                    'quantity_available': p_qty,
+                    'reorder_threshold': Decimal('5.00'),
+                    'total_cost': Decimal('0.00')
+                }
+            )
+
+        # - Satellite Branches: ONLY Cake & Pastry products (5-15 units); purge any non-cake/pastry
+        satellite_branches = [b for b in branches.values() if b != main_hub]
+        for sat_branch in satellite_branches:
+            # Purge any non-cake/pastry ProductStock on satellite branch
+            non_cp_stocks = ProductStock.objects.filter(branch=sat_branch).select_related('product__category')
+            for ps in non_cp_stocks:
+                if not is_cake_or_pastry_prod(ps.product):
+                    ps.delete()
+
+            # Seed Cake & Pastry products
+            for prod_obj in cake_pastry_products:
+                p_qty = Decimal(str(random.choice([5, 8, 10, 12, 15])))
                 ProductStock.objects.update_or_create(
-                    branch=branch,
+                    branch=sat_branch,
                     product=prod_obj,
                     defaults={
                         'quantity_available': p_qty,
@@ -309,12 +333,20 @@ class Command(BaseCommand):
         self.stdout.write("Generating POS transactions for branch analytics...")
         payment_methods = ['Cash', 'GCash', 'Maya', 'Split Payment']
         for branch in branches.values():
+            is_hub = branch.main_hub
             staff = User.objects.filter(branch=branch, role='Staff').first()
             if not staff:
                 continue
+
+            # Satellite branches only transact with their assigned ProductStock (Cakes & Pastries)
+            if is_hub:
+                branch_pool = product_list
+            else:
+                branch_pool = cake_pastry_products
+
             for _ in range(15):
                 past_date = now - timedelta(days=random.randint(0, 30))
-                selected_products = random.sample(product_list, random.randint(1, 4))
+                selected_products = random.sample(branch_pool, min(len(branch_pool), random.randint(1, 4)))
                 total_amount = Decimal('0.00')
 
                 txn = Transaction.objects.create(
@@ -343,62 +375,63 @@ class Command(BaseCommand):
 
                 Transaction.objects.filter(pk=txn.pk).update(transaction_date=past_date)
 
+                method = random.choice(payment_methods)
+                ref_num = f"{random.randint(1000000000000, 9999999999999)}" if method in ['GCash', 'Maya', 'Split Payment'] else None
+
                 PaymentRecord.objects.create(
                     transaction=txn,
                     amount_paid=total_amount,
-                    payment_method=random.choice(payment_methods)
+                    payment_method=method,
+                    reference_number=ref_num
                 )
 
         # -----------------------------------------------------------------
         # 8. Generate Pending Restock Queue & AI Prescriptions
         # -----------------------------------------------------------------
+        # Ibaan Hub: Raw ingredient replenishment prescription
+        butter_ing = ingredients.get("Unsalted Butter")
+        if butter_ing:
+            PrescriptiveOutput.objects.get_or_create(
+                branch=main_hub,
+                ingredient=butter_ing,
+                output_type='Restock Prescription',
+                recommendation="Procure 50.0 kg of Unsalted Butter (12.0 days operational buffer)",
+                defaults={
+                    "justification": "(Auto-bounded to satisfy constraints) Based on historical daily burn rate, a 50kg order is optimal replenishment before the weekend rush.",
+                    "recommended_quantity": Decimal('50.00'),
+                    "estimated_cost": Decimal('18000.00'),
+                    "status": "Pending Review"
+                }
+            )
+
+        # Satellite Branch (Padre Garcia): Finished product restock & dispatch transfer prescription
+        padre_garcia = branches["Padre Garcia"]
         padre_garcia_mgr = User.objects.filter(email="manager_2@sweetbox.ph").first()
-        if padre_garcia_mgr:
+        sample_cake = next((p for p in cake_pastry_products if 'cake' in (p.category.category_name or '').lower()), cake_pastry_products[0] if cake_pastry_products else None)
+
+        if padre_garcia_mgr and sample_cake:
             RestockRequest.objects.get_or_create(
-                ingredient=ingredients["Fresh Eggs"],
-                destination_branch=branches["Padre Garcia"],
+                product=sample_cake,
+                destination_branch=padre_garcia,
                 status='Pending',
                 defaults={
                     'user': padre_garcia_mgr,
                     'source_branch': main_hub,
-                    'requested_quantity': Decimal('20.00')
+                    'requested_quantity': Decimal('10.00')
                 }
             )
-            RestockRequest.objects.get_or_create(
-                ingredient=ingredients["Espresso Coffee Beans"],
-                destination_branch=branches["Padre Garcia"],
-                status='Pending',
+
+            PrescriptiveOutput.objects.get_or_create(
+                branch=padre_garcia,
+                product=sample_cake,
+                output_type='Dispatch Transfer Prescription',
+                recommendation=f"Transfer 15 units of {sample_cake.product_name} from Ibaan (Main Hub)",
                 defaults={
-                    'user': padre_garcia_mgr,
-                    'source_branch': main_hub,
-                    'requested_quantity': Decimal('15.00')
+                    "justification": "Satellite display stock is low. Transferring finished units from central commissary prevents weekend stockouts without raw material inventory.",
+                    "recommended_quantity": Decimal('15.00'),
+                    "estimated_cost": round(Decimal('15.00') * sample_cake.price, 2),
+                    "status": "Pending Review"
                 }
             )
 
-        PrescriptiveOutput.objects.get_or_create(
-            branch=main_hub,
-            ingredient=ingredients["Unsalted Butter"],
-            output_type='Restock Prescription',
-            recommendation="Order 50.0 kg of Unsalted Butter",
-            defaults={
-                "justification": "(Auto-bounded to satisfy constraints) Given current trends, a 50kg order is the maximum feasible replenishment to avoid stockouts before the weekend.",
-                "recommended_quantity": Decimal('50.00'),
-                "estimated_cost": Decimal('18000.00'),
-                "status": "Pending Review"
-            }
-        )
-
-        PrescriptiveOutput.objects.get_or_create(
-            branch=branches["Padre Garcia"],
-            ingredient=ingredients["Cream Cheese"],
-            output_type='Restock Prescription',
-            recommendation="Order 100.0 kg of Cream Cheese",
-            defaults={
-                "justification": "WARNING: AI quantity fails Supplier Minimum. Suggest manual override to combine orders with adjacent branches.",
-                "recommended_quantity": Decimal('100.00'),
-                "estimated_cost": Decimal('45000.00'),
-                "status": "Flagged - Needs Override"
-            }
-        )
-
-        self.stdout.write(self.style.SUCCESS("Database seeded successfully with official Sweet Box commercial menu!"))
+        self.stdout.write(self.style.SUCCESS("Database seeded successfully with official Sweet Box commercial menu & Hub-and-Spoke architecture!"))

@@ -1,22 +1,6 @@
-from decimal import Decimal
 from django.test import TestCase
-from rest_framework.test import APIClient
-from accounts.models import User, Branch, AuditLog
-from pos.models import Product, ProductCategory
-from inventory.models import (
-    Ingredient, IngredientStock, ProductStock, BillOfMaterial, 
-    RestockRequest, ProductTransfer, StockAdjustment
-)
 
-class InventoryTests(TestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.hub = Branch.objects.create(name="Ibaan (Main Hub)", address="Hub St", main_hub=True)
-        self.branch = Branch.objects.create(name="Branch 1", address="Branch St", main_hub=False)
-        self.owner = User.objects.create(name="Owner", email="owner_inv@sweetbox.ph", role="Business Owner", is_active=True)
-        self.manager = User.objects.create(name="Manager", email="manager_inv@sweetbox.ph", role="Branch Manager", branch=self.branch, is_active=True)
-        self.hub_manager = User.objects.create(name="Hub Manager", email="hubmanager_inv@sweetbox.ph", role="Branch Manager", branch=self.hub, is_active=True)
-        self.staff = User.objects.create(name="Staff", email="staff_inv@sweetbox.ph", role="Staff", branch=self.branch, is_active=True)
+# Create your tests here.
 
         self.category = ProductCategory.objects.create(category_name="Cakes")
         self.product = Product.objects.create(category=self.category, product_name="Chocolate Cake", price=500.00, is_active=True)
@@ -161,11 +145,10 @@ class InventoryTests(TestCase):
         matcha = Ingredient.objects.get(ingredient_name='Matcha Powder')
         self.assertEqual(matcha.cost_per_unit, Decimal('350.00'))
 
-        # Check stock initialized at hub with 20, and branch with 0
+        # Check stock initialized exclusively at hub, satellite has 0 rows
         hub_stock = IngredientStock.objects.get(branch=self.hub, ingredient=matcha)
         self.assertEqual(hub_stock.quantity_available, Decimal('20.00'))
-        branch_stock = IngredientStock.objects.get(branch=self.branch, ingredient=matcha)
-        self.assertEqual(branch_stock.quantity_available, Decimal('0.00'))
+        self.assertFalse(IngredientStock.objects.filter(branch=self.branch, ingredient=matcha).exists())
 
     def test_bom_create_view_initializes_product_stocks(self):
         """Test creating a new product with BOM automatically creates ProductStock for branches."""
@@ -274,9 +257,24 @@ class InventoryTests(TestCase):
         self.assertEqual(ps.quantity_available, Decimal('12.00'))
 
     def test_manual_stock_adjustment_dynamic_target_creation(self):
-        """Test adjust endpoint dynamically creates stock record if lookup is by branch_id and target_id."""
+        """Test adjust endpoint dynamically creates/updates stock record at Main Hub if lookup is by branch_id and target_id."""
         self.client.force_authenticate(user=self.owner)
         payload = {
+            'item_type': 'ingredient',
+            'branch_id': self.hub.branch_ID,
+            'target_id': self.sugar.ingredient_ID,
+            'adjustment_type': 'Stock-in',
+            'quantity_change': 50,
+            'reason': 'Direct hub delivery'
+        }
+        res = self.client.post('/api/inventory/adjust/', payload, format='json')
+        self.assertEqual(res.status_code, 200)
+
+        self.sugar_stock.refresh_from_db()
+        self.assertEqual(self.sugar_stock.quantity_available, Decimal('100.00'))
+
+        # Adjusting raw ingredient for satellite branch MUST return 403 Forbidden
+        satellite_payload = {
             'item_type': 'ingredient',
             'branch_id': self.branch.branch_ID,
             'target_id': self.sugar.ingredient_ID,
@@ -284,25 +282,20 @@ class InventoryTests(TestCase):
             'quantity_change': 50,
             'reason': 'Direct branch delivery'
         }
-        res = self.client.post('/api/inventory/adjust/', payload, format='json')
-        self.assertEqual(res.status_code, 200)
-
-        stock = IngredientStock.objects.get(branch=self.branch, ingredient=self.sugar)
-        self.assertEqual(stock.quantity_available, Decimal('50.00'))
+        sat_res = self.client.post('/api/inventory/adjust/', satellite_payload, format='json')
+        self.assertEqual(sat_res.status_code, 403)
+        self.assertIn("centralized at Ibaan (Main Hub)", sat_res.data['error'])
 
     def test_branch_stock_visibility_hub_vs_satellite(self):
-        """Test that main hub sees all ingredients, while satellite branches only see non-cake/pastry ingredients."""
+        """Test that main hub sees all ingredients, while satellite branches have empty raw ingredients and track ProductStock."""
         coffee_cat = ProductCategory.objects.create(category_name="Coffee")
         coffee_beans = Ingredient.objects.create(
             ingredient_name="Coffee Beans", category=coffee_cat, measurement_unit="kg", cost_per_unit=Decimal('300.00')
         )
-        # Create stocks at hub and branch
         IngredientStock.objects.create(branch=self.hub, ingredient=coffee_beans, quantity_available=Decimal('20.00'))
-        IngredientStock.objects.create(branch=self.branch, ingredient=coffee_beans, quantity_available=Decimal('10.00'))
-        IngredientStock.objects.create(branch=self.branch, ingredient=self.flour, quantity_available=Decimal('15.00'))
-        IngredientStock.objects.create(branch=self.branch, ingredient=self.sugar, quantity_available=Decimal('12.00'))
+        ProductStock.objects.create(branch=self.branch, product=self.product, quantity_available=Decimal('10.00'))
 
-        # Hub Staff / Owner: can see all ingredients (Flour, Sugar, Coffee Beans)
+        # Hub Staff / Owner: can see all raw ingredients at hub
         hub_staff = User.objects.create(name="Hub Staff", email="hubstaff@sweetbox.ph", role="Staff", branch=self.hub, is_active=True)
         self.client.force_authenticate(user=hub_staff)
         res_hub = self.client.get('/api/inventory/stock/')
@@ -312,14 +305,14 @@ class InventoryTests(TestCase):
         self.assertIn("Sugar", hub_items)
         self.assertIn("Coffee Beans", hub_items)
 
-        # Satellite Branch Staff: MUST ONLY see non-cake/pastry ingredients (Coffee Beans)
+        # Satellite Branch Staff: MUST see 0 raw materials, is_satellite_branch=True, and track finished products in Product Watch
         self.client.force_authenticate(user=self.staff)
         res_branch = self.client.get('/api/inventory/stock/')
         self.assertEqual(res_branch.status_code, 200)
-        branch_items = [i['ingredient_name'] for i in res_branch.data['inventory']]
-        self.assertIn("Coffee Beans", branch_items)
-        self.assertNotIn("Flour", branch_items)
-        self.assertNotIn("Sugar", branch_items)
+        self.assertTrue(res_branch.data['is_satellite_branch'])
+        self.assertEqual(len(res_branch.data['inventory']), 0)
+        pw_items = [p['product_name'] for p in res_branch.data['product_watch']]
+        self.assertIn("Chocolate Cake", pw_items)
 
     def test_product_transfer_success_by_owner_and_hub(self):
         """Test inter-branch product transfer correctly deducts from hub and adds to destination branch."""

@@ -121,7 +121,10 @@
             <option value="6">San Antonio Quezon</option>
             <option value="7">Cuenca</option>
         </select>
-        <button class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
+        <button id="btn-branch-assignment" class="btn btn-outline-dark fw-bold px-3 d-none align-items-center gap-2 shadow-sm" onclick="openBranchAssignmentModal()">
+            <i class="fas fa-store text-gold"></i> Branch Catalog Assignment
+        </button>
+        <button id="btn-add-ingredient-header" class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
             <i class="fas fa-plus"></i> Add Ingredient
         </button>
         <button class="btn btn-sb-espresso fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" onclick="loadSCMData()">
@@ -141,6 +144,20 @@
 <div class="tab-content" id="scmTabContent">
     <!-- TAB 1: Stock Tracker -->
     <div class="tab-pane fade show active" id="tracker">
+        <!-- Satellite Branch Hub-and-Spoke Notice -->
+        <div id="satellite-hub-notice" class="alert alert-info border-0 shadow-sm d-none align-items-center gap-3 p-3 mb-4" style="background-color: #EFF6FF; border-left: 4px solid #3B82F6 !important; border-radius: 8px;">
+            <div class="d-flex align-items-center justify-content-center bg-white rounded-circle shadow-sm" style="width: 40px; height: 40px; min-width: 40px; color: #2563EB;">
+                <i class="fas fa-info-circle fa-lg"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="fw-bold mb-1" style="color: #1E40AF;">Central Commissary Hub Architecture Active</h6>
+                <p class="mb-0 small" style="color: #1E3A8A;">Raw ingredients and BOM production are centrally managed at Ibaan (Main Hub). Satellite branches track finished Cakes & Pastries in Product Watch.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary fw-bold px-3 d-inline-flex align-items-center gap-1 shadow-sm" onclick="switchToProductWatchTab()">
+                <i class="fas fa-eye"></i> Go to Product Watch
+            </button>
+        </div>
+
         <!-- KPIs -->
         <div class="row g-3 mb-4" id="kpi-container">
             <div class="col-6 col-md-3">
@@ -1012,6 +1029,98 @@
         </div>
     </div>
 </div>
+
+<!-- Branch Catalog & Product Assignment Modal -->
+<div class="modal fade" id="branchAssignmentModal" tabindex="-1" aria-labelledby="baModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white">
+                <div>
+                    <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="baModalTitle">
+                        <i class="fas fa-store-slash text-gold"></i> Branch Catalog & Product Assignment
+                    </h5>
+                    <small class="text-muted">Configure which finished products and categories are stocked and sold at each satellite branch.</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" style="background-color: var(--sb-bg-app);">
+                <!-- Control Panel -->
+                <div class="card sb-card border-0 shadow-sm p-3 mb-3">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small fw-bold text-title mb-1"><i class="fas fa-store text-gold me-1"></i>Target Satellite Branch:</label>
+                            <select id="ba-satellite-select" class="form-select fw-bold" onchange="onBranchAssignmentBranchChange()"></select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small fw-bold text-title mb-1"><i class="fas fa-search text-gold me-1"></i>Search Products:</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                                <input type="text" id="ba-search-input" class="form-control border-start-0 ps-0" placeholder="Search by name or category..." oninput="filterBranchAssignmentTable()">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small fw-bold text-title mb-1"><i class="fas fa-tags text-gold me-1"></i>Filter by Category:</label>
+                            <select id="ba-cat-filter" class="form-select" onchange="filterBranchAssignmentTable()">
+                                <option value="all">All Categories</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Quick Bulk Actions & Defaults -->
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-3 mt-3 border-top">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="small text-muted fw-bold">Category Actions:</span>
+                            <button type="button" class="btn btn-sm btn-outline-success fw-bold d-inline-flex align-items-center gap-1" onclick="bulkAssignCategory(true)" title="Assign all products in the selected category filter to this branch">
+                                <i class="fas fa-check-double"></i> Assign Filtered Category
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger fw-bold d-inline-flex align-items-center gap-1" onclick="bulkAssignCategory(false)" title="Unassign all products in the selected category filter from this branch">
+                                <i class="fas fa-ban"></i> Unassign Filtered Category
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-sb-outline-gold fw-bold d-inline-flex align-items-center gap-1 shadow-sm" id="btn-reset-hub-spoke-default" onclick="applyHubSpokeDefault()" title="Reset all satellite branches to standard Hub-and-Spoke defaults (Cakes & Pastries only)">
+                                <i class="fas fa-undo-alt"></i> Reset to Hub-and-Spoke Default (Cakes & Pastries)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assignment Stats Badge -->
+                <div class="d-flex justify-content-between align-items-center mb-2 px-1 flex-wrap gap-2">
+                    <span id="ba-assigned-badge" class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.85rem; padding: 6px 14px;">
+                        Assigned: 0 / 0 Products
+                    </span>
+                    <small class="text-muted"><i class="fas fa-info-circle text-primary me-1"></i>Assigned products appear immediately on the branch POS catalog.</small>
+                </div>
+
+                <!-- Products Table -->
+                <div class="card sb-card border-0 shadow-sm overflow-hidden">
+                    <div class="card-body p-0 table-responsive" style="max-height: 480px;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th>Product Name</th>
+                                    <th>Category</th>
+                                    <th>Selling Price</th>
+                                    <th>Branch Display Stock</th>
+                                    <th class="text-center">POS Catalog Status</th>
+                                    <th class="text-end pe-4">Assignment Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ba-table-tbody">
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">Loading assignment catalog...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top">
+                <button type="button" class="btn btn-sb-espresso fw-bold px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1067,6 +1176,30 @@
                 } else {
                     btnProduce.classList.add('d-none');
                     btnProduce.classList.remove('d-inline-flex');
+                }
+            }
+
+            // Branch Assignment Button Visibility (Main Hub & Owner only)
+            const btnBranchAssign = document.getElementById('btn-branch-assignment');
+            if (btnBranchAssign) {
+                if (window.isOwnerOrHub) {
+                    btnBranchAssign.classList.remove('d-none');
+                    btnBranchAssign.classList.add('d-inline-flex');
+                } else {
+                    btnBranchAssign.classList.add('d-none');
+                    btnBranchAssign.classList.remove('d-inline-flex');
+                }
+            }
+
+            // Add Ingredient Button Visibility (Main Hub & Owner only)
+            const btnAddIng = document.getElementById('btn-add-ingredient-header');
+            if (btnAddIng) {
+                if (window.isOwnerOrHub) {
+                    btnAddIng.classList.remove('d-none');
+                    btnAddIng.classList.add('d-inline-flex');
+                } else {
+                    btnAddIng.classList.add('d-none');
+                    btnAddIng.classList.remove('d-inline-flex');
                 }
             }
 
@@ -1560,9 +1693,57 @@
             renderRestockQueue(data.restock_queue, data.pending_restocks);
             
             if (data.prescriptive_actions) renderPrescriptiveActions(data.prescriptive_actions);
+
+            // Hub-and-Spoke Transparency Handling
+            const noticeEl = document.getElementById('satellite-hub-notice');
+            const btnAddIngHeader = document.getElementById('btn-add-ingredient-header');
+            const btnProduce = document.getElementById('btn-produce-product');
+
+            if (data.is_satellite_branch) {
+                if (noticeEl) {
+                    noticeEl.classList.remove('d-none');
+                    noticeEl.classList.add('d-flex');
+                }
+                if (btnAddIngHeader) {
+                    btnAddIngHeader.classList.add('d-none');
+                    btnAddIngHeader.classList.remove('d-inline-flex');
+                }
+                if (btnProduce) {
+                    btnProduce.classList.add('d-none');
+                    btnProduce.classList.remove('d-inline-flex');
+                }
+
+                if (!window.hasAutoSwitchedTab || window.lastLoadedBranchId !== branchId) {
+                    window.hasAutoSwitchedTab = true;
+                    window.lastLoadedBranchId = branchId;
+                    switchToProductWatchTab();
+                }
+            } else {
+                if (noticeEl) {
+                    noticeEl.classList.add('d-none');
+                    noticeEl.classList.remove('d-flex');
+                }
+                if (btnAddIngHeader && window.isOwnerOrHub) {
+                    btnAddIngHeader.classList.remove('d-none');
+                    btnAddIngHeader.classList.add('d-inline-flex');
+                }
+                if (btnProduce && window.isOwnerOrHub) {
+                    btnProduce.classList.remove('d-none');
+                    btnProduce.classList.add('d-inline-flex');
+                }
+                window.lastLoadedBranchId = branchId;
+            }
             
         } catch (error) { console.error("Failed to load SCM data", error); }
     }
+
+    window.switchToProductWatchTab = function() {
+        const pwTabBtn = document.querySelector('button[data-bs-target="#product-watch"]');
+        if (pwTabBtn) {
+            const tab = bootstrap.Tab.getOrCreateInstance(pwTabBtn);
+            tab.show();
+        }
+    };
 
     function renderPrescriptiveActions(actions) {
         const container = document.getElementById('prescriptive-actions-container');
@@ -2422,6 +2603,13 @@
     });
 
     window.openAdjustModal = function(type, id, name, currentQty) {
+        if (type === 'ingredient') {
+            const isBranchHub = (window.currentUserBranchId === 1 || (window.currentUserBranchName && window.currentUserBranchName.toLowerCase().includes('ibaan')) || window.isOwnerOrHub);
+            if (!isBranchHub) {
+                alert("Raw material inventory and adjustments are centralized at Ibaan (Main Hub). Satellite branches track finished Cakes & Pastries in Product Watch.");
+                return;
+            }
+        }
         document.getElementById('adj-item-type').value = type;
         document.getElementById('adj-item-id').value = id;
         document.getElementById('adjustForm').reset();
@@ -2922,6 +3110,339 @@
             }
         } catch (e) {
             alert("Network Error: Could not dispatch transfer.");
+        } finally {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+        }
+    };
+
+    // ==========================================
+    // BRANCH CATALOG PRODUCT ASSIGNMENT MODAL
+    // ==========================================
+    window.branchAssignmentData = null;
+
+    window.openBranchAssignmentModal = async function() {
+        const modalEl = document.getElementById('branchAssignmentModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+        await loadBranchAssignmentData();
+    };
+
+    window.loadBranchAssignmentData = async function() {
+        const token = localStorage.getItem('access_token');
+        const tbody = document.getElementById('ba-table-tbody');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Loading branch product assignment catalog...</td></tr>';
+        
+        try {
+            const res = await fetch('/api/inventory/branch-assignment/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">${err.error || 'Failed to load assignment data.'}</td></tr>`;
+                return;
+            }
+            window.branchAssignmentData = await res.json();
+            
+            // Populate Satellites dropdown
+            const satSelect = document.getElementById('ba-satellite-select');
+            const currentSelectedSat = satSelect.value;
+            satSelect.innerHTML = (window.branchAssignmentData.satellites || []).map(b => 
+                `<option value="${b.id}">${b.name}</option>`
+            ).join('');
+            if (currentSelectedSat && Array.from(satSelect.options).some(o => o.value == currentSelectedSat)) {
+                satSelect.value = currentSelectedSat;
+            }
+
+            // Populate Category filter dropdown
+            const catSelect = document.getElementById('ba-cat-filter');
+            catSelect.innerHTML = '<option value="all">All Categories</option>' +
+                (window.branchAssignmentData.categories || []).map(c => 
+                    `<option value="${c.id}">${c.name} (${c.product_count})</option>`
+                ).join('');
+
+            renderBranchAssignmentTable();
+        } catch (e) {
+            console.error("Failed to load branch assignment data", e);
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-danger">Network Error loading branch assignments.</td></tr>';
+        }
+    };
+
+    window.onBranchAssignmentBranchChange = function() {
+        renderBranchAssignmentTable();
+    };
+
+    window.filterBranchAssignmentTable = function() {
+        renderBranchAssignmentTable();
+    };
+
+    window.renderBranchAssignmentTable = function() {
+        if (!window.branchAssignmentData) return;
+        
+        const satSelect = document.getElementById('ba-satellite-select');
+        const targetBranchId = parseInt(satSelect.value);
+        if (!targetBranchId) return;
+
+        const targetBranch = (window.branchAssignmentData.satellites || []).find(b => b.id === targetBranchId);
+        const branchName = targetBranch ? targetBranch.name : 'Selected Branch';
+
+        const searchVal = (document.getElementById('ba-search-input').value || '').toLowerCase().trim();
+        const catFilterVal = document.getElementById('ba-cat-filter').value;
+
+        // Map existing assignments for target branch: product_id -> assignment object
+        const branchAssignments = new Map();
+        (window.branchAssignmentData.assignments || []).forEach(a => {
+            if (a.branch_id === targetBranchId) {
+                branchAssignments.set(a.product_id, a);
+            }
+        });
+
+        const allProducts = window.branchAssignmentData.products || [];
+
+        const filtered = allProducts.filter(p => {
+            if (searchVal) {
+                const nameMatch = (p.name || '').toLowerCase().includes(searchVal);
+                const catMatch = (p.category_name || '').toLowerCase().includes(searchVal);
+                if (!nameMatch && !catMatch) return false;
+            }
+
+            if (catFilterVal !== 'all') {
+                if (parseInt(p.category_id) !== parseInt(catFilterVal)) return false;
+            }
+
+            return true;
+        });
+
+        // Update assigned count badge
+        const badge = document.getElementById('ba-assigned-badge');
+        if (badge) {
+            badge.innerText = `Assigned: ${branchAssignments.size} / ${allProducts.length} Products at ${branchName}`;
+        }
+
+        const tbody = document.getElementById('ba-table-tbody');
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No products found matching filters.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(p => {
+            const assignment = branchAssignments.get(p.id);
+            const isAssigned = !!assignment;
+            const stockQty = assignment ? assignment.quantity_available : 0;
+            const stockBadge = isAssigned
+                ? `<span class="badge bg-light text-dark border tabular-nums">${stockQty.toFixed(0)} units</span>`
+                : `<span class="text-muted small">—</span>`;
+
+            const statusBadge = isAssigned
+                ? `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active on POS</span>`
+                : `<span class="badge bg-secondary-subtle text-muted border px-2 py-1"><i class="fas fa-eye-slash me-1"></i>Hidden from POS</span>`;
+
+            const actionBtn = isAssigned
+                ? `<button type="button" class="btn btn-sm btn-outline-danger fw-bold px-3 d-inline-flex align-items-center gap-1" onclick="toggleProductAssignment(${p.id}, false)">
+                     <i class="fas fa-times"></i> Unassign
+                   </button>`
+                : `<button type="button" class="btn btn-sm btn-sb-gold fw-bold px-3 d-inline-flex align-items-center gap-1 shadow-sm" onclick="toggleProductAssignment(${p.id}, true)">
+                     <i class="fas fa-plus"></i> Assign to Branch
+                   </button>`;
+
+            return `
+                <tr>
+                    <td class="fw-bold text-title">${p.name}</td>
+                    <td><span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212,154,61,0.3);">${p.category_name}</span></td>
+                    <td class="tabular-nums">₱${p.price.toFixed(2)}</td>
+                    <td>${stockBadge}</td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="text-end pe-4">${actionBtn}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    window.toggleProductAssignment = async function(productId, targetState, force = false) {
+        const token = localStorage.getItem('access_token');
+        const targetBranchId = parseInt(document.getElementById('ba-satellite-select').value);
+        if (!targetBranchId) return;
+
+        try {
+            const res = await fetch('/api/inventory/branch-assignment/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'toggle_product',
+                    branch_id: targetBranchId,
+                    product_id: productId,
+                    assigned: targetState,
+                    force: force
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                // Update local assignment cache
+                if (window.branchAssignmentData) {
+                    if (targetState) {
+                        const existing = window.branchAssignmentData.assignments.find(a => a.branch_id === targetBranchId && a.product_id === productId);
+                        if (!existing) {
+                            window.branchAssignmentData.assignments.push({
+                                branch_id: targetBranchId,
+                                product_id: productId,
+                                quantity_available: 0.0,
+                                reorder_threshold: 5.0
+                            });
+                        }
+                    } else {
+                        window.branchAssignmentData.assignments = window.branchAssignmentData.assignments.filter(
+                            a => !(a.branch_id === targetBranchId && a.product_id === productId)
+                        );
+                    }
+                    renderBranchAssignmentTable();
+                }
+                loadSCMData();
+            } else {
+                if (data.requires_force) {
+                    const confirmForce = confirm(`${data.error}\n\nDo you want to FORCE unassign this product and remove remaining stock?`);
+                    if (confirmForce) {
+                        await toggleProductAssignment(productId, targetState, true);
+                    }
+                } else {
+                    alert(`Assignment Error: ${data.error || 'Server rejected request'}`);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to toggle product assignment", e);
+            alert("Network Error updating product assignment.");
+        }
+    };
+
+    window.bulkAssignCategory = async function(targetState) {
+        const token = localStorage.getItem('access_token');
+        const targetBranchId = parseInt(document.getElementById('ba-satellite-select').value);
+        const catFilterVal = document.getElementById('ba-cat-filter').value;
+
+        if (catFilterVal === 'all') {
+            alert("Please select a specific category from the 'Filter by Category' dropdown before running bulk category assignment.");
+            return;
+        }
+
+        const catSelect = document.getElementById('ba-cat-filter');
+        const catName = catSelect.options[catSelect.selectedIndex].text;
+        const actionLabel = targetState ? "ASSIGN all products in" : "UNASSIGN all products in";
+        
+        if (!confirm(`Are you sure you want to ${actionLabel} category "${catName}" for this branch?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/inventory/branch-assignment/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'assign_category',
+                    branch_id: targetBranchId,
+                    category_id: parseInt(catFilterVal),
+                    assigned: targetState,
+                    force: true
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message);
+                await loadBranchAssignmentData();
+                loadSCMData();
+            } else {
+                alert(`Category Assignment Error: ${data.error || 'Server error'}`);
+            }
+        } catch (e) {
+            alert("Network Error updating category assignment.");
+        }
+    };
+
+    window.toggleCategoryAssignment = async function(categoryId, targetState) {
+        const token = localStorage.getItem('access_token');
+        const targetBranchId = parseInt(document.getElementById('ba-satellite-select').value);
+        if (!targetBranchId) return;
+
+        try {
+            const res = await fetch('/api/inventory/branch-assignment/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'assign_category',
+                    branch_id: targetBranchId,
+                    category_id: categoryId,
+                    assigned: targetState,
+                    force: true
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                await loadBranchAssignmentData();
+                loadSCMData();
+            } else {
+                alert(`Category Assignment Error: ${data.error || 'Server error'}`);
+            }
+        } catch (e) {
+            alert("Network Error updating category assignment.");
+        }
+    };
+
+    window.bulkAssignAllCategories = async function(targetState) {
+        const catFilterVal = document.getElementById('ba-cat-filter').value;
+        if (catFilterVal === 'all') {
+            if (!confirm(`Are you sure you want to ${targetState ? 'ASSIGN' : 'UNASSIGN'} ALL categories across this branch?`)) {
+                return;
+            }
+            const categories = window.branchAssignmentData ? window.branchAssignmentData.categories || [] : [];
+            for (const cat of categories) {
+                await window.toggleCategoryAssignment(cat.id, targetState);
+            }
+        } else {
+            await window.bulkAssignCategory(targetState);
+        }
+    };
+
+    window.applyHubSpokeDefault = async function() {
+        if (!confirm("Are you sure you want to reset all satellite branches to the Hub-and-Spoke default architecture?\n\nThis will configure all 6 satellite branches to carry ONLY Cake & Pastry products and verify zero raw materials outside Ibaan Main Hub.")) {
+            return;
+        }
+
+        const btn = document.getElementById('btn-reset-hub-spoke-default');
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Applying Default...';
+        btn.disabled = true;
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const res = await fetch('/api/inventory/branch-assignment/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ action: 'apply_hub_spoke_default' })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message);
+                await loadBranchAssignmentData();
+                loadSCMData();
+            } else {
+                alert(`Reset Error: ${data.error || 'Server error'}`);
+            }
+        } catch (e) {
+            alert("Network Error applying Hub-and-Spoke defaults.");
         } finally {
             btn.innerHTML = origHtml;
             btn.disabled = false;

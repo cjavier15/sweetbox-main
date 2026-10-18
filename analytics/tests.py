@@ -10,7 +10,7 @@ from analytics.services import _clean_json_text, _generate_rule_based_prescripti
 class AnalyticsTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.branch = Branch.objects.create(name="Analytics Branch", address="Analytic Ave")
+        self.branch = Branch.objects.create(name="Ibaan (Main Hub)", address="Analytic Ave", main_hub=True)
         self.owner = User.objects.create(name="Owner", email="owner_ana@sweetbox.ph", role="Business Owner", is_active=True)
         self.manager = User.objects.create(name="Manager", email="mgr_ana@sweetbox.ph", role="Branch Manager", branch=self.branch, is_active=True)
         self.staff = User.objects.create(name="Staff", email="staff_ana@sweetbox.ph", role="Staff", branch=self.branch, is_active=True)
@@ -190,6 +190,23 @@ class AnalyticsTests(TestCase):
         self.assertEqual(res.data['status'], 'generated')
         self.assertIn('outputs', res.data)
         self.assertTrue(len(res.data['outputs']) > 0)
+
+    def test_restock_directive_satellite_dispatch_transfers(self):
+        satellite = Branch.objects.create(name="Padre Garcia", address="Padre Garcia Ave", main_hub=False)
+        cake_cat = ProductCategory.objects.create(category_name="Decorated Cakes")
+        cake = Product.objects.create(category=cake_cat, product_name="Celebration Cake", price=650.00, is_active=True)
+        ProductStock.objects.create(branch=satellite, product=cake, quantity_available=Decimal('2.00'), reorder_threshold=Decimal('5.00'))
+        
+        self.client.force_authenticate(user=self.owner)
+        payload = {'branch_id': satellite.branch_ID}
+        res = self.client.post('/api/analytics/restock-directive/', payload, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data['status'], 'generated')
+        self.assertTrue(len(res.data['outputs']) > 0)
+        po = PrescriptiveOutput.objects.get(prescriptive_output_ID=res.data['outputs'][0])
+        self.assertEqual(po.output_type, 'Dispatch Transfer Prescription')
+        self.assertIn("Celebration Cake", po.recommendation)
+        self.assertIn("Ibaan (Main Hub)", po.recommendation)
 
     def test_restock_directive_all_branches_owner(self):
         self.client.force_authenticate(user=self.owner)

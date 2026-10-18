@@ -242,18 +242,16 @@ class EnterpriseDashboardDataView(APIView):
             txn_trend = 100.0 if curr_txns > 0 else 0.0
 
         # Stock Levels & Production Costs (COGS)
+        is_satellite = False
         if target_branch:
+            is_satellite = not bool(target_branch.main_hub or target_branch.branch_ID == 1 or 'ibaan' in target_branch.name.lower())
             ing_stocks = IngredientStock.objects.filter(branch=target_branch)
-            prod_stocks = ProductStock.objects.filter(branch=target_branch)
+            prod_stocks = ProductStock.objects.filter(branch=target_branch).select_related('product')
             latest_kpi = KPIRecord.objects.filter(branch=target_branch).order_by('-period_date').first()
         else:
             ing_stocks = IngredientStock.objects.all()
-            prod_stocks = ProductStock.objects.all()
+            prod_stocks = ProductStock.objects.all().select_related('product')
             latest_kpi = KPIRecord.objects.order_by('-period_date').first()
-
-        total_ing_cost = ing_stocks.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
-        total_prod_cost = prod_stocks.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
-        total_stock_value = total_ing_cost + total_prod_cost
 
         # Calculate exact COGS / Production Costs for the period via Bill of Materials
         cogs = Decimal('0.00')
@@ -266,6 +264,23 @@ class EnterpriseDashboardDataView(APIView):
         for item in txn_items:
             unit_cost = product_recipe_costs.get(item.product_id, Decimal('0.00'))
             cogs += unit_cost * Decimal(str(item.quantity))
+
+        total_ing_cost = ing_stocks.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+        total_prod_cost = prod_stocks.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+
+        # Calculate product inventory valuation accurately
+        computed_prod_val = Decimal('0.00')
+        for ps in prod_stocks:
+            if ps.total_cost > 0:
+                computed_prod_val += ps.total_cost
+            else:
+                unit_c = product_recipe_costs.get(ps.product_id, ps.product.price * Decimal('0.35'))
+                computed_prod_val += (Decimal(str(ps.quantity_available)) * unit_c)
+
+        if is_satellite:
+            total_stock_value = computed_prod_val if computed_prod_val > 0 else total_prod_cost
+        else:
+            total_stock_value = total_ing_cost + max(total_prod_cost, computed_prod_val)
 
         # Dynamic Inventory Turnover and GMROI
         if total_stock_value > 0 and cogs > 0:
@@ -477,14 +492,28 @@ class RunETLPipelineView(APIView):
                     cogs += (item_cost * item.quantity)
                     
             gross_margin = total_rev - cogs
-            avg_inventory_cost = IngredientStock.objects.filter(branch=branch).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('1.00')
-            if avg_inventory_cost <= 0: avg_inventory_cost = Decimal('1.00')
+            is_satellite_branch = not bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
             
+            if is_satellite_branch:
+                prod_stocks = ProductStock.objects.filter(branch=branch).select_related('product')
+                prod_val = Decimal('0.00')
+                for ps in prod_stocks:
+                    if ps.total_cost > 0:
+                        prod_val += ps.total_cost
+                    else:
+                        prod_val += (Decimal(str(ps.quantity_available)) * (ps.product.price * Decimal('0.35')))
+                avg_inventory_cost = prod_val if prod_val > 0 else Decimal('1.00')
+                stockouts = ProductStock.objects.filter(branch=branch, quantity_available__lte=0).count()
+            else:
+                ing_cost = IngredientStock.objects.filter(branch=branch).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+                prod_cost = ProductStock.objects.filter(branch=branch).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+                avg_inventory_cost = (ing_cost + prod_cost) if (ing_cost + prod_cost) > 0 else Decimal('1.00')
+                stockouts = IngredientStock.objects.filter(branch=branch, quantity_available__lte=0).count() + ProductStock.objects.filter(branch=branch, quantity_available__lte=0).count()
+
             # Apply Panel Formulas
             inv_turnover = cogs / avg_inventory_cost
             gmroi = gross_margin / avg_inventory_cost
-            stockouts = IngredientStock.objects.filter(branch=branch, quantity_available__lte=0).count()
-            
+
             KPIRecord.objects.create(
                 branch=branch, inventory_turnover=round(inv_turnover, 2), gmroi=round(gmroi, 2),
                 gross_margin=round(gross_margin, 2), total_revenue=round(total_rev, 2),
