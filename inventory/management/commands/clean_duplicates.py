@@ -149,17 +149,17 @@ class Command(BaseCommand):
         del_restocks, _ = RestockRequest.objects.filter(ingredient__isnull=False).exclude(destination_branch=hub_branch).delete()
         self.stdout.write(f'  Hub-and-Spoke: Removed non-hub raw materials ({del_stocks} IngredientStock, {del_constraints} ConstraintParameter, {del_restocks} RestockRequest).')
 
-        # 2. Scope satellite branches to Cake and Pastry products only
-        satellite_branches = Branch.objects.exclude(branch_ID=hub_branch.branch_ID)
+        # 2. Scope ProductStock strictly to Cake & Pastry products across ALL branches (including Main Hub)
+        # Non-cake/pastry items (Meals & Drinks) are made-to-order from raw materials via BOM at Main Hub POS.
         non_cp_ids = []
-        for ps in ProductStock.objects.filter(branch__in=satellite_branches).select_related('product__category'):
+        for ps in ProductStock.objects.all().select_related('product__category'):
             cat_name = (ps.product.category.category_name if ps.product.category else '').strip().lower()
             if not any(k in cat_name for k in ['cake', 'pastry', 'pastries']):
                 non_cp_ids.append(ps.pk)
 
         if non_cp_ids:
             ProductStock.objects.filter(pk__in=non_cp_ids).delete()
-            self.stdout.write(f'  Hub-and-Spoke: Removed {len(non_cp_ids)} non-cake/pastry ProductStock records from satellite branches.')
+            self.stdout.write(f'  Hub-and-Spoke: Removed {len(non_cp_ids)} non-cake/pastry ProductStock records across all branches (pre-made ProductStock is strictly for Cakes & Pastries).')
 
     # -----------------------------------------------------------------
     # 6. PrescriptiveOutput — remove exact duplicates from seed re-runs

@@ -291,9 +291,14 @@ class Command(BaseCommand):
 
         cake_pastry_products = [p for p in product_list if is_cake_or_pastry_prod(p)]
 
-        # Step 6.4: Seed ProductStock
-        # - Ibaan (Main Hub): All 433 products across all 19 categories (15-30 units)
-        for prod_obj in product_list:
+        # Step 6.4: Seed ProductStock strictly for Pre-Made Cakes & Pastries
+        # Purge any non-cake/pastry ProductStock across ALL branches (including Main Hub)
+        for ps in ProductStock.objects.select_related('product__category').all():
+            if not is_cake_or_pastry_prod(ps.product):
+                ps.delete()
+
+        # - Ibaan (Main Hub): ONLY Cake & Pastry products (15-30 units)
+        for prod_obj in cake_pastry_products:
             p_qty = Decimal(str(random.choice([15, 20, 25, 30])))
             ProductStock.objects.update_or_create(
                 branch=main_hub,
@@ -305,16 +310,9 @@ class Command(BaseCommand):
                 }
             )
 
-        # - Satellite Branches: ONLY Cake & Pastry products (5-15 units); purge any non-cake/pastry
+        # - Satellite Branches: ONLY Cake & Pastry products (5-15 units)
         satellite_branches = [b for b in branches.values() if b != main_hub]
         for sat_branch in satellite_branches:
-            # Purge any non-cake/pastry ProductStock on satellite branch
-            non_cp_stocks = ProductStock.objects.filter(branch=sat_branch).select_related('product__category')
-            for ps in non_cp_stocks:
-                if not is_cake_or_pastry_prod(ps.product):
-                    ps.delete()
-
-            # Seed Cake & Pastry products
             for prod_obj in cake_pastry_products:
                 p_qty = Decimal(str(random.choice([5, 8, 10, 12, 15])))
                 ProductStock.objects.update_or_create(

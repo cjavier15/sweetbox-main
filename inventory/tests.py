@@ -1,6 +1,22 @@
+from decimal import Decimal
 from django.test import TestCase
+from rest_framework.test import APIClient
+from accounts.models import User, Branch, AuditLog
+from pos.models import Product, ProductCategory
+from inventory.models import (
+    Ingredient, IngredientStock, ProductStock, BillOfMaterial, 
+    RestockRequest, ProductTransfer, StockAdjustment
+)
 
-# Create your tests here.
+class InventoryTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.hub = Branch.objects.create(name="Ibaan (Main Hub)", address="Hub St", main_hub=True)
+        self.branch = Branch.objects.create(name="Branch 1", address="Branch St", main_hub=False)
+        self.owner = User.objects.create(name="Owner", email="owner_inv@sweetbox.ph", role="Business Owner", is_active=True)
+        self.manager = User.objects.create(name="Manager", email="manager_inv@sweetbox.ph", role="Branch Manager", branch=self.branch, is_active=True)
+        self.hub_manager = User.objects.create(name="Hub Manager", email="hubmanager_inv@sweetbox.ph", role="Branch Manager", branch=self.hub, is_active=True)
+        self.staff = User.objects.create(name="Staff", email="staff_inv@sweetbox.ph", role="Staff", branch=self.branch, is_active=True)
 
         self.category = ProductCategory.objects.create(category_name="Cakes")
         self.product = Product.objects.create(category=self.category, product_name="Chocolate Cake", price=500.00, is_active=True)
@@ -115,18 +131,39 @@ from django.test import TestCase
         # Staff should be rejected
         self.client.force_authenticate(user=self.staff)
         payload = {
-            'ingredient_name': 'Flour',
+            'product_name': 'Chocolate Cake',
             'quantity': 10,
             'branch_id': self.branch.branch_ID
         }
         response = self.client.post('/api/inventory/restock/submit/', payload, format='json')
         self.assertEqual(response.status_code, 403)
 
-        # Branch Manager should be accepted
+        # Satellite Branch Manager should be accepted for finished products
         self.client.force_authenticate(user=self.manager)
         response = self.client.post('/api/inventory/restock/submit/', payload, format='json')
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(RestockRequest.objects.filter(ingredient=self.flour, destination_branch=self.branch).exists())
+        self.assertTrue(RestockRequest.objects.filter(product=self.product, destination_branch=self.branch).exists())
+
+        # Satellite Branch Manager requesting raw ingredient must be rejected with 400 Bad Request
+        ing_payload = {
+            'ingredient_name': 'Flour',
+            'quantity': 10,
+            'branch_id': self.branch.branch_ID
+        }
+        ing_response = self.client.post('/api/inventory/restock/submit/', ing_payload, format='json')
+        self.assertEqual(ing_response.status_code, 400)
+        self.assertIn("Satellite branches can only request finished Cake & Pastry products", ing_response.data['error'])
+
+        # Hub Manager requesting raw ingredient for Hub should be accepted
+        hub_payload = {
+            'ingredient_name': 'Flour',
+            'quantity': 10,
+            'branch_id': self.hub.branch_ID
+        }
+        self.client.force_authenticate(user=self.hub_manager)
+        hub_response = self.client.post('/api/inventory/restock/submit/', hub_payload, format='json')
+        self.assertEqual(hub_response.status_code, 200)
+        self.assertTrue(RestockRequest.objects.filter(ingredient=self.flour, destination_branch=self.hub).exists())
 
     def test_ingredient_create_view_initializes_branches(self):
         """Test adding a new ingredient dynamically initializes IngredientStock across all branches."""

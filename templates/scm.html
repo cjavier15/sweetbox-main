@@ -135,10 +135,10 @@
 
 <!-- Tabs Navigation -->
 <ul class="nav scm-tabs gap-2 mb-4" id="scmTabs" role="tablist">
-    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tracker"><i class="fas fa-layer-group me-2 text-gold"></i>Stock Tracker</button></li>
-    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#product-watch"><i class="fas fa-eye me-2 text-gold"></i>Product Watch</button></li>
-    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#bom"><i class="fas fa-receipt me-2 text-gold"></i>Bill-of-Materials</button></li>
-    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#prescriptive"><i class="fas fa-brain me-2 text-gold"></i>Prescriptive Actions</button></li>
+    <li class="nav-item" id="tab-li-tracker" role="presentation"><button class="nav-link active" id="tab-btn-tracker" data-bs-toggle="tab" data-bs-target="#tracker"><i class="fas fa-layer-group me-2 text-gold"></i>Stock Tracker</button></li>
+    <li class="nav-item" id="tab-li-pw" role="presentation"><button class="nav-link" id="tab-btn-pw" data-bs-toggle="tab" data-bs-target="#product-watch"><i class="fas fa-eye me-2 text-gold"></i>Product Watch</button></li>
+    <li class="nav-item" id="tab-li-bom" role="presentation"><button class="nav-link" id="tab-btn-bom" data-bs-toggle="tab" data-bs-target="#bom"><i class="fas fa-receipt me-2 text-gold"></i>Bill-of-Materials</button></li>
+    <li class="nav-item" id="tab-li-prescriptive" role="presentation"><button class="nav-link" id="tab-btn-prescriptive" data-bs-toggle="tab" data-bs-target="#prescriptive"><i class="fas fa-brain me-2 text-gold"></i>Prescriptive Actions</button></li>
 </ul>
 
 <div class="tab-content" id="scmTabContent">
@@ -305,12 +305,75 @@
                     <small style="color: var(--sb-text-subtle);">Monitor live finished goods inventory across display chillers & counters</small>
                 </div>
                 <div class="d-flex align-items-center gap-2">
+                    <button id="btn-request-product" class="btn btn-sb-gold px-3 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" onclick="openRequestProductModal()">
+                        <i class="fas fa-paper-plane"></i> Request Product
+                    </button>
                     <button id="btn-transfer-product" class="btn btn-sb-gold px-3 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" onclick="openTransferModal()">
                         <i class="fas fa-truck-fast"></i> Transfer Product
                     </button>
                     <button id="btn-produce-product" class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" data-bs-toggle="modal" data-bs-target="#produceModal">
                         <i class="fas fa-kitchen-set"></i> Produce Items
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Watch Dynamic KPIs -->
+        <div class="row g-3 mb-4" id="pw-kpi-container">
+            <div class="col-6 col-md-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-in" onclick="setPWStatus('In Stock')" title="Click to filter by Optimal Stock">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Optimal Display Stock</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-in" style="color: var(--sb-success);">0</h2>
+                        <span class="text-muted small">above threshold</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-low" onclick="setPWStatus('Low Stock')" title="Click to filter by Low Stock">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Low Display Stock</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-low" style="color: var(--sb-warning);">0</h2>
+                        <span class="text-muted small">near threshold</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-crit" onclick="setPWStatus('Critical')" title="Click to filter by Critical Stock">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Critical / Out of Stock</span>
+                            <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-crit" style="color: var(--sb-danger);">0</h2>
+                        <span class="text-muted small">urgent restocking required</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-total" onclick="setPWStatus('all')" title="Click to show all products">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="kpi-label">Total Display Units</span>
+                            <div class="kpi-icon-container" style="background-color: rgba(212,154,61,0.15); color: var(--sb-gold);">
+                                <i class="fas fa-cubes-stacked"></i>
+                            </div>
+                        </div>
+                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-total" style="color: var(--sb-gold);">0</h2>
+                        <span class="text-muted small">total display units</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -841,6 +904,83 @@
 
                     <button type="submit" id="btn-submit-transfer" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
                         <i class="fas fa-paper-plane"></i> Dispatch Transfer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Request Finished Product Modal (Satellite Branches -> Main Hub) -->
+<div class="modal fade" id="requestProductModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-paper-plane text-gold"></i> Request Finished Cake & Pastry Restock
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="background-color: var(--sb-bg-app);">
+                <form id="requestProductForm" onsubmit="submitProductRequestModal(event)">
+                    <div class="mb-3" id="req-branch-wrapper">
+                        <label class="form-label fw-bold text-title small">Requesting Branch</label>
+                        <select id="req-product-branch-id" class="form-select" onchange="onRequestBranchChanged()">
+                            <option value="2">Padre Garcia</option>
+                            <option value="3">San Jose</option>
+                            <option value="4">Sampaguita</option>
+                            <option value="5">South Supermarket Lipa</option>
+                            <option value="6">San Antonio Quezon</option>
+                            <option value="7">Cuenca</option>
+                        </select>
+                        <div id="req-branch-static" class="d-none">
+                            <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.4); padding: 8px 14px; font-size: 0.9rem;">
+                                <i class="fas fa-store me-1 text-gold"></i> <span id="req-branch-name-label">Assigned Branch</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small mb-1">Filter by Category</label>
+                            <select id="req-product-cat-filter" class="form-select form-select-sm" onchange="filterRequestProductsDropdown()">
+                                <option value="all">-- All Categories --</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-title small mb-1">Quick Search</label>
+                            <input type="text" id="req-product-search-filter" class="form-control form-control-sm" placeholder="Type to search..." oninput="filterRequestProductsDropdown()">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-bold text-title small mb-0">Select Finished Product</label>
+                            <span id="req-stock-badge" class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">Current: --</span>
+                        </div>
+                        <select id="req-product-select" class="form-select" required onchange="onRequestProductSelected()">
+                            <option value="">-- Choose Product to Request --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-title small">Requested Quantity (Units)</label>
+                        <input type="number" id="req-product-qty" class="form-control" min="1" max="1000" step="1" required
+                               placeholder="e.g., 10"
+                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                               oninput="if(this.max && +this.value > +this.max) this.value = this.max;">
+                        <small class="text-muted" id="req-qty-hint" style="font-size:0.75rem;">Target restock level (default: 2x threshold - current stock).</small>
+                    </div>
+
+                    <div class="p-3 rounded mb-3" style="background-color: rgba(212, 154, 61, 0.08); border: 1px solid rgba(212, 154, 61, 0.2);">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-info-circle text-gold"></i>
+                            <span class="small text-muted">Request will be submitted to the <strong>Owner Restock Action Queue</strong> and dispatched from <strong>Ibaan (Main Hub)</strong> upon approval.</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btn-submit-req-modal" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 text-dark">
+                        <i class="fas fa-paper-plane"></i> Submit Restock Request
                     </button>
                 </form>
             </div>
@@ -1657,7 +1797,7 @@
         try {
             const response = await fetch(`/api/inventory/stock/?branch=${branchId}&_t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await response.json();
-            const uniqueIngs = [...new Map(data.inventory.map(item => [item.ingredient_name, item])).values()];
+            const uniqueIngs = [...new Map((data.inventory || []).map(item => [item.ingredient_name, item])).values()];
             document.getElementById('existing-ingredients').innerHTML = uniqueIngs.map(i => `<option value="${i.ingredient_name}" data-unit="${i.unit}" data-cost="${i.cost_per_unit}">`).join('');
             
             if (data.categories) {
@@ -1665,7 +1805,7 @@
                 populateCategoryDropdowns(data.categories);
             }
 
-            renderKPIs(data.kpis);
+            renderKPIs(data.kpis, data.product_kpis);
 
             if (data.inventory) {
                 window.cachedInventory = data.inventory;
@@ -1694,10 +1834,14 @@
             
             if (data.prescriptive_actions) renderPrescriptiveActions(data.prescriptive_actions);
 
-            // Hub-and-Spoke Transparency Handling
+            // Hub-and-Spoke Transparency & Tab Visibility Handling
             const noticeEl = document.getElementById('satellite-hub-notice');
             const btnAddIngHeader = document.getElementById('btn-add-ingredient-header');
             const btnProduce = document.getElementById('btn-produce-product');
+            const tabTracker = document.getElementById('tab-li-tracker');
+            const trackerPane = document.getElementById('tracker');
+            const tabBOM = document.getElementById('tab-li-bom');
+            const btnRequestProduct = document.getElementById('btn-request-product');
 
             if (data.is_satellite_branch) {
                 if (noticeEl) {
@@ -1711,6 +1855,19 @@
                 if (btnProduce) {
                     btnProduce.classList.add('d-none');
                     btnProduce.classList.remove('d-inline-flex');
+                }
+                if (tabTracker) {
+                    tabTracker.classList.add('d-none');
+                }
+                if (trackerPane) {
+                    trackerPane.classList.add('d-none');
+                }
+                if (tabBOM && !window.isOwnerOrHub) {
+                    tabBOM.classList.add('d-none');
+                }
+                if (btnRequestProduct) {
+                    btnRequestProduct.classList.remove('d-none');
+                    btnRequestProduct.classList.add('d-inline-flex');
                 }
 
                 if (!window.hasAutoSwitchedTab || window.lastLoadedBranchId !== branchId) {
@@ -1730,6 +1887,19 @@
                 if (btnProduce && window.isOwnerOrHub) {
                     btnProduce.classList.remove('d-none');
                     btnProduce.classList.add('d-inline-flex');
+                }
+                if (tabTracker) {
+                    tabTracker.classList.remove('d-none');
+                }
+                if (trackerPane) {
+                    trackerPane.classList.remove('d-none');
+                }
+                if (tabBOM) {
+                    tabBOM.classList.remove('d-none');
+                }
+                if (btnRequestProduct) {
+                    btnRequestProduct.classList.add('d-none');
+                    btnRequestProduct.classList.remove('d-inline-flex');
                 }
                 window.lastLoadedBranchId = branchId;
             }
@@ -1844,20 +2014,45 @@
         executePrescription(id, 'Override', reason);
     };
 
-    function renderKPIs(kpis) {
+    function renderKPIs(kpis, productKpis) {
         // Stock Tracker KPIs
-        document.getElementById('kpi-in').innerText = kpis.in_stock;
-        document.getElementById('kpi-low').innerText = kpis.low_stock;
-        document.getElementById('kpi-crit').innerText = kpis.critical;
-        document.getElementById('kpi-exp').innerText = kpis.expiring;
+        if (kpis) {
+            const kpiIn = document.getElementById('kpi-in');
+            if (kpiIn) kpiIn.innerText = kpis.in_stock !== undefined ? kpis.in_stock : 0;
+            const kpiLow = document.getElementById('kpi-low');
+            if (kpiLow) kpiLow.innerText = kpis.low_stock !== undefined ? kpis.low_stock : 0;
+            const kpiCrit = document.getElementById('kpi-crit');
+            if (kpiCrit) kpiCrit.innerText = kpis.critical !== undefined ? kpis.critical : 0;
+            const kpiExp = document.getElementById('kpi-exp');
+            if (kpiExp) kpiExp.innerText = kpis.expiring !== undefined ? kpis.expiring : 0;
 
-        // Dynamic Prescriptive KPIs
-        document.getElementById('kpi-pa-crit').innerText = kpis.critical;
-        document.getElementById('kpi-pa-high').innerText = kpis.low_stock;
-        
-        // Estimated Loss Prevented formula: Critical items * ₱5000 risk + Low items * ₱1500 risk
-        const lossPrevented = (kpis.critical * 5000) + (kpis.low_stock * 1500);
-        document.getElementById('kpi-pa-loss').innerText = `₱${lossPrevented.toLocaleString()}`;
+            // Dynamic Prescriptive KPIs
+            const kpiPaCrit = document.getElementById('kpi-pa-crit');
+            if (kpiPaCrit) kpiPaCrit.innerText = kpis.critical !== undefined ? kpis.critical : 0;
+            const kpiPaHigh = document.getElementById('kpi-pa-high');
+            if (kpiPaHigh) kpiPaHigh.innerText = kpis.low_stock !== undefined ? kpis.low_stock : 0;
+            
+            // Estimated Loss Prevented formula: Critical items * ₱5000 risk + Low items * ₱1500 risk
+            const lossPrevented = ((kpis.critical || 0) * 5000) + ((kpis.low_stock || 0) * 1500);
+            const kpiPaLoss = document.getElementById('kpi-pa-loss');
+            if (kpiPaLoss) kpiPaLoss.innerText = `₱${lossPrevented.toLocaleString()}`;
+        }
+
+        // Product Watch KPIs
+        const pwData = productKpis || kpis;
+        if (pwData) {
+            const pwIn = document.getElementById('pw-kpi-in');
+            if (pwIn) pwIn.innerText = pwData.in_stock !== undefined ? pwData.in_stock : 0;
+            const pwLow = document.getElementById('pw-kpi-low');
+            if (pwLow) pwLow.innerText = pwData.low_stock !== undefined ? pwData.low_stock : 0;
+            const pwCrit = document.getElementById('pw-kpi-crit');
+            if (pwCrit) pwCrit.innerText = pwData.critical !== undefined ? pwData.critical : 0;
+            const pwTotal = document.getElementById('pw-kpi-total');
+            if (pwTotal) {
+                const totalVal = pwData.total_units !== undefined ? pwData.total_units : (pwData.total !== undefined ? pwData.total : 0);
+                pwTotal.innerText = Number(totalVal).toLocaleString();
+            }
+        }
     }
 
     // Auto-fill existing unit and cost when an ingredient is selected from the dropdown
@@ -2078,8 +2273,32 @@
     window.setPWStatus = function(status, btn) {
         window.pwSelectedStatus = status;
         window.pwCurrentPage = 1;
-        document.querySelectorAll('#pw-status-pills .filter-pill-btn').forEach(b => b.classList.remove('active'));
-        if (btn) btn.classList.add('active');
+
+        // Sync filter pills in #pw-status-pills
+        document.querySelectorAll('#pw-status-pills .filter-pill-btn').forEach(b => {
+            if (b.dataset.status === status) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+
+        // Sync KPI cards in #pw-kpi-container
+        document.querySelectorAll('#pw-kpi-container .kpi-card-clickable').forEach(c => c.classList.remove('active-kpi'));
+        if (status === 'In Stock') {
+            const el = document.getElementById('pw-kpi-card-in');
+            if (el) el.classList.add('active-kpi');
+        } else if (status === 'Low Stock') {
+            const el = document.getElementById('pw-kpi-card-low');
+            if (el) el.classList.add('active-kpi');
+        } else if (status === 'Critical') {
+            const el = document.getElementById('pw-kpi-card-crit');
+            if (el) el.classList.add('active-kpi');
+        } else if (status === 'all') {
+            const el = document.getElementById('pw-kpi-card-total');
+            if (el) el.classList.add('active-kpi');
+        }
+
         filterProductWatchTable();
     };
 
@@ -2199,8 +2418,12 @@
             let badgeClass = p.status === 'Low Stock' ? 'status-low' : p.status === 'Critical' ? 'status-critical' : 'status-instock';
             const isHubStock = (p.branch_id == 1 || (p.branch && p.branch.toLowerCase().includes('ibaan')));
             const canTransfer = window.isOwnerOrHub && isHubStock && p.quantity > 0;
+            const safeName = p.product_name.replace(/'/g, "\\'");
             const transferBtn = canTransfer 
-                ? `<button class="btn btn-sm btn-sb-gold fw-bold me-1 text-dark" onclick="openTransferModal(${p.product_id}, '${p.product_name.replace(/'/g, "\\'")}', ${p.quantity})"><i class="fas fa-truck-fast me-1"></i>Transfer</button>`
+                ? `<button class="btn btn-sm btn-sb-gold fw-bold me-1 text-dark" onclick="openTransferModal(${p.product_id}, '${safeName}', ${p.quantity})"><i class="fas fa-truck-fast me-1"></i>Transfer</button>`
+                : '';
+            const requestBtn = (!isHubStock)
+                ? `<button class="btn btn-sm btn-sb-gold fw-bold me-1 text-dark" onclick="openRequestProductModal(${p.product_id}, '${safeName}', ${p.quantity}, ${p.threshold}, ${p.branch_id})"><i class="fas fa-paper-plane me-1"></i>Request</button>`
                 : '';
 
             // Size tag parsing for badge display
@@ -2222,7 +2445,8 @@
                 <td><span class="status-badge ${badgeClass}">${p.status}</span></td>
                 <td class="text-end pe-4 text-nowrap">
                     ${transferBtn}
-                    <button class="btn btn-sm btn-sb-outline-gold fw-bold" onclick="openAdjustModal('product', ${p.id}, '${p.product_name.replace(/'/g, "\\'")}', ${p.quantity})"><i class="fas fa-sliders me-1"></i>Adjust</button>
+                    ${requestBtn}
+                    <button class="btn btn-sm btn-sb-outline-gold fw-bold" onclick="openAdjustModal('product', ${p.id}, '${safeName}', ${p.quantity})"><i class="fas fa-sliders me-1"></i>Adjust</button>
                 </td>
             </tr>`;
         }).join('');
@@ -2381,35 +2605,61 @@
         let pendingHtml = '';
         if (pendingRequests && pendingRequests.length > 0) {
             pendingHtml = pendingRequests.map(p => {
-                const actionButtons = (window.currentUserRole === 'Business Owner') 
-                    ? `<button class="btn btn-sm btn-success fw-bold" onclick="processRestock(${p.id}, 'Approve')">Approve</button>
-                       <button class="btn btn-sm btn-danger fw-bold" onclick="processRestock(${p.id}, 'Reject')">Reject</button>`
-                    : `<span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark);">Awaiting Owner Approval</span>`;
+                const isProduct = (p.type === 'Product' || p.item_type === 'product');
+                const typeBadge = isProduct 
+                    ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product Dispatch</span>` 
+                    : `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 me-1"><i class="fas fa-seedling me-1"></i>Ingredient Restock</span>`;
+                
+                const hubAvailBadge = (p.hub_available !== undefined) 
+                    ? `<span class="badge ${p.hub_available >= p.qty ? 'bg-success bg-opacity-10 text-success border border-success border-opacity-25' : 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25'} ms-1"><i class="fas fa-warehouse me-1"></i>Hub Avail: ${p.hub_available}</span>` 
+                    : '';
+
+                const actionButtons = (window.currentUserRole === 'Business Owner' || window.isOwnerOrHub) 
+                    ? `<button class="btn btn-sm btn-success fw-bold px-3 shadow-sm" onclick="processRestock(${p.id}, 'Approve')"><i class="fas fa-check me-1"></i>Approve</button>
+                       <button class="btn btn-sm btn-outline-danger fw-bold px-3 shadow-sm" onclick="processRestock(${p.id}, 'Reject')"><i class="fas fa-times me-1"></i>Reject</button>`
+                    : `<span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">Awaiting Hub Approval</span>`;
                     
                 return `
-                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white mb-1 rounded border-start border-warning border-4">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white mb-2 rounded shadow-sm border-start border-warning border-4">
                     <div>
-                        <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">Pending Approval</span>
+                        <div class="d-flex align-items-center gap-1 mb-1">
+                            ${typeBadge}
+                            <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);">Pending Approval</span>
+                            ${hubAvailBadge}
+                        </div>
                         <h6 class="fw-bold mb-0 text-title mt-1">${p.item}</h6>
-                        <small class="text-muted">Requested by: ${p.user} for ${p.destination}</small>
+                        <small class="text-muted"><i class="fas fa-user-circle me-1"></i>Requested by: <strong>${p.user}</strong> for <i class="fas fa-store ms-2 me-1"></i><strong>${p.destination}</strong></small>
                     </div>
-                    <div class="text-end me-4"><div class="fw-bold text-title tabular-nums">Qty: ${p.qty}</div></div>
+                    <div class="text-end me-3">
+                        <div class="fw-bold text-title tabular-nums fs-6">Qty: ${p.qty}</div>
+                        <small class="text-muted">${p.created_at || ''}</small>
+                    </div>
                     <div class="d-flex gap-2">${actionButtons}</div>
                 </div>`;
             }).join('');
         }
 
         let suggestHtml = '';
-        if (queue && queue.length > 0 && window.currentUserRole === 'Branch Manager') {
+        if (queue && queue.length > 0 && (window.currentUserRole === 'Branch Manager' || window.isOwnerOrHub)) {
             suggestHtml = queue.map(q => {
+                const itemType = (q.type === 'Product' || q.item_type === 'product') ? 'product' : 'ingredient';
+                const typeBadge = itemType === 'product'
+                    ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product</span>`
+                    : `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 me-1"><i class="fas fa-seedling me-1"></i>Ingredient</span>`;
+
                 return `
-                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light mb-1 rounded">
+                <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light mb-2 rounded border">
                     <div>
-                        <h6 class="fw-bold mb-0 text-title">${q.item}</h6>
-                        <small class="text-muted">${q.branch} | Supplier: ${q.supplier}</small>
+                        <div class="d-flex align-items-center gap-1 mb-1">
+                            ${typeBadge}
+                            <h6 class="fw-bold mb-0 text-title">${q.item}</h6>
+                        </div>
+                        <small class="text-muted"><i class="fas fa-store me-1"></i>${q.branch} | Supplier: ${q.supplier || 'Main Commissary'}</small>
                     </div>
-                    <div class="text-end me-4"><div class="fw-bold text-title tabular-nums">Suggest: ${q.order_amount}</div></div>
-                    <button class="btn btn-sm btn-sb-gold fw-bold" onclick="submitRestock('${q.item}', ${parseFloat(q.order_amount)}, '${q.branch_id}')">Submit Request</button>
+                    <div class="text-end me-4">
+                        <div class="fw-bold text-title tabular-nums">Suggest: ${q.order_amount}</div>
+                    </div>
+                    <button class="btn btn-sm btn-sb-gold fw-bold text-dark px-3 shadow-sm" onclick="submitRestock('${q.item.replace(/'/g, "\\'")}', ${parseFloat(q.order_amount)}, '${q.branch_id}', '${itemType}')"><i class="fas fa-paper-plane me-1"></i>Submit Request</button>
                 </div>`;
             }).join('');
         }
@@ -2417,18 +2667,25 @@
         container.innerHTML = (pendingHtml || suggestHtml) ? (pendingHtml + suggestHtml) : '<div class="p-4 text-center text-muted">No pending restocks or suggestions.</div>';
     }
 
-    window.submitRestock = async function(itemName, qty, branchId) {
+    window.submitRestock = async function(itemName, qty, branchId, itemType = 'product') {
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('/api/inventory/restock/submit/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ ingredient_name: itemName, quantity: qty, branch_id: branchId })
+                body: JSON.stringify({
+                    item_type: itemType,
+                    item_name: itemName,
+                    product_name: itemName,
+                    ingredient_name: itemName,
+                    quantity: qty,
+                    branch_id: branchId
+                })
             });
             const data = await response.json();
             if (response.ok) { alert(data.message); loadSCMData(); }
-            else { alert(`Failed: ${data.error}`); }
-        } catch (e) { alert("Network error."); }
+            else { alert(`Failed: ${data.error || 'Server error'}`); }
+        } catch (e) { alert("Network error submitting restock request."); }
     };
 
     window.processRestock = async function(id, action) {
@@ -2441,15 +2698,24 @@
             });
             const data = await response.json();
             if (response.ok) { alert(data.message); loadSCMData(); }
-            else { alert(`Failed: ${data.error}`); }
-        } catch (e) { alert("Network error."); }
+            else { alert(`Failed: ${data.error || 'Server error'}`); }
+        } catch (e) { alert("Network error processing restock request."); }
     };
 
     function populateProduceDropdown(boms) {
-        window.cachedProduceBOMs = boms || [];
+        // Restrict kitchen batch production strictly to Cake & Pastry products
+        const isCakeOrPastry = b => {
+            const cat = (b.category || '').toLowerCase();
+            const prod = (b.product || '').toLowerCase();
+            return cat.includes('cake') || cat.includes('pastr') || cat.includes('baking') ||
+                   prod.includes('cake') || prod.includes('pastr');
+        };
+        const cakeBoms = (boms || []).filter(isCakeOrPastry);
+        window.cachedProduceBOMs = cakeBoms;
+
         const catFilter = document.getElementById('produce-cat-filter');
         if (catFilter) {
-            const categories = [...new Set((boms || []).map(b => b.category).filter(Boolean))].sort();
+            const categories = [...new Set(cakeBoms.map(b => b.category).filter(Boolean))].sort();
             const currentVal = catFilter.value || 'all';
             catFilter.innerHTML = '<option value="all">-- All Categories --</option>' +
                 categories.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -3110,6 +3376,250 @@
             }
         } catch (e) {
             alert("Network Error: Could not dispatch transfer.");
+        } finally {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+        }
+    };
+
+    // ==========================================
+    // SATELLITE PRODUCT RESTOCK REQUEST MODAL
+    // ==========================================
+    window.openRequestProductModal = function(productId = null, productName = '', currentQty = 0, threshold = 5, branchId = null) {
+        const modalEl = document.getElementById('requestProductModal');
+        if (!modalEl) return;
+
+        // Reset search & cat filters
+        const catFilter = document.getElementById('req-product-cat-filter');
+        const searchInput = document.getElementById('req-product-search-filter');
+        if (catFilter) catFilter.value = 'all';
+        if (searchInput) searchInput.value = '';
+
+        // Determine requesting branch
+        let reqBranchId = branchId;
+        if (!reqBranchId) {
+            const currentFilterVal = document.getElementById('branch-filter').value;
+            if (currentFilterVal && currentFilterVal !== 'all' && currentFilterVal != 1) {
+                reqBranchId = parseInt(currentFilterVal);
+            } else if (window.currentUserBranchId && window.currentUserBranchId != 1) {
+                reqBranchId = window.currentUserBranchId;
+            } else {
+                reqBranchId = 2; // Default to first satellite: Padre Garcia
+            }
+        }
+
+        const branchSelect = document.getElementById('req-product-branch-id');
+        const branchStatic = document.getElementById('req-branch-static');
+        const branchLabel = document.getElementById('req-branch-name-label');
+
+        if (window.currentUserRole === 'Business Owner' || !window.currentUserBranchId) {
+            if (branchSelect) {
+                branchSelect.classList.remove('d-none');
+                branchSelect.value = reqBranchId;
+            }
+            if (branchStatic) branchStatic.classList.add('d-none');
+        } else {
+            if (branchSelect) {
+                branchSelect.classList.add('d-none');
+                branchSelect.value = window.currentUserBranchId || reqBranchId;
+            }
+            if (branchStatic) branchStatic.classList.remove('d-none');
+            if (branchLabel) branchLabel.innerText = window.currentUserBranchName || 'Assigned Branch';
+        }
+
+        // Populate Categories Filter from cachedProductWatch
+        if (catFilter) {
+            const allProducts = window.cachedProductWatch || [];
+            const categories = [...new Set(allProducts.map(p => p.category).filter(Boolean))].sort();
+            catFilter.innerHTML = '<option value="all">-- All Categories --</option>' +
+                categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        // Populate Products Dropdown
+        filterRequestProductsDropdown(productId);
+
+        // Pre-fill quantity
+        const qtyInput = document.getElementById('req-product-qty');
+        const hintEl = document.getElementById('req-qty-hint');
+        const badgeEl = document.getElementById('req-stock-badge');
+
+        if (productId) {
+            const th = threshold || 10;
+            const cur = currentQty || 0;
+            const suggested = Math.max(1, Math.round((th * 2) - cur));
+            if (qtyInput) qtyInput.value = suggested;
+            if (badgeEl) badgeEl.innerText = `Current: ${cur} units | Threshold: ${th}`;
+            if (hintEl) hintEl.innerText = `Suggested restock level: target ${th * 2} units (current stock: ${cur}).`;
+        } else {
+            if (qtyInput) qtyInput.value = 10;
+            if (badgeEl) badgeEl.innerText = 'Current: --';
+            if (hintEl) hintEl.innerText = 'Target restock level (default: 2x threshold - current stock).';
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    };
+
+    window.onRequestBranchChanged = function() {
+        filterRequestProductsDropdown();
+    };
+
+    window.filterRequestProductsDropdown = function(selectedProductId = null) {
+        const prodSelect = document.getElementById('req-product-select');
+        if (!prodSelect) return;
+
+        const catFilter = document.getElementById('req-product-cat-filter');
+        const searchInput = document.getElementById('req-product-search-filter');
+        const selectedCat = catFilter ? catFilter.value : 'all';
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+        const branchSelect = document.getElementById('req-product-branch-id');
+        const branchId = branchSelect ? branchSelect.value : 2;
+
+        const currentTargetId = selectedProductId !== null ? selectedProductId : prodSelect.value;
+
+        // Use cached product watch items for this branch, or all items in catalog
+        let products = (window.cachedProductWatch || []).filter(p => p.branch_id == branchId);
+        if (products.length === 0) {
+            // Deduplicate products across cachedProductWatch or cachedBOM
+            const map = new Map();
+            (window.cachedProductWatch || []).forEach(p => {
+                if (!map.has(p.product_id)) map.set(p.product_id, p);
+            });
+            products = [...map.values()];
+        }
+
+        if (products.length === 0 && window.cachedBOM && window.cachedBOM.length) {
+            products = window.cachedBOM.map(b => ({
+                product_id: b.id,
+                product_name: b.product,
+                category: b.category,
+                quantity: 0,
+                threshold: 10
+            }));
+        }
+
+        const filtered = products.filter(p => {
+            if (selectedCat !== 'all' && (p.category || '') !== selectedCat) return false;
+            if (query) {
+                const name = (p.product_name || '').toLowerCase();
+                const cat = (p.category || '').toLowerCase();
+                if (!name.includes(query) && !cat.includes(query)) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            prodSelect.innerHTML = '<option value="">-- No products match filter --</option>';
+            const badge = document.getElementById('req-stock-badge');
+            if (badge) badge.innerText = 'Current: --';
+            return;
+        }
+
+        // Group by category with <optgroup>
+        const groups = {};
+        filtered.forEach(p => {
+            const cat = p.category || 'General';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(p);
+        });
+
+        let html = '<option value="">-- Choose Product to Request --</option>';
+        for (const cat of Object.keys(groups).sort()) {
+            html += `<optgroup label="${cat}">`;
+            groups[cat].forEach(p => {
+                const isSel = (currentTargetId && p.product_id == currentTargetId);
+                const safeName = p.product_name.replace(/"/g, '&quot;');
+                html += `<option value="${p.product_id}" data-name="${safeName}" data-stock="${p.quantity || 0}" data-threshold="${p.threshold || 10}" ${isSel ? 'selected' : ''}>${p.product_name} (${p.quantity || 0} in stock)</option>`;
+            });
+            html += `</optgroup>`;
+        }
+        prodSelect.innerHTML = html;
+
+        onRequestProductSelected();
+    };
+
+    window.onRequestProductSelected = function() {
+        const prodSelect = document.getElementById('req-product-select');
+        if (!prodSelect || prodSelect.selectedIndex < 0) return;
+        const selectedOption = prodSelect.options[prodSelect.selectedIndex];
+        const badge = document.getElementById('req-stock-badge');
+        const hintEl = document.getElementById('req-qty-hint');
+        const qtyInput = document.getElementById('req-product-qty');
+
+        if (selectedOption && selectedOption.value) {
+            const stock = parseFloat(selectedOption.dataset.stock || 0);
+            const threshold = parseFloat(selectedOption.dataset.threshold || 10);
+            if (badge) badge.innerText = `Current: ${stock} units | Threshold: ${threshold}`;
+            const suggested = Math.max(1, Math.round((threshold * 2) - stock));
+            if (hintEl) hintEl.innerText = `Suggested restock level: target ${threshold * 2} units (current stock: ${stock}).`;
+            if (qtyInput && (!qtyInput.value || qtyInput.value === '10')) {
+                qtyInput.value = suggested;
+            }
+        } else {
+            if (badge) badge.innerText = 'Current: --';
+            if (hintEl) hintEl.innerText = 'Target restock level (default: 2x threshold - current stock).';
+        }
+    };
+
+    window.submitProductRequestModal = async function(event) {
+        event.preventDefault();
+        const token = localStorage.getItem('access_token');
+
+        const branchSelect = document.getElementById('req-product-branch-id');
+        let branchId = branchSelect ? branchSelect.value : 2;
+        if (window.currentUserRole === 'Branch Manager' && window.currentUserBranchId) {
+            branchId = window.currentUserBranchId;
+        }
+
+        const prodSelect = document.getElementById('req-product-select');
+        const selectedOption = prodSelect ? prodSelect.options[prodSelect.selectedIndex] : null;
+        const productId = prodSelect ? prodSelect.value : null;
+        const productName = selectedOption ? (selectedOption.dataset.name || selectedOption.text) : '';
+        const qtyVal = parseInt(document.getElementById('req-product-qty').value);
+
+        if (!productId) {
+            alert("Please choose a finished product to request.");
+            return;
+        }
+        if (isNaN(qtyVal) || qtyVal <= 0) {
+            alert("Requested quantity must be a positive integer greater than zero.");
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-req-modal');
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting Request...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/inventory/restock/submit/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    item_type: 'product',
+                    product_id: productId,
+                    product_name: productName,
+                    item_name: productName,
+                    quantity: qtyVal,
+                    branch_id: branchId
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                bootstrap.Modal.getInstance(document.getElementById('requestProductModal')).hide();
+                document.getElementById('requestProductForm').reset();
+                loadSCMData();
+            } else {
+                alert(`Restock Request Failed: ${data.error || 'Server error'}`);
+            }
+        } catch (e) {
+            alert("Network Error: Could not submit restock request.");
         } finally {
             btn.innerHTML = origHtml;
             btn.disabled = false;

@@ -1,11 +1,36 @@
-from django.db import transaction
 from decimal import Decimal
-from inventory.models import BillOfMaterial, IngredientStock, ProductStock
-from pos.models import Transaction, TransactionItem
+from django.db import transaction
+from django.utils import timezone
+from inventory.models import BillOfMaterial, IngredientStock, ProductStock, StockAdjustment
+from pos.models import Transaction, TransactionItem, Product
+
+def is_cake_or_pastry_prod(product):
+    cat_name = (product.category.category_name if product.category else '').strip().lower()
+    return any(k in cat_name for k in ['cake', 'pastry', 'pastries'])
+
+def is_hub_branch(branch):
+    if not branch:
+        return False
+    return bool(getattr(branch, 'main_hub', False) or getattr(branch, 'branch_ID', None) == 1 or 'ibaan' in getattr(branch, 'name', '').lower())
+
+def convert_to_ingredient_unit(req_qty, bom_unit, ing_unit):
+    b_unit = (bom_unit or '').strip().lower()
+    i_unit = (ing_unit or '').strip().lower()
+    val = Decimal(str(req_qty))
+    if b_unit == i_unit:
+        return val
+    if b_unit in ['g', 'grams'] and i_unit == 'kg':
+        return val / Decimal('1000')
+    if b_unit == 'kg' and i_unit in ['g', 'grams']:
+        return val * Decimal('1000')
+    if b_unit in ['ml', 'milliliters'] and i_unit in ['l', 'liter', 'liters']:
+        return val / Decimal('1000')
+    if b_unit in ['l', 'liter', 'liters'] and i_unit in ['ml', 'milliliters']:
+        return val * Decimal('1000')
+    return val
 
 @transaction.atomic
 def process_pos_transaction(branch, user, items_data, payment_data, subtotal, discount_type, discount_amount, total):
-    
     # 1. Create Transaction Record
     txn = Transaction.objects.create(
         branch=branch,
@@ -17,15 +42,17 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
         transaction_status='Completed'
     )
 
-    is_hub = bool(branch and (branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower()))
+    is_hub = is_hub_branch(branch)
+    required_bom_ingredients = {}
+    ingredient_products_map = {}
+    now = timezone.now()
 
-    # 2. Process Items and Deduct Inventory
+    # 2. Process Items and Analyze Requirements
     for item in items_data:
-        product = item['product']
+        product = item['product'] if isinstance(item['product'], Product) else Product.objects.select_related('category').get(product_ID=item['product'])
         quantity_sold = int(item['quantity'])
         unit_price = Decimal(str(item['unit_price']))
 
-        # Save Transaction Item
         TransactionItem.objects.create(
             transaction=txn,
             product=product,
@@ -34,43 +61,69 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
             subtotal=unit_price * quantity_sold
         )
 
-        cat_name = (product.category.category_name if product.category else '').strip().lower()
-        is_cake_or_pastry = any(k in cat_name for k in ['cake', 'pastry', 'pastries'])
+        is_cake_or_pastry = is_cake_or_pastry_prod(product)
 
-        # Satellite branches & Cake/Pastry products: Deduct strictly from finished ProductStock
-        # (Raw materials were already deducted at Ibaan Commissary during ProduceProductView)
-        stock_record, _ = ProductStock.objects.select_for_update().get_or_create(
-            branch=branch, product=product,
-            defaults={'quantity_available': Decimal('0.00'), 'reorder_threshold': Decimal('5.00')}
-        )
-        if Decimal(str(stock_record.quantity_available)) < Decimal(str(quantity_sold)):
-            raise ValueError(f"Insufficient stock for {product.product_name}. Only {stock_record.quantity_available} left in stock.")
+        if not is_hub or is_cake_or_pastry:
+            # Finished Goods (Pre-made ProductStock)
+            stock_record = ProductStock.objects.select_for_update().filter(branch=branch, product=product).first()
+            if not stock_record or stock_record.quantity_available < quantity_sold:
+                avail = stock_record.quantity_available if stock_record else 0
+                raise ValueError(f"Insufficient stock for {product.product_name}. Only {avail} left in stock.")
 
-        stock_record.quantity_available = Decimal(str(stock_record.quantity_available)) - Decimal(str(quantity_sold))
-        stock_record.save()
+            stock_record.quantity_available -= Decimal(str(quantity_sold))
+            stock_record.save()
 
-        # ONLY for Ibaan (Main Hub) made-to-order non-cake/pastry items: Deduct BOM raw ingredients
-        if is_hub and not is_cake_or_pastry:
-            bom_recipes = BillOfMaterial.objects.filter(product=product).select_related('ingredient')
+            StockAdjustment.objects.create(
+                user=user,
+                product_inventory=stock_record,
+                adjustment_type='Stock-out',
+                quantity_change=Decimal(str(quantity_sold)),
+                reason=f"POS Sale TXN-{txn.transaction_ID}"
+            )
+        else:
+            # Made-to-Order Meal or Drink at Ibaan Main Hub: accumulate BOM raw ingredient deductions
+            bom_recipes = list(BillOfMaterial.objects.filter(product=product).select_related('ingredient'))
+            if not bom_recipes:
+                raise ValueError(f"No recipe (BOM) configured for made-to-order item '{product.product_name}'. Cannot prepare.")
+
             for recipe in bom_recipes:
-                ingredient = recipe.ingredient
-                total_required = float(recipe.quantity_required) * quantity_sold
-                ing_stock = IngredientStock.objects.select_for_update().filter(branch=branch, ingredient=ingredient).first()
-                if ing_stock:
-                    recipe_unit = recipe.measurement_unit.lower()
-                    stock_unit = ing_stock.ingredient.measurement_unit.lower()
-                    conversion_rates = {
-                        ('g', 'kg'): 0.001,
-                        ('grams', 'kg'): 0.001,
-                        ('kg', 'g'): 1000.0,
-                        ('ml', 'l'): 0.001,
-                        ('ml', 'liter'): 0.001,
-                        ('l', 'ml'): 1000.0,
-                        ('liter', 'ml'): 1000.0,
-                    }
-                    multiplier = conversion_rates.get((recipe_unit, stock_unit), 1.0) if recipe_unit != stock_unit else 1.0
-                    final_deduction = Decimal(str(total_required * multiplier))
-                    ing_stock.quantity_available -= final_deduction
-                    ing_stock.save()
+                ing = recipe.ingredient
+                deduct_per_serving = convert_to_ingredient_unit(recipe.quantity_required, recipe.measurement_unit, ing.measurement_unit)
+                total_for_item = deduct_per_serving * Decimal(str(quantity_sold))
+                
+                required_bom_ingredients[ing] = required_bom_ingredients.get(ing, Decimal('0.00')) + total_for_item
+                if ing not in ingredient_products_map:
+                    ingredient_products_map[ing] = []
+                ingredient_products_map[ing].append(product.product_name)
+
+    # 3. Validate and Deduct Made-to-Order BOM Ingredients at Ibaan Hub
+    if required_bom_ingredients:
+        # Step A: Lock and verify all required ingredients under select_for_update
+        for ing, total_needed in required_bom_ingredients.items():
+            ing_stock = IngredientStock.objects.select_for_update().filter(branch=branch, ingredient=ing).first()
+            prod_names = ", ".join(list(set(ingredient_products_map.get(ing, []))))
+            if not ing_stock:
+                raise ValueError(f"Insufficient or expired ingredient '{ing.ingredient_name}' for {prod_names} (Need {total_needed} {ing.measurement_unit}, Available 0 {ing.measurement_unit}).")
+            if ing_stock.expiry_date and ing_stock.expiry_date <= now:
+                raise ValueError(f"Insufficient or expired ingredient '{ing.ingredient_name}' for {prod_names} (Expired on {ing_stock.expiry_date.strftime('%Y-%m-%d')}).")
+            if ing_stock.quantity_available < total_needed:
+                raise ValueError(f"Insufficient or expired ingredient '{ing.ingredient_name}' for {prod_names} (Need {total_needed} {ing.measurement_unit}, Available {ing_stock.quantity_available} {ing.measurement_unit}).")
+
+        # Step B: Apply deductions to IngredientStock
+        for ing, total_needed in required_bom_ingredients.items():
+            ing_stock = IngredientStock.objects.select_for_update().filter(branch=branch, ingredient=ing).first()
+            if ing_stock.quantity_available > 0 and ing_stock.total_cost > 0:
+                cost_per_unit = ing_stock.total_cost / ing_stock.quantity_available
+                ing_stock.total_cost = max(Decimal('0.00'), ing_stock.total_cost - (cost_per_unit * total_needed))
+            ing_stock.quantity_available -= total_needed
+            ing_stock.save()
+
+            StockAdjustment.objects.create(
+                user=user,
+                ingredients_inventory=ing_stock,
+                adjustment_type='Stock-out',
+                quantity_change=total_needed,
+                reason=f"POS Made-to-Order Sale TXN-{txn.transaction_ID}"
+            )
 
     return txn
