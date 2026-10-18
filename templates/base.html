@@ -190,7 +190,94 @@
     </div>
 
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <div id="sb-alert-toast-container" class="sb-alert-toast-container" aria-live="polite" aria-atomic="true"></div>
     <script>
+        // ==========================================
+        // SWEET BOX SYSTEM ALERT & TOAST ENGINE
+        // Theme-integrated alerts replacing browser defaults
+        // ==========================================
+        window.escapeHtml = function(str) {
+            if (str === null || str === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        };
+
+        window.showSweetAlert = function(message, type = 'auto', title = null) {
+            if (!message) return;
+            
+            if (type === 'auto' || !type) {
+                const text = String(message).toLowerCase();
+                if (text.includes('success') || text.includes('restored') || text.includes('completed') || text.includes('configured') || text.includes('approved') || text.includes('initialized')) {
+                    type = 'success';
+                } else if (text.includes('error') || text.includes('failed') || text.includes('denied') || text.includes('cannot') || text.includes('out of stock') || text.includes('invalid') || text.includes('insufficient') || text.includes('reject')) {
+                    type = 'error';
+                } else if (text.includes('warning') || text.includes('caution') || text.includes('notice') || text.includes('required') || text.includes('threshold') || text.includes('suggest')) {
+                    type = 'warning';
+                } else {
+                    type = 'info';
+                }
+            }
+
+            let container = document.getElementById('sb-alert-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'sb-alert-toast-container';
+                container.className = 'sb-alert-toast-container';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `sb-alert-toast sb-toast-${type}`;
+
+            let iconHtml = '<i class="fas fa-cookie-bite text-gold"></i>';
+            let defaultTitle = 'Sweet Box System';
+            if (type === 'success') {
+                iconHtml = '<i class="fas fa-check"></i>';
+                defaultTitle = 'Action Successful';
+            } else if (type === 'error' || type === 'danger') {
+                iconHtml = '<i class="fas fa-circle-exclamation"></i>';
+                defaultTitle = 'System Alert';
+            } else if (type === 'warning') {
+                iconHtml = '<i class="fas fa-triangle-exclamation"></i>';
+                defaultTitle = 'Attention Required';
+            } else if (type === 'info') {
+                iconHtml = '<i class="fas fa-info"></i>';
+                defaultTitle = 'System Notice';
+            }
+
+            toast.innerHTML = `
+                <div class="sb-alert-toast-icon">${iconHtml}</div>
+                <div class="sb-alert-toast-content">
+                    <div class="sb-alert-toast-title">${title || defaultTitle}</div>
+                    <div class="sb-alert-toast-msg">${window.escapeHtml(String(message)).replace(/\n/g, '<br>')}</div>
+                </div>
+                <button type="button" class="sb-alert-toast-close" aria-label="Close" onclick="this.closest('.sb-alert-toast').remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="sb-alert-toast-progress"></div>
+            `;
+
+            container.appendChild(toast);
+
+            const timer = setTimeout(() => {
+                toast.classList.add('sb-toast-closing');
+                setTimeout(() => toast.remove(), 280);
+            }, 4500);
+
+            toast.addEventListener('click', (e) => {
+                if (e.target.closest('.sb-alert-toast-close')) return;
+                clearTimeout(timer);
+                toast.classList.add('sb-toast-closing');
+                setTimeout(() => toast.remove(), 280);
+            });
+        };
+
+        // Global override for standard window.alert
+        window.alert = function(msg) {
+            window.showSweetAlert(msg);
+        };
+
         let currentBranchId = 1;
         let currentUserData = null;
         let chatHistoryLoaded = false;

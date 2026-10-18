@@ -969,3 +969,269 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     transform: translateY(-1px);
 }
 
+/* ==========================================================================
+   SWEET BOX THEMED SYSTEM ALERTS & TOASTS
+   Theme: Roasted Espresso & Amber Gold
+   Harmonizes all alerts, notices, and notifications with the brand identity
+   ========================================================================== */
+
+/* --- Standard In-Page Bootstrap Alerts Override --- */
+.alert {
+    border-radius: var(--sb-radius-md) !important;
+    border: 1px solid var(--sb-border-subtle) !important;
+    padding: 0.85rem 1.15rem !important;
+    font-size: 0.88rem !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    box-shadow: var(--sb-shadow-xs) !important;
+    position: relative;
+    transition: var(--sb-transition);
+}
+
+/* Alert Danger / Error (Warm Crimson on soft cream) */
+.alert-danger {
+    background-color: #FFF5F5 !important;
+    color: #991B1B !important;
+    border-color: rgba(220, 38, 38, 0.22) !important;
+    border-left: 4px solid #DC2626 !important;
+}
+.alert-danger .alert-link {
+    color: #7F1D1D !important;
+    font-weight: 700;
+}
+
+/* Alert Warning (Rich Amber Gold on warm glow) */
+.alert-warning {
+    background-color: #FFFDF5 !important;
+    color: #92400E !important;
+    border-color: rgba(212, 154, 61, 0.35) !important;
+    border-left: 4px solid var(--sb-gold) !important;
+}
+.alert-warning .alert-link {
+    color: #78350F !important;
+    font-weight: 700;
+}
+
+/* Alert Success (Sage & Emerald Leaf on soft mint) */
+.alert-success {
+    background-color: #F0FDF4 !important;
+    color: #166534 !important;
+    border-color: rgba(5, 150, 105, 0.22) !important;
+    border-left: 4px solid var(--sb-success) !important;
+}
+.alert-success .alert-link {
+    color: #14532D !important;
+    font-weight: 700;
+}
+
+/* Alert Info (Sweet Box Warm Honey / Gold) */
+.alert-info {
+    background-color: #FEFDF9 !important;
+    color: var(--sb-espresso) !important;
+    border-color: rgba(212, 154, 61, 0.3) !important;
+    border-left: 4px solid var(--sb-gold) !important;
+}
+.alert-info .alert-link {
+    color: var(--sb-espresso-dark) !important;
+    font-weight: 700;
+}
+
+/* Alert Primary & Dark (Roasted Espresso with Gold Trim) */
+.alert-primary, .alert-dark {
+    background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%) !important;
+    color: var(--sb-gold-light) !important;
+    border: 1px solid var(--sb-gold-glow) !important;
+    border-left: 4px solid var(--sb-gold) !important;
+}
+.alert-primary .alert-link, .alert-dark .alert-link {
+    color: #FFFFFF !important;
+    font-weight: 700;
+}
+
+.alert-secondary {
+    background-color: var(--sb-bg-surface-elevated) !important;
+    color: var(--sb-text-body) !important;
+    border-color: var(--sb-border-subtle) !important;
+    border-left: 4px solid var(--sb-brown-light) !important;
+}
+
+/* --- Global Sweet Box System Alert Toast Notifications --- */
+.sb-alert-toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 440px;
+    width: calc(100% - 48px);
+    pointer-events: none;
+}
+
+@media (max-width: 576px) {
+    .sb-alert-toast-container {
+        top: 14px;
+        right: 14px;
+        left: 14px;
+        width: auto;
+        max-width: none;
+    }
+}
+
+.sb-alert-toast {
+    pointer-events: auto;
+    background: linear-gradient(135deg, #1E120D 0%, #2A1710 100%);
+    color: #FAF7F2;
+    border-radius: var(--sb-radius-md);
+    border: 1.5px solid var(--sb-gold);
+    box-shadow: 0 16px 36px -4px rgba(30, 18, 13, 0.45), 0 4px 12px rgba(0, 0, 0, 0.25);
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    animation: sbAlertSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.28s ease, transform 0.28s ease;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+}
+
+.sb-alert-toast.sb-toast-closing {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+}
+
+.sb-alert-toast-icon {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    margin-top: 1px;
+}
+
+/* Success Toast */
+.sb-alert-toast.sb-toast-success {
+    border-color: #059669;
+}
+.sb-alert-toast.sb-toast-success .sb-alert-toast-icon {
+    background: rgba(5, 150, 105, 0.2);
+    color: #34D399;
+    border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+/* Error / Danger Toast */
+.sb-alert-toast.sb-toast-error,
+.sb-alert-toast.sb-toast-danger {
+    border-color: #DC2626;
+}
+.sb-alert-toast.sb-toast-error .sb-alert-toast-icon,
+.sb-alert-toast.sb-toast-danger .sb-alert-toast-icon {
+    background: rgba(220, 38, 38, 0.2);
+    color: #F87171;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+/* Warning Toast */
+.sb-alert-toast.sb-toast-warning {
+    border-color: var(--sb-gold);
+}
+.sb-alert-toast.sb-toast-warning .sb-alert-toast-icon {
+    background: rgba(217, 119, 6, 0.2);
+    color: #FBBF24;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+/* Info Toast */
+.sb-alert-toast.sb-toast-info {
+    border-color: var(--sb-gold);
+}
+.sb-alert-toast.sb-toast-info .sb-alert-toast-icon {
+    background: rgba(212, 154, 61, 0.2);
+    color: var(--sb-gold-light);
+    border: 1px solid rgba(212, 154, 61, 0.35);
+}
+
+.sb-alert-toast-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.sb-alert-toast-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--sb-gold-light);
+    margin-bottom: 2px;
+    letter-spacing: -0.01em;
+}
+
+.sb-alert-toast-msg {
+    font-size: 0.835rem;
+    color: #E6D8CC;
+    line-height: 1.4;
+    word-break: break-word;
+    margin: 0;
+}
+
+.sb-alert-toast-close {
+    background: transparent;
+    border: none;
+    color: rgba(250, 247, 242, 0.45);
+    font-size: 1.05rem;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    align-self: flex-start;
+}
+
+.sb-alert-toast-close:hover {
+    color: #FFFFFF;
+}
+
+.sb-alert-toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--sb-gold) 0%, var(--sb-gold-light) 100%);
+    width: 100%;
+    animation: sbAlertProgress 4.5s linear forwards;
+}
+
+.sb-alert-toast.sb-toast-error .sb-alert-toast-progress,
+.sb-alert-toast.sb-toast-danger .sb-alert-toast-progress {
+    background: linear-gradient(90deg, #DC2626 0%, #F87171 100%);
+}
+
+.sb-alert-toast.sb-toast-success .sb-alert-toast-progress {
+    background: linear-gradient(90deg, #059669 0%, #34D399 100%);
+}
+
+@keyframes sbAlertSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-18px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes sbAlertProgress {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+/* --- Input Group Smooth Focus Harmony --- */
+.input-group:focus-within .input-group-text,
+.input-group:focus-within .form-control,
+.input-group:focus-within .btn-outline-secondary {
+    border-color: var(--sb-gold) !important;
+    box-shadow: none !important;
+}
+

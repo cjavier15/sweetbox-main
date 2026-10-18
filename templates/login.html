@@ -55,7 +55,7 @@
             <small style="color: var(--sb-text-subtle); letter-spacing: 0.03em;">Enterprise Management Platform</small>
         </div>
         <div class="card-body p-4" style="background-color: #FFFFFF;">
-            <div id="error-message" class="alert alert-danger d-none py-2 small fw-bold"></div>
+            <div id="error-message" class="alert alert-danger d-none py-2 px-3 small fw-bold d-flex align-items-center gap-2 mb-3"></div>
             
             <!-- Step 1: Email & Password -->
             <form id="loginForm" onsubmit="processLogin(event)">
@@ -71,10 +71,13 @@
                     <label class="form-label fw-bold text-title small">Password</label>
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-lock text-muted"></i></span>
-                        <input type="password" id="password" class="form-control border-start-0" placeholder="••••••••" required autocomplete="current-password">
+                        <input type="password" id="password" class="form-control border-start-0 border-end-0" placeholder="••••••••" required autocomplete="current-password" oninput="handlePasswordInput(this)">
+                        <button class="btn btn-outline-secondary bg-white border-start-0 d-flex align-items-center justify-content-center" type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()" title="Show password" aria-label="Toggle password visibility" style="border-color: var(--sb-border-subtle); color: var(--sb-text-muted); padding: 0 0.85rem;" tabindex="-1">
+                            <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                        </button>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 fs-6" id="btn-login">
+                <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 fs-6 text-dark" id="btn-login">
                     <i class="fas fa-shield-halved"></i> Secure Login
                 </button>
             </form>
@@ -105,6 +108,117 @@
 
 <script>
     let tempEmail = "";
+
+    function handlePasswordInput(input) {
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        if (!toggleBtn) return;
+        if (input.value.length > 0) {
+            toggleBtn.style.opacity = '1';
+        } else {
+            toggleBtn.style.opacity = '0.75';
+        }
+    }
+
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        if (!passwordInput || !toggleIcon) return;
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.classList.remove('fa-eye');
+            toggleIcon.classList.add('fa-eye-slash');
+            toggleIcon.style.color = 'var(--sb-gold)';
+            if (toggleBtn) toggleBtn.title = "Hide password";
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+            toggleIcon.style.color = '';
+            if (toggleBtn) toggleBtn.title = "Show password";
+        }
+        passwordInput.focus();
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    window.showSweetAlert = function(message, type = 'auto', title = null) {
+        if (!message) return;
+        if (type === 'auto' || !type) {
+            const text = String(message).toLowerCase();
+            if (text.includes('success') || text.includes('verified') || text.includes('completed')) {
+                type = 'success';
+            } else if (text.includes('error') || text.includes('failed') || text.includes('invalid') || text.includes('denied') || text.includes('network')) {
+                type = 'error';
+            } else if (text.includes('warning') || text.includes('required')) {
+                type = 'warning';
+            } else {
+                type = 'info';
+            }
+        }
+
+        let container = document.getElementById('sb-alert-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'sb-alert-toast-container';
+            container.className = 'sb-alert-toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `sb-alert-toast sb-toast-${type}`;
+
+        let iconHtml = '<i class="fas fa-cookie-bite"></i>';
+        let defaultTitle = 'Sweet Box System';
+        if (type === 'success') {
+            iconHtml = '<i class="fas fa-check"></i>';
+            defaultTitle = 'Action Successful';
+        } else if (type === 'error' || type === 'danger') {
+            iconHtml = '<i class="fas fa-circle-exclamation"></i>';
+            defaultTitle = 'Access Notice';
+        } else if (type === 'warning') {
+            iconHtml = '<i class="fas fa-triangle-exclamation"></i>';
+            defaultTitle = 'Security Notice';
+        } else if (type === 'info') {
+            iconHtml = '<i class="fas fa-info"></i>';
+            defaultTitle = 'Information';
+        }
+
+        toast.innerHTML = `
+            <div class="sb-alert-toast-icon">${iconHtml}</div>
+            <div class="sb-alert-toast-content">
+                <div class="sb-alert-toast-title">${title || defaultTitle}</div>
+                <div class="sb-alert-toast-msg">${escapeHtml(String(message)).replace(/\n/g, '<br>')}</div>
+            </div>
+            <button type="button" class="sb-alert-toast-close" aria-label="Close" onclick="this.closest('.sb-alert-toast').remove()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="sb-alert-toast-progress"></div>
+        `;
+
+        container.appendChild(toast);
+
+        const timer = setTimeout(() => {
+            toast.classList.add('sb-toast-closing');
+            setTimeout(() => toast.remove(), 280);
+        }, 4500);
+
+        toast.addEventListener('click', (e) => {
+            if (e.target.closest('.sb-alert-toast-close')) return;
+            clearTimeout(timer);
+            toast.classList.add('sb-toast-closing');
+            setTimeout(() => toast.remove(), 280);
+        });
+    };
+
+    window.alert = function(msg) {
+        window.showSweetAlert(msg);
+    };
 
     function getCSRFToken() {
         const input = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -171,14 +285,18 @@
                     document.getElementById('otpForm').classList.remove('d-none');
                 }
             } else {
+                const msg = data.error || "Invalid credentials.";
                 errorBox.classList.remove('d-none');
-                errorBox.innerText = data.error || "Invalid credentials.";
+                errorBox.innerHTML = `<i class="fas fa-circle-exclamation text-danger fs-6 flex-shrink-0"></i> <div>${escapeHtml(msg)}</div>`;
+                showSweetAlert(msg, 'error');
                 btn.innerText = "Secure Login";
                 btn.disabled = false;
             }
         } catch (error) {
+            const msg = "Network error. Please check your connection and try again.";
             errorBox.classList.remove('d-none');
-            errorBox.innerText = "Network error. Please check your connection and try again.";
+            errorBox.innerHTML = `<i class="fas fa-wifi text-danger fs-6 flex-shrink-0"></i> <div>${escapeHtml(msg)}</div>`;
+            showSweetAlert(msg, 'error');
             btn.innerText = "Secure Login";
             btn.disabled = false;
         }
@@ -216,16 +334,21 @@
                 if (data.trusted_device_token) {
                     localStorage.setItem('trusted_device_token' + tempEmail, data.trusted_device_token);
                 }
+                showSweetAlert("Authentication verified successfully. Redirecting...", "success");
                 routeUser(data.access);
             } else {
+                const msg = data.error || "Invalid OTP.";
                 errorBox.classList.remove('d-none');
-                errorBox.innerText = data.error || "Invalid OTP.";
+                errorBox.innerHTML = `<i class="fas fa-circle-exclamation text-danger fs-6 flex-shrink-0"></i> <div>${escapeHtml(msg)}</div>`;
+                showSweetAlert(msg, 'error');
                 btn.innerText = "Verify & Access";
                 btn.disabled = false;
             }
         } catch (error) {
+            const msg = "Network error processing OTP.";
             errorBox.classList.remove('d-none');
-            errorBox.innerText = "Network error processing OTP.";
+            errorBox.innerHTML = `<i class="fas fa-wifi text-danger fs-6 flex-shrink-0"></i> <div>${escapeHtml(msg)}</div>`;
+            showSweetAlert(msg, 'error');
             btn.innerText = "Verify & Access";
             btn.disabled = false;
         }
