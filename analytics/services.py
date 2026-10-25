@@ -773,10 +773,12 @@ def generate_sales_report(branch, user, user_query):
         branch=branch, 
         transaction_status='Completed',
         transaction_date__gte=recent_date
-    )
+    ).prefetch_related('items__product__category', 'payments')
     
     if not transactions.exists():
-        transactions = Transaction.objects.filter(branch=branch, transaction_status='Completed')
+        transactions = Transaction.objects.filter(
+            branch=branch, transaction_status='Completed'
+        ).prefetch_related('items__product__category', 'payments')
 
     total_rev = transactions.aggregate(Sum('total_amount'))['total_amount__sum'] or 0.0
     total_txns = transactions.count()
@@ -785,7 +787,8 @@ def generate_sales_report(branch, user, user_query):
     data_pipeline = []
     payment_methods = {}
     for txn in transactions:
-        pm = txn.payments.first()
+        pm_list = list(txn.payments.all())
+        pm = pm_list[0] if pm_list else None
         method_name = pm.payment_method if pm else 'Cash'
         payment_methods[method_name] = payment_methods.get(method_name, 0) + float(txn.total_amount)
         

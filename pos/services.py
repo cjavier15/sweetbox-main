@@ -2,7 +2,8 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 from inventory.models import BillOfMaterial, IngredientStock, ProductStock, StockAdjustment
-from pos.models import Transaction, TransactionItem, Product
+from accounts.models import AuditLog
+from pos.models import Transaction, TransactionItem, Product, PaymentRecord
 
 def is_cake_or_pastry_prod(product):
     cat_name = (product.category.category_name if product.category else '').strip().lower()
@@ -29,6 +30,9 @@ def convert_to_ingredient_unit(req_qty, bom_unit, ing_unit):
         return val * Decimal('1000')
     return val
 
+# Alias for backward-compatibility
+convert_bom_to_ing_unit = convert_to_ingredient_unit
+
 @transaction.atomic
 def process_pos_transaction(branch, user, items_data, payment_data, subtotal, discount_type, discount_amount, total):
     # 1. Create Transaction Record
@@ -49,7 +53,8 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
 
     # 2. Process Items and Analyze Requirements
     for item in items_data:
-        product = item['product'] if isinstance(item['product'], Product) else Product.objects.select_related('category').get(product_ID=item['product'])
+        prod_val = item.get('product') if 'product' in item else item.get('product_id')
+        product = prod_val if isinstance(prod_val, Product) else Product.objects.select_related('category').get(product_ID=prod_val)
         quantity_sold = int(item['quantity'])
         unit_price = Decimal(str(item['unit_price']))
 
@@ -82,7 +87,7 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
             )
         else:
             # Made-to-Order Meal or Drink at Ibaan Main Hub: accumulate BOM raw ingredient deductions
-            bom_recipes = list(BillOfMaterial.objects.filter(product=product).select_related('ingredient'))
+            bom_recipes = list(product.bom_ingredients.select_related('ingredient').all())
             if not bom_recipes:
                 raise ValueError(f"No recipe (BOM) configured for made-to-order item '{product.product_name}'. Cannot prepare.")
 
@@ -126,4 +131,26 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
                 reason=f"POS Made-to-Order Sale TXN-{txn.transaction_ID}"
             )
 
-    return txn
+    # 4. Record the Payment & Audit Log
+    if isinstance(payment_data, dict):
+        pm_method = payment_data.get('payment_method', 'Cash')
+        ref_num = payment_data.get('reference_number')
+    else:
+        pm_method = str(payment_data) if payment_data else 'Cash'
+        ref_num = None
+
+    PaymentRecord.objects.create(
+        transaction=txn,
+        amount_paid=total,
+        payment_method=pm_method,
+        reference_number=ref_num if ref_num else None
+    )
+
+    AuditLog.objects.create(
+        user=user,
+        action="Sale Transaction",
+        module="POS",
+        details=f"Processed TXN-{txn.transaction_ID} at {branch.name} totaling ₱{total}"
+    )
+
+    return txn

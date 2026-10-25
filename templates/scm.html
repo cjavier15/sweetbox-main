@@ -1268,7 +1268,14 @@
     document.addEventListener("DOMContentLoaded", async () => {
         await initializeRBACUI();
         loadSCMData();
-        setInterval(loadSCMData, 10000);
+        setInterval(() => {
+            if (!document.hidden && !document.querySelector('.modal.show')) {
+                loadSCMData();
+            }
+        }, 30000);
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) loadSCMData();
+        });
     });
 
     window.currentUserRole = '';

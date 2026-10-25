@@ -86,6 +86,15 @@ TEMPLATES = [
     },
 ]
 
+if not DEBUG:
+    TEMPLATES[0]['APP_DIRS'] = False
+    TEMPLATES[0]['OPTIONS']['loaders'] = [
+        ('django.template.loaders.cached.Loader', [
+            'django.template.loaders.filesystem.Loader',
+            'django.template.loaders.app_directories.Loader',
+        ]),
+    ]
+
 WSGI_APPLICATION = 'sweetbox_backend.wsgi.application'
 
 
@@ -96,8 +105,15 @@ DATABASES = {
     'default': dj_database_url.config(
         env='MYSQL_URL',
         default='mysql://root:Javier_15@localhost:3306/sweetbox_db',
-        conn_max_age=600
+        conn_max_age=60,
+        conn_health_checks=True
     )
+}
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
 }
 
 # Preserve your strict transaction tables option from your screenshot

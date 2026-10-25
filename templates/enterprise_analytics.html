@@ -751,7 +751,12 @@
 
         await renderEnterpriseCharts();
         loadEvents();
-        setInterval(() => renderEnterpriseCharts(false), 20000); 
+        setInterval(() => {
+            if (!document.hidden) renderEnterpriseCharts(false);
+        }, 60000);
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) renderEnterpriseCharts(false);
+        }); 
     });
 </script>
 {% endblock %}

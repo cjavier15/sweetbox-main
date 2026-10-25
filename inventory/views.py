@@ -166,32 +166,34 @@ class LiveStockView(APIView):
 
         # 3. BOM Data
         bom_data = []
-        for p in Product.objects.filter(is_active=True).prefetch_related('bom_ingredients__ingredient', 'category', 'stocks'):
-            recipes = list(p.bom_ingredients.all())
-            ings = ", ".join([r.ingredient.ingredient_name for r in recipes]) if recipes else "No ingredients configured"
-            deducts = ", ".join([f"{float(r.quantity_required)} {r.measurement_unit} {r.ingredient.ingredient_name.split()[0].lower()}" for r in recipes]) if recipes else "-"
-            raw_recipes = [{
-                "name": r.ingredient.ingredient_name,
-                "unit": r.measurement_unit,
-                "deduction": float(r.quantity_required)
-            } for r in recipes]
-            
-            hub_stock = p.stocks.filter(branch_id=1).first() or p.stocks.first()
-            p_threshold = float(hub_stock.reorder_threshold) if hub_stock else 5.0
-            p_stock_qty = float(hub_stock.quantity_available) if hub_stock else 0.0
+        if not (is_satellite_branch and not is_owner):
+            for p in Product.objects.filter(is_active=True).prefetch_related('bom_ingredients__ingredient', 'category', 'stocks'):
+                recipes = list(p.bom_ingredients.all())
+                ings = ", ".join([r.ingredient.ingredient_name for r in recipes]) if recipes else "No ingredients configured"
+                deducts = ", ".join([f"{float(r.quantity_required)} {r.measurement_unit} {r.ingredient.ingredient_name.split()[0].lower()}" for r in recipes]) if recipes else "-"
+                raw_recipes = [{
+                    "name": r.ingredient.ingredient_name,
+                    "unit": r.measurement_unit,
+                    "deduction": float(r.quantity_required)
+                } for r in recipes]
+                
+                all_stocks = list(p.stocks.all())
+                hub_stock = next((s for s in all_stocks if s.branch_id == 1), all_stocks[0] if all_stocks else None)
+                p_threshold = float(hub_stock.reorder_threshold) if hub_stock else 5.0
+                p_stock_qty = float(hub_stock.quantity_available) if hub_stock else 0.0
 
-            bom_data.append({
-                "id": p.product_ID,
-                "product": p.product_name,
-                "category": p.category.category_name if p.category else "General",
-                "category_id": p.category_id,
-                "price": float(p.price),
-                "threshold": p_threshold,
-                "current_stock": p_stock_qty,
-                "ingredients": ings,
-                "deductions": deducts,
-                "recipes": raw_recipes
-            })
+                bom_data.append({
+                    "id": p.product_ID,
+                    "product": p.product_name,
+                    "category": p.category.category_name if p.category else "General",
+                    "category_id": p.category_id,
+                    "price": float(p.price),
+                    "threshold": p_threshold,
+                    "current_stock": p_stock_qty,
+                    "ingredients": ings,
+                    "deductions": deducts,
+                    "recipes": raw_recipes
+                })
 
         # 4. Pending Restock Approvals
         pending_qs = RestockRequest.objects.filter(status='Pending').select_related('ingredient', 'product', 'destination_branch', 'source_branch', 'user')
@@ -200,15 +202,22 @@ class LiveStockView(APIView):
         elif branch_filter not in ['all', '1']:
             pending_qs = pending_qs.filter(destination_branch_id=branch_filter)
 
+        hub_prod_map = {
+            ps.product_id: float(ps.quantity_available)
+            for ps in ProductStock.objects.filter(Q(branch__main_hub=True) | Q(branch_id=1))
+        }
+        hub_ing_map = {
+            ist.ingredient_id: float(ist.quantity_available)
+            for ist in IngredientStock.objects.filter(Q(branch__main_hub=True) | Q(branch_id=1))
+        }
+
         pending_restocks = []
         for r in pending_qs:
             hub_avail = 0.0
-            if r.product:
-                hub_ps = ProductStock.objects.filter(Q(branch__main_hub=True) | Q(branch_id=1), product=r.product).first()
-                hub_avail = float(hub_ps.quantity_available) if hub_ps else 0.0
-            elif r.ingredient:
-                hub_is = IngredientStock.objects.filter(Q(branch__main_hub=True) | Q(branch_id=1), ingredient=r.ingredient).first()
-                hub_avail = float(hub_is.quantity_available) if hub_is else 0.0
+            if r.product_id:
+                hub_avail = hub_prod_map.get(r.product_id, 0.0)
+            elif r.ingredient_id:
+                hub_avail = hub_ing_map.get(r.ingredient_id, 0.0)
 
             pending_restocks.append({
                 "id": r.restock_ID,

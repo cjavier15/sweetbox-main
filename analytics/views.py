@@ -478,17 +478,24 @@ class RunETLPipelineView(APIView):
         thirty_days_ago = timezone.now() - timedelta(days=30)
         branches = Branch.objects.all()
         
+        # Pre-calculate BOM unit costs once before branch loop
+        bom_cost_map = {}
+        for bom in BillOfMaterial.objects.select_related('ingredient').all():
+            cost = Decimal(str(bom.quantity_required)) * bom.ingredient.cost_per_unit
+            bom_cost_map[bom.product_id] = bom_cost_map.get(bom.product_id, Decimal('0.00')) + cost
+
         # 1. Transform & Load: Batch Calculate KPIs 
         for branch in branches:
-            recent_txns = Transaction.objects.filter(branch=branch, transaction_status='Completed', transaction_date__gte=thirty_days_ago)
+            recent_txns = Transaction.objects.filter(
+                branch=branch, transaction_status='Completed', transaction_date__gte=thirty_days_ago
+            ).prefetch_related('items__product')
             total_rev = recent_txns.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
             
-            # Calculate Exact COGS via Bill of Materials
+            # Calculate Exact COGS via Bill of Materials in memory
             cogs = Decimal('0.00')
             for txn in recent_txns:
                 for item in txn.items.all():
-                    boms = BillOfMaterial.objects.filter(product=item.product)
-                    item_cost = sum([Decimal(str(bom.quantity_required)) * bom.ingredient.cost_per_unit for bom in boms])
+                    item_cost = bom_cost_map.get(item.product_id, Decimal('0.00'))
                     cogs += (item_cost * item.quantity)
                     
             gross_margin = total_rev - cogs
@@ -521,7 +528,9 @@ class RunETLPipelineView(APIView):
             )
             
         # 2. Deterministic Product Classification 
-        recent_txns = Transaction.objects.filter(transaction_status='Completed', transaction_date__gte=thirty_days_ago)
+        recent_txns = Transaction.objects.filter(
+            transaction_status='Completed', transaction_date__gte=thirty_days_ago
+        ).prefetch_related('items__product')
         product_sales = {}
         for txn in recent_txns:
             for item in txn.items.all():

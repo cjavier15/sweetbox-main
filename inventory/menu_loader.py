@@ -1,7 +1,6 @@
 import os
 import re
 from decimal import Decimal
-import pandas as pd
 from django.conf import settings
 
 # -------------------------------------------------------------------------
@@ -475,9 +474,28 @@ def make_recipe(name, category, size_tag):
 # -------------------------------------------------------------------------
 # Excel Menu Parser (products/Sweetboox_Menu.xlsx & SweetBox_Cakes_Pastries.xlsx)
 # -------------------------------------------------------------------------
+def _is_num(val):
+    if val is None:
+        return False
+    s = str(val).strip()
+    return s != '' and s.replace('.', '', 1).isdigit()
+
+def _clean_str(val):
+    return str(val).strip() if val is not None else ''
+
+def _get_val(row, col_idx):
+    if row is not None and col_idx < len(row):
+        return row[col_idx]
+    return None
+
 def parse_excel_menu(base_dir=None):
+    import openpyxl
+
     if not base_dir:
-        base_dir = getattr(settings, 'BASE_DIR', os.getcwd())
+        try:
+            base_dir = getattr(settings, 'BASE_DIR', os.getcwd())
+        except Exception:
+            base_dir = os.getcwd()
     
     f_menu = os.path.join(base_dir, 'products', 'Sweetboox_Menu.xlsx')
     f_cakes = os.path.join(base_dir, 'products', 'SweetBox_Cakes_Pastries.xlsx')
@@ -488,147 +506,169 @@ def parse_excel_menu(base_dir=None):
         f_menu = os.path.join(local_dir, 'products', 'Sweetboox_Menu.xlsx')
         f_cakes = os.path.join(local_dir, 'products', 'SweetBox_Cakes_Pastries.xlsx')
 
+    wb_menu = openpyxl.load_workbook(f_menu, data_only=True, read_only=True)
+    wb_cakes = openpyxl.load_workbook(f_cakes, data_only=True, read_only=True)
+
     products = []
 
     # 1. Beverages Sheet
-    df_bev = pd.read_excel(f_menu, sheet_name='Beverages')
+    rows_bev = list(wb_menu['Beverages'].iter_rows(values_only=True))[1:]
 
     # Milk Tea: Cols 0, 1, 2
-    for idx, row in df_bev.iloc[:, [0, 1, 2]].dropna(subset=[df_bev.columns[0]]).iterrows():
-        name = str(row.iloc[0]).strip()
-        p16, p22 = row.iloc[1], row.iloc[2]
-        if pd.notna(p16) and str(p16).replace('.', '', 1).isdigit():
+    for row in rows_bev:
+        name_val = _get_val(row, 0)
+        if name_val is None or _clean_str(name_val) == '':
+            continue
+        name = _clean_str(name_val)
+        p16 = _get_val(row, 1)
+        p22 = _get_val(row, 2)
+        if _is_num(p16):
             products.append({'name': f'{name} Milk Tea (16oz)', 'category': 'Milk Tea', 'price': float(p16), 'size_tag': '16oz'})
-        if pd.notna(p22) and str(p22).replace('.', '', 1).isdigit():
+        if _is_num(p22):
             products.append({'name': f'{name} Milk Tea (22oz)', 'category': 'Milk Tea', 'price': float(p22), 'size_tag': '22oz'})
 
     # Espresso Based (Rows 0-10)
     for idx in range(0, 11):
-        if idx >= len(df_bev): break
-        name = df_bev.iloc[idx, 4]
-        if pd.isna(name): continue
-        name = str(name).strip()
-        p_hot, p_iced16, p_iced22 = df_bev.iloc[idx, 5], df_bev.iloc[idx, 6], df_bev.iloc[idx, 7]
-        if pd.notna(p_hot) and str(p_hot).replace('.', '', 1).isdigit():
+        if idx >= len(rows_bev): break
+        row = rows_bev[idx]
+        name_val = _get_val(row, 4)
+        if name_val is None or _clean_str(name_val) == '': continue
+        name = _clean_str(name_val)
+        p_hot = _get_val(row, 5)
+        p_iced16 = _get_val(row, 6)
+        p_iced22 = _get_val(row, 7)
+        if _is_num(p_hot):
             products.append({'name': f'{name} (Hot 12oz)', 'category': 'Espresso Based', 'price': float(p_hot), 'size_tag': '12oz'})
-        if pd.notna(p_iced16) and str(p_iced16).replace('.', '', 1).isdigit():
+        if _is_num(p_iced16):
             products.append({'name': f'{name} (Iced 16oz)', 'category': 'Espresso Based', 'price': float(p_iced16), 'size_tag': '16oz'})
-        if pd.notna(p_iced22) and str(p_iced22).replace('.', '', 1).isdigit():
+        if _is_num(p_iced22):
             products.append({'name': f'{name} (Iced 22oz)', 'category': 'Espresso Based', 'price': float(p_iced22), 'size_tag': '22oz'})
 
     # Non-Espresso Based (Rows 14-end)
-    for idx in range(14, len(df_bev)):
-        name = df_bev.iloc[idx, 4]
-        if pd.isna(name): continue
-        name = str(name).strip()
-        p_hot, p_cold16, p_cold22 = df_bev.iloc[idx, 5], df_bev.iloc[idx, 6], df_bev.iloc[idx, 7]
-        if pd.notna(p_hot) and str(p_hot).replace('.', '', 1).isdigit():
+    for idx in range(14, len(rows_bev)):
+        row = rows_bev[idx]
+        name_val = _get_val(row, 4)
+        if name_val is None or _clean_str(name_val) == '': continue
+        name = _clean_str(name_val)
+        p_hot = _get_val(row, 5)
+        p_cold16 = _get_val(row, 6)
+        p_cold22 = _get_val(row, 7)
+        if _is_num(p_hot):
             products.append({'name': f'{name} (Hot 12oz)', 'category': 'Non-Espresso Based', 'price': float(p_hot), 'size_tag': '12oz'})
-        if pd.notna(p_cold16) and str(p_cold16).replace('.', '', 1).isdigit():
+        if _is_num(p_cold16):
             products.append({'name': f'{name} (Cold 16oz)', 'category': 'Non-Espresso Based', 'price': float(p_cold16), 'size_tag': '16oz'})
-        if pd.notna(p_cold22) and str(p_cold22).replace('.', '', 1).isdigit():
+        if _is_num(p_cold22):
             products.append({'name': f'{name} (Cold 22oz)', 'category': 'Non-Espresso Based', 'price': float(p_cold22), 'size_tag': '22oz'})
 
     # Fruit Tea & Frappes: Cols 9, 10, 11
     # Fruit Tea (Rows 0-3)
     for idx in range(0, 4):
-        if idx >= len(df_bev): break
-        name = df_bev.iloc[idx, 9]
-        if pd.isna(name): continue
-        name = str(name).strip()
+        if idx >= len(rows_bev): break
+        row = rows_bev[idx]
+        name_val = _get_val(row, 9)
+        if name_val is None or _clean_str(name_val) == '': continue
+        name = _clean_str(name_val)
         if name.lower() == 'mised berries':
             name = 'Mixed Berries'
-        p_medio, p_grande = df_bev.iloc[idx, 10], df_bev.iloc[idx, 11]
-        if pd.notna(p_medio) and str(p_medio).replace('.', '', 1).isdigit():
+        p_medio = _get_val(row, 10)
+        p_grande = _get_val(row, 11)
+        if _is_num(p_medio):
             products.append({'name': f'{name} Fruit Tea (Medio)', 'category': 'Fruit Tea', 'price': float(p_medio), 'size_tag': 'Medio'})
-        if pd.notna(p_grande) and str(p_grande).replace('.', '', 1).isdigit():
+        if _is_num(p_grande):
             products.append({'name': f'{name} Fruit Tea (Grande)', 'category': 'Fruit Tea', 'price': float(p_grande), 'size_tag': 'Grande'})
 
     # Frappe Coffee Based (Rows 7-10)
     for idx in range(7, 11):
-        if idx >= len(df_bev): break
-        name = df_bev.iloc[idx, 9]
-        if pd.isna(name): continue
-        price = df_bev.iloc[idx, 10]
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            products.append({'name': f'{str(name).strip()} Frappe', 'category': 'Frappe Coffee Based', 'price': float(price), 'size_tag': '16oz'})
+        if idx >= len(rows_bev): break
+        row = rows_bev[idx]
+        name_val = _get_val(row, 9)
+        if name_val is None or _clean_str(name_val) == '': continue
+        price = _get_val(row, 10)
+        if _is_num(price):
+            products.append({'name': f'{_clean_str(name_val)} Frappe', 'category': 'Frappe Coffee Based', 'price': float(price), 'size_tag': '16oz'})
 
     # Frappe Non-Coffee Based (Rows 14-20)
-    for idx in range(14, len(df_bev)):
-        name = df_bev.iloc[idx, 9]
-        if pd.isna(name): continue
-        price = df_bev.iloc[idx, 10]
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            products.append({'name': f'{str(name).strip()} Frappe', 'category': 'Frappe Non-Coffee Based', 'price': float(price), 'size_tag': '16oz'})
+    for idx in range(14, len(rows_bev)):
+        row = rows_bev[idx]
+        name_val = _get_val(row, 9)
+        if name_val is None or _clean_str(name_val) == '': continue
+        price = _get_val(row, 10)
+        if _is_num(price):
+            products.append({'name': f'{_clean_str(name_val)} Frappe', 'category': 'Frappe Non-Coffee Based', 'price': float(price), 'size_tag': '16oz'})
 
     # Other Drinks (Rows 0-1)
     for idx in range(0, 2):
-        if idx >= len(df_bev): break
-        name = df_bev.iloc[idx, 13]
-        if pd.isna(name): continue
-        price = df_bev.iloc[idx, 14]
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            products.append({'name': str(name).strip(), 'category': 'Other Drinks', 'price': float(price), 'size_tag': '16oz'})
+        if idx >= len(rows_bev): break
+        row = rows_bev[idx]
+        name_val = _get_val(row, 13)
+        if name_val is None or _clean_str(name_val) == '': continue
+        price = _get_val(row, 14)
+        if _is_num(price):
+            products.append({'name': _clean_str(name_val), 'category': 'Other Drinks', 'price': float(price), 'size_tag': '16oz'})
 
     # 2. Foods & Snacks Sheet
-    df_food = pd.read_excel(f_menu, sheet_name='Foods & Snacks')
+    rows_food = list(wb_menu['Foods & Snacks'].iter_rows(values_only=True))[1:]
 
     # Rice Meals (Cols 0, 1)
-    for idx in range(len(df_food)):
-        name = df_food.iloc[idx, 0]
-        price = df_food.iloc[idx, 1]
-        if pd.isna(name) or str(name).strip() == '': continue
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            products.append({'name': str(name).strip(), 'category': 'Rice Meals', 'price': float(price), 'size_tag': 'solo'})
+    for row in rows_food:
+        name_val = _get_val(row, 0)
+        price = _get_val(row, 1)
+        if name_val is None or _clean_str(name_val) == '': continue
+        if _is_num(price):
+            products.append({'name': _clean_str(name_val), 'category': 'Rice Meals', 'price': float(price), 'size_tag': 'solo'})
 
     # Pasta (Rows 0-7)
     for idx in range(0, 8):
-        if idx >= len(df_food): break
-        name = df_food.iloc[idx, 3]
-        price = df_food.iloc[idx, 4]
-        if pd.isna(name) or str(name).strip() == '': continue
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            n_str = str(name).strip()
+        if idx >= len(rows_food): break
+        row = rows_food[idx]
+        name_val = _get_val(row, 3)
+        price = _get_val(row, 4)
+        if name_val is None or _clean_str(name_val) == '': continue
+        if _is_num(price):
+            n_str = _clean_str(name_val)
             if 'combo' in n_str.lower():
                 n_str = f'{n_str} (Pasta)'
             products.append({'name': n_str, 'category': 'Pasta', 'price': float(price), 'size_tag': 'solo'})
 
     # Finger Foods (Rows 12-18)
-    for idx in range(12, len(df_food)):
-        name = df_food.iloc[idx, 3]
-        price = df_food.iloc[idx, 4]
-        if pd.isna(name) or str(name).strip() == '': continue
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            n_str = str(name).strip()
+    for idx in range(12, len(rows_food)):
+        row = rows_food[idx]
+        name_val = _get_val(row, 3)
+        price = _get_val(row, 4)
+        if name_val is None or _clean_str(name_val) == '': continue
+        if _is_num(price):
+            n_str = _clean_str(name_val)
             if 'combo' in n_str.lower():
                 n_str = f'{n_str} (Finger Foods)'
             products.append({'name': n_str, 'category': 'Finger Foods', 'price': float(price), 'size_tag': 'solo'})
 
     # Burgers & Sandwiches (Rows 0-5)
     for idx in range(0, 6):
-        if idx >= len(df_food): break
-        name = df_food.iloc[idx, 6]
-        price = df_food.iloc[idx, 7]
-        if pd.isna(name) or str(name).strip() == '': continue
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            n_str = str(name).strip()
+        if idx >= len(rows_food): break
+        row = rows_food[idx]
+        name_val = _get_val(row, 6)
+        price = _get_val(row, 7)
+        if name_val is None or _clean_str(name_val) == '': continue
+        if _is_num(price):
+            n_str = _clean_str(name_val)
             if 'combo' in n_str.lower():
                 n_str = f'{n_str} (Burgers & Sandwiches)'
             products.append({'name': n_str, 'category': 'Burgers & Sandwiches', 'price': float(price), 'size_tag': 'solo'})
 
     # Gourmet Burgers & Sandwiches (Rows 8-17)
-    for idx in range(8, len(df_food)):
-        name = df_food.iloc[idx, 6]
-        price = df_food.iloc[idx, 7]
-        if pd.isna(name) or str(name).strip() == '': continue
-        if pd.notna(price) and str(price).replace('.', '', 1).isdigit():
-            n_str = str(name).strip()
+    for idx in range(8, len(rows_food)):
+        row = rows_food[idx]
+        name_val = _get_val(row, 6)
+        price = _get_val(row, 7)
+        if name_val is None or _clean_str(name_val) == '': continue
+        if _is_num(price):
+            n_str = _clean_str(name_val)
             if 'combo' in n_str.lower():
                 n_str = f'{n_str} (Gourmet Burgers & Sandwiches)'
             products.append({'name': n_str, 'category': 'Gourmet Burgers & Sandwiches', 'price': float(price), 'size_tag': 'solo'})
 
     # 3. Cakes Sheet
-    df_cakes = pd.read_excel(f_cakes, sheet_name='cakes')
+    rows_cakes = list(wb_cakes['cakes'].iter_rows(values_only=True))[1:]
     triplets = [
         (0, 1, 2, 'Decorated Cakes'),
         (4, 5, 6, 'Everyday Cakes'),
@@ -638,19 +678,19 @@ def parse_excel_menu(base_dir=None):
         (20, 21, 22, 'Square Cakes')
     ]
     for c_name, c_size, c_price, cat in triplets:
-        for idx in range(len(df_cakes)):
-            name = df_cakes.iloc[idx, c_name]
-            size = df_cakes.iloc[idx, c_size]
-            price = df_cakes.iloc[idx, c_price]
-            if pd.isna(name) or str(name).strip() == '': continue
-            if pd.isna(price) or not str(price).replace('.', '', 1).isdigit(): continue
-            name_str = str(name).strip().title()
-            size_str = str(size).strip() if pd.notna(size) else ''
+        for row in rows_cakes:
+            name_val = _get_val(row, c_name)
+            size_val = _get_val(row, c_size)
+            price_val = _get_val(row, c_price)
+            if name_val is None or _clean_str(name_val) == '': continue
+            if not _is_num(price_val): continue
+            name_str = _clean_str(name_val).title()
+            size_str = _clean_str(size_val)
             full_name = f'{name_str} ({size_str})' if size_str else name_str
-            products.append({'name': full_name, 'category': cat, 'size_tag': size_str, 'price': float(price)})
+            products.append({'name': full_name, 'category': cat, 'size_tag': size_str, 'price': float(price_val)})
 
     # 4. Pastries Sheet
-    df_past = pd.read_excel(f_cakes, sheet_name='pastries')
+    rows_past = list(wb_cakes['pastries'].iter_rows(values_only=True))[1:]
     ignore_set = {'pastries', 'cake slice', '?', ''}
     clean_map = {
         '(sept5)cinnamon flavored': 'Cinnamon Flavored Pastry',
@@ -659,9 +699,10 @@ def parse_excel_menu(base_dir=None):
         '*choco caramel': 'Choco Caramel Slice'
     }
     for col_idx in [1, 2, 3, 4]:
-        for val in df_past.iloc[:, col_idx]:
-            if pd.isna(val): continue
-            s_val = str(val).strip()
+        for row in rows_past:
+            val = _get_val(row, col_idx)
+            if val is None: continue
+            s_val = _clean_str(val)
             if s_val.lower() in ignore_set or s_val == '?': continue
             cleaned = clean_map.get(s_val.lower(), s_val)
             c_low = cleaned.lower()
@@ -675,5 +716,7 @@ def parse_excel_menu(base_dir=None):
                 price, size_tag = 75.00, 'solo'
             products.append({'name': cleaned.title(), 'category': 'Pastries', 'price': price, 'size_tag': size_tag})
 
-    return products
+    wb_menu.close()
+    wb_cakes.close()
 
+    return products
