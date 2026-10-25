@@ -68,7 +68,7 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
 
         is_cake_or_pastry = is_cake_or_pastry_prod(product)
 
-        if not is_hub or is_cake_or_pastry:
+        if is_cake_or_pastry:
             # Finished Goods (Pre-made ProductStock)
             stock_record = ProductStock.objects.select_for_update().filter(branch=branch, product=product).first()
             if not stock_record or stock_record.quantity_available < quantity_sold:
@@ -86,7 +86,7 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
                 reason=f"POS Sale TXN-{txn.transaction_ID}"
             )
         else:
-            # Made-to-Order Meal or Drink at Ibaan Main Hub: accumulate BOM raw ingredient deductions
+            # Made-to-Order Meal or Drink: accumulate BOM raw ingredient deductions
             bom_recipes = list(product.bom_ingredients.select_related('ingredient').all())
             if not bom_recipes:
                 raise ValueError(f"No recipe (BOM) configured for made-to-order item '{product.product_name}'. Cannot prepare.")
@@ -101,7 +101,7 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
                     ingredient_products_map[ing] = []
                 ingredient_products_map[ing].append(product.product_name)
 
-    # 3. Validate and Deduct Made-to-Order BOM Ingredients at Ibaan Hub
+    # 3. Validate and Deduct Made-to-Order BOM Ingredients at Branch
     if required_bom_ingredients:
         # Step A: Lock and verify all required ingredients under select_for_update
         for ing, total_needed in required_bom_ingredients.items():

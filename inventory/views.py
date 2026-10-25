@@ -36,18 +36,12 @@ class LiveStockView(APIView):
                 sel_branch = Branch.objects.filter(branch_ID=branch_filter).first()
                 is_hub_view = bool(sel_branch and (sel_branch.main_hub or sel_branch.branch_ID == 1 or 'ibaan' in sel_branch.name.lower()))
                 is_satellite_branch = not is_hub_view
-                if is_satellite_branch:
-                    stocks = IngredientStock.objects.none()
-                else:
-                    stocks = IngredientStock.objects.select_related('ingredient__category', 'branch').filter(branch_id=branch_filter)
+                stocks = IngredientStock.objects.select_related('ingredient__category', 'branch').filter(branch_id=branch_filter)
                 prod_stocks = ProductStock.objects.select_related('product__category', 'branch').filter(branch_id=branch_filter)
         else:
             is_hub_view = bool(user.branch and (user.branch.main_hub or user.branch.branch_ID == 1 or 'ibaan' in user.branch.name.lower()))
             is_satellite_branch = not is_hub_view
-            if is_satellite_branch:
-                stocks = IngredientStock.objects.none()
-            else:
-                stocks = IngredientStock.objects.select_related('ingredient__category', 'branch').filter(branch=user.branch)
+            stocks = IngredientStock.objects.select_related('ingredient__category', 'branch').filter(branch=user.branch)
             prod_stocks = ProductStock.objects.select_related('product__category', 'branch').filter(branch=user.branch)
             
         inventory_data, restock_queue, product_watch_data = [], [], []
@@ -91,7 +85,8 @@ class LiveStockView(APIView):
             if status_flag in ["Low Stock", "Critical"]:
                 restock_queue.append({
                     "item": stock.ingredient.ingredient_name, "branch": stock.branch.name, "branch_id": stock.branch.branch_ID, "supplier": "Main Hub",
-                    "order_amount": f"{threshold * 2}", "current": qty, "min": threshold
+                    "order_amount": f"{threshold * 2}", "current": qty, "min": threshold,
+                    "type": "Ingredient"
                 })
 
         # 2. Process Pre-Made Products (Product Watch)
@@ -101,6 +96,10 @@ class LiveStockView(APIView):
         pw_total_units = Decimal('0.00')
 
         for p_stock in prod_stocks:
+            # Only include Pre-Made Cake & Pastry products in Product Watch
+            cat_name = (p_stock.product.category.category_name if p_stock.product.category else '').strip().lower()
+            if not any(k in cat_name for k in ['cake', 'pastry', 'pastries']):
+                continue
             qty, threshold = float(p_stock.quantity_available), float(p_stock.reorder_threshold)
             pw_total_units += p_stock.quantity_available
             
@@ -264,6 +263,7 @@ class LiveStockView(APIView):
             "pending_restocks": pending_restocks,
             "categories": categories_data,
             "is_satellite_branch": is_satellite_branch,
+            "has_raw_ingredients": len(inventory_data) > 0,
             "is_hub": is_hub_view
         })
 
@@ -955,13 +955,12 @@ class ManualStockAdjustmentView(APIView):
                         return Response({"error": "Branch or Ingredient does not exist."}, status=status.HTTP_404_NOT_FOUND)
                     
                     is_branch_hub = bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
-                    if not is_branch_hub:
+                    stock = IngredientStock.objects.select_for_update().filter(branch=branch, ingredient=ingredient).first()
+                    if not is_branch_hub and not stock:
                         return Response(
                             {"error": "Raw material inventory and production are centralized at Ibaan (Main Hub)."},
                             status=status.HTTP_403_FORBIDDEN
                         )
-
-                    stock = IngredientStock.objects.select_for_update().filter(branch=branch, ingredient=ingredient).first()
                     if not stock:
                         stock = IngredientStock.objects.create(
                             branch=branch, ingredient=ingredient,
@@ -973,14 +972,6 @@ class ManualStockAdjustmentView(APIView):
 
                 if not stock:
                     return Response({"error": "Ingredient stock record not found."}, status=status.HTTP_404_NOT_FOUND)
-
-                # Hub-and-Spoke raw material check: Ingredients can only exist/be adjusted at Ibaan (Main Hub)
-                is_stock_hub = bool(stock.branch and (stock.branch.main_hub or stock.branch.branch_ID == 1 or 'ibaan' in stock.branch.name.lower()))
-                if not is_stock_hub:
-                    return Response(
-                        {"error": "Raw material inventory and production are centralized at Ibaan (Main Hub)."},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
 
                 # Branch isolation check: non-owner managers can only adjust stock for their assigned branch
                 if not is_owner and user.branch and stock.branch_id != user.branch.branch_ID:
@@ -1285,12 +1276,16 @@ class SubmitRestockView(APIView):
 
             is_dest_hub = bool(dest_branch.main_hub or dest_branch.branch_ID == 1 or 'ibaan' in dest_branch.name.lower())
 
-            # Hub-and-Spoke rule: Satellite branches can only request finished Cake & Pastry products
+            # Hub-and-Spoke rule: Satellite branches can only request ingredients if assigned at that satellite branch
             if not is_dest_hub and item_type == 'ingredient':
-                return Response(
-                    {"error": "Satellite branches can only request finished Cake & Pastry products from Ibaan (Main Hub)."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                if not item_name:
+                    return Response({"error": "Ingredient name is required."}, status=status.HTTP_400_BAD_REQUEST)
+                ingredient = Ingredient.objects.filter(ingredient_name__iexact=str(item_name).strip()).first()
+                if not ingredient or not IngredientStock.objects.filter(branch=dest_branch, ingredient=ingredient).exists():
+                    return Response(
+                        {"error": "Satellite branches can only request finished Cake & Pastry products from Ibaan (Main Hub) unless the ingredient is assigned for on-site made-to-order preparation."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
             if item_type == 'product':
                 product = None
@@ -1711,6 +1706,47 @@ class BranchProductAssignmentView(APIView):
         is_ibaan_mgr = bool(user_branch and self._is_hub(user_branch) and getattr(user, 'role', '') == 'Branch Manager')
         return is_owner or is_ibaan_mgr
 
+    def _is_cake_or_pastry(self, product):
+        cat_name = (product.category.category_name if product.category else '').strip().lower()
+        return any(k in cat_name for k in ['cake', 'pastry', 'pastries'])
+
+    def _provision_bom_ingredients(self, branch, product, starter_qty):
+        if self._is_cake_or_pastry(product):
+            return
+        boms = list(BillOfMaterial.objects.filter(product=product).select_related('ingredient'))
+        for bom in boms:
+            ing = bom.ingredient
+            IngredientStock.objects.get_or_create(
+                branch=branch,
+                ingredient=ing,
+                defaults={
+                    'quantity_available': starter_qty,
+                    'reorder_threshold': Decimal('10.00'),
+                    'total_cost': round(starter_qty * ing.cost_per_unit, 2)
+                }
+            )
+            ConstraintParameter.objects.get_or_create(
+                branch=branch,
+                ingredient=ing,
+                defaults={
+                    'lead_time_days': 2,
+                    'min_order_quantity': Decimal('5.00'),
+                    'max_order_quantity': Decimal('100.00'),
+                    'production_limit': Decimal('50.00'),
+                    'capacity_limit': Decimal('200.00')
+                }
+            )
+
+    def _cleanup_unassigned_ingredients(self, branch):
+        assigned_prods = Product.objects.filter(stocks__branch=branch, is_active=True).select_related('category')
+        remaining_mto = [p for p in assigned_prods if not self._is_cake_or_pastry(p)]
+        if remaining_mto:
+            active_ing_ids = set(BillOfMaterial.objects.filter(product__in=remaining_mto).values_list('ingredient_id', flat=True))
+        else:
+            active_ing_ids = set()
+        IngredientStock.objects.filter(branch=branch).exclude(ingredient_id__in=active_ing_ids).delete()
+        ConstraintParameter.objects.filter(branch=branch, ingredient__isnull=False).exclude(ingredient_id__in=active_ing_ids).delete()
+
     def get(self, request):
         if not self._check_permission(request.user):
             return Response(
@@ -1774,14 +1810,18 @@ class BranchProductAssignmentView(APIView):
         if action == 'toggle_product':
             branch_id = data.get('branch_id')
             product_id = data.get('product_id')
-            assigned = data.get('assigned')
+            assigned_raw = data.get('assigned')
             force = bool(data.get('force', False))
+            try:
+                starter_ingredient_qty = Decimal(str(data.get('starter_ingredient_qty', '25.00')))
+            except Exception:
+                starter_ingredient_qty = Decimal('25.00')
 
             if not branch_id or not product_id:
                 return Response({"error": "branch_id and product_id are required."}, status=status.HTTP_400_BAD_REQUEST)
 
             branch = Branch.objects.filter(branch_ID=branch_id).first()
-            product = Product.objects.filter(product_ID=product_id).first()
+            product = Product.objects.select_related('category').filter(product_ID=product_id).first()
 
             if not branch or not product:
                 return Response({"error": "Branch or Product does not exist."}, status=status.HTTP_404_NOT_FOUND)
@@ -1790,7 +1830,12 @@ class BranchProductAssignmentView(APIView):
                 return Response({"error": "Ibaan (Main Hub) carries all catalog products by default and cannot be unassigned."}, status=status.HTTP_400_BAD_REQUEST)
 
             stock = ProductStock.objects.select_for_update().filter(branch=branch, product=product).first()
-            should_assign = not bool(stock) if assigned is None else bool(assigned)
+            if assigned_raw is None:
+                should_assign = not bool(stock)
+            elif isinstance(assigned_raw, bool):
+                should_assign = assigned_raw
+            else:
+                should_assign = str(assigned_raw).strip().lower() not in ['false', '0', 'no', 'off']
 
             if should_assign:
                 if not stock:
@@ -1801,6 +1846,9 @@ class BranchProductAssignmentView(APIView):
                         reorder_threshold=Decimal('5.00'),
                         total_cost=Decimal('0.00')
                     )
+                # Auto-provision BOM ingredients if Made-to-Order meal or drink
+                self._provision_bom_ingredients(branch, product, starter_ingredient_qty)
+
                 AuditLog.objects.create(
                     user=user,
                     action="Assign Product",
@@ -1823,6 +1871,9 @@ class BranchProductAssignmentView(APIView):
                             "current_quantity": float(stock.quantity_available)
                         }, status=status.HTTP_400_BAD_REQUEST)
                     stock.delete()
+                # Clean up any orphaned BOM raw ingredients
+                self._cleanup_unassigned_ingredients(branch)
+
                 AuditLog.objects.create(
                     user=user,
                     action="Unassign Product",
@@ -1839,8 +1890,18 @@ class BranchProductAssignmentView(APIView):
         elif action == 'assign_category':
             category_id = data.get('category_id')
             branch_id = data.get('branch_id')
-            assigned = bool(data.get('assigned', True))
+            assigned_raw = data.get('assigned')
+            if assigned_raw is None:
+                assigned = True
+            elif isinstance(assigned_raw, bool):
+                assigned = assigned_raw
+            else:
+                assigned = str(assigned_raw).strip().lower() not in ['false', '0', 'no', 'off']
             force = bool(data.get('force', False))
+            try:
+                starter_ingredient_qty = Decimal(str(data.get('starter_ingredient_qty', '25.00')))
+            except Exception:
+                starter_ingredient_qty = Decimal('25.00')
 
             if not category_id:
                 return Response({"error": "category_id is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -1849,7 +1910,7 @@ class BranchProductAssignmentView(APIView):
             if not category:
                 return Response({"error": "Category does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
-            products = list(Product.objects.filter(category=category, is_active=True))
+            products = list(Product.objects.filter(category=category, is_active=True).select_related('category'))
 
             hub_branches = [b.branch_ID for b in Branch.objects.all() if self._is_hub(b)]
             if str(branch_id).lower() in ['all', 'all_satellites', '']:
@@ -1875,12 +1936,15 @@ class BranchProductAssignmentView(APIView):
                         )
                         if created:
                             count += 1
+                        self._provision_bom_ingredients(branch, prod, starter_ingredient_qty)
                     else:
                         stock = ProductStock.objects.filter(branch=branch, product=prod).first()
                         if stock:
                             if stock.quantity_available == 0 or force:
                                 stock.delete()
                                 count += 1
+                if not assigned:
+                    self._cleanup_unassigned_ingredients(branch)
 
             action_label = "assigned" if assigned else "unassigned"
             AuditLog.objects.create(
@@ -1964,4 +2028,4 @@ class BranchProductAssignmentView(APIView):
             }, status=status.HTTP_200_OK)
 
         else:
-            return Response({"error": f"Unknown action '{action}'. Valid actions: toggle_product, assign_category, apply_hub_spoke_default."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": f"Unknown action '{action}'. Valid actions: toggle_product, assign_category, apply_hub_spoke_default."}, status=status.HTTP_400_BAD_REQUEST)

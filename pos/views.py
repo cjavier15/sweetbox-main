@@ -38,9 +38,9 @@ class ProductListView(generics.ListAPIView):
                 return Product.objects.filter(
                     is_active=True,
                     stocks__branch=branch
-                ).select_related('category').distinct().order_by('product_name')
+                ).select_related('category').prefetch_related('bom_ingredients__ingredient').distinct().order_by('product_name')
 
-        return Product.objects.filter(is_active=True).select_related('category').order_by('product_name')
+        return Product.objects.filter(is_active=True).select_related('category').prefetch_related('bom_ingredients__ingredient').order_by('product_name')
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -52,13 +52,10 @@ class ProductListView(generics.ListAPIView):
                 ps.product_id: int(ps.quantity_available)
                 for ps in ProductStock.objects.filter(branch=branch)
             }
-            if is_hub_branch(branch):
-                context['ingredient_stock_map'] = {
-                    ist.ingredient_id: ist
-                    for ist in IngredientStock.objects.filter(branch=branch)
-                }
-            else:
-                context['ingredient_stock_map'] = {}
+            context['ingredient_stock_map'] = {
+                ist.ingredient_id: ist
+                for ist in IngredientStock.objects.filter(branch=branch)
+            }
         return context
 
 class TransactionListView(generics.ListAPIView):
@@ -168,7 +165,7 @@ class TransactionRefundView(APIView):
                 product = item.product
                 is_cake_or_pastry = is_cake_or_pastry_prod(product)
 
-                if not is_hub or is_cake_or_pastry:
+                if is_cake_or_pastry:
                     # Restore finished ProductStock
                     stock, _ = ProductStock.objects.select_for_update().get_or_create(
                         branch=txn.branch, product=product,
@@ -185,7 +182,7 @@ class TransactionRefundView(APIView):
                         reason=f"POS Refund TXN-{txn.transaction_ID}"
                     )
                 else:
-                    # Restore raw ingredients to Ibaan IngredientStock
+                    # Restore raw ingredients to IngredientStock at branch
                     boms = list(product.bom_ingredients.select_related('ingredient').all())
                     for bom in boms:
                         ing = bom.ingredient

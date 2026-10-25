@@ -28,17 +28,16 @@ class ProductSerializer(serializers.ModelSerializer):
 
         if not branch:
             return 0
-        is_hub = is_hub_branch(branch)
         is_cp = is_cake_or_pastry_prod(obj)
 
-        # Case A: Cake/Pastry at any branch, or any item at a Satellite Branch
-        if is_cp or not is_hub:
+        # Case A: Pre-Made Cake or Pastry at ANY branch
+        if is_cp:
             if 'product_stock_map' in self.context:
                 return self.context['product_stock_map'].get(obj.product_ID, 0)
             stock = ProductStock.objects.filter(branch=branch, product=obj).first()
             return int(stock.quantity_available) if stock else 0
 
-        # Case B: Made-to-Order Meal or Drink at Ibaan Main Hub
+        # Case B: Made-to-Order Meal or Drink (at Ibaan Main Hub OR at an assigned Satellite Branch)
         recipes = list(obj.bom_ingredients.all())
         if not recipes:
             return 0

@@ -1187,22 +1187,26 @@
                 <!-- Control Panel -->
                 <div class="card sb-card border-0 shadow-sm p-3 mb-3">
                     <div class="row g-2 align-items-center">
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label small fw-bold text-title mb-1"><i class="fas fa-store text-gold me-1"></i>Target Satellite Branch:</label>
                             <select id="ba-satellite-select" class="form-select fw-bold" onchange="onBranchAssignmentBranchChange()"></select>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label small fw-bold text-title mb-1"><i class="fas fa-search text-gold me-1"></i>Search Products:</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
                                 <input type="text" id="ba-search-input" class="form-control border-start-0 ps-0" placeholder="Search by name or category..." oninput="filterBranchAssignmentTable()">
                             </div>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label small fw-bold text-title mb-1"><i class="fas fa-tags text-gold me-1"></i>Filter by Category:</label>
                             <select id="ba-cat-filter" class="form-select" onchange="filterBranchAssignmentTable()">
                                 <option value="all">All Categories</option>
                             </select>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label small fw-bold text-title mb-1" title="Initial ingredient stock units provisioned when assigning Made-to-Order items"><i class="fas fa-cubes text-gold me-1"></i>Starter Stock (Units):</label>
+                            <input type="number" id="ba-starter-qty" class="form-control" value="25" min="0" max="500" step="1" title="Starter stock units for recipe ingredients when assigning Made-to-Order items">
                         </div>
                     </div>
                     <!-- Quick Bulk Actions & Defaults -->
@@ -1850,10 +1854,17 @@
             const tabBOM = document.getElementById('tab-li-bom');
             const btnRequestProduct = document.getElementById('btn-request-product');
 
+            const showRawTracker = !data.is_satellite_branch || data.has_raw_ingredients;
+
             if (data.is_satellite_branch) {
                 if (noticeEl) {
-                    noticeEl.classList.remove('d-none');
-                    noticeEl.classList.add('d-flex');
+                    if (data.has_raw_ingredients) {
+                        noticeEl.classList.add('d-none');
+                        noticeEl.classList.remove('d-flex');
+                    } else {
+                        noticeEl.classList.remove('d-none');
+                        noticeEl.classList.add('d-flex');
+                    }
                 }
                 if (btnAddIngHeader) {
                     btnAddIngHeader.classList.add('d-none');
@@ -1864,10 +1875,10 @@
                     btnProduce.classList.remove('d-inline-flex');
                 }
                 if (tabTracker) {
-                    tabTracker.classList.add('d-none');
+                    tabTracker.classList.toggle('d-none', !showRawTracker);
                 }
                 if (trackerPane) {
-                    trackerPane.classList.add('d-none');
+                    trackerPane.classList.toggle('d-none', !showRawTracker);
                 }
                 if (tabBOM && !window.isOwnerOrHub) {
                     tabBOM.classList.add('d-none');
@@ -1877,7 +1888,7 @@
                     btnRequestProduct.classList.add('d-inline-flex');
                 }
 
-                if (!window.hasAutoSwitchedTab || window.lastLoadedBranchId !== branchId) {
+                if (!showRawTracker && (!window.hasAutoSwitchedTab || window.lastLoadedBranchId !== branchId)) {
                     window.hasAutoSwitchedTab = true;
                     window.lastLoadedBranchId = branchId;
                     switchToProductWatchTab();
@@ -1886,6 +1897,12 @@
                 if (noticeEl) {
                     noticeEl.classList.add('d-none');
                     noticeEl.classList.remove('d-flex');
+                }
+                if (tabTracker) {
+                    tabTracker.classList.remove('d-none');
+                }
+                if (trackerPane) {
+                    trackerPane.classList.remove('d-none');
                 }
                 if (btnAddIngHeader && window.isOwnerOrHub) {
                     btnAddIngHeader.classList.remove('d-none');
@@ -3746,6 +3763,12 @@
             const assignment = branchAssignments.get(p.id);
             const isAssigned = !!assignment;
             const stockQty = assignment ? assignment.quantity_available : 0;
+            const catLower = (p.category_name || '').toLowerCase();
+            const isPreMade = ['cake', 'pastry', 'pastries'].some(k => catLower.includes(k));
+            const typeBadge = isPreMade
+                ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1"><i class="fas fa-birthday-cake me-1"></i>Pre-Made</span>`
+                : `<span class="badge bg-warning-subtle text-dark border border-warning-subtle me-1"><i class="fas fa-utensils me-1"></i>Made-to-Order</span>`;
+
             const stockBadge = isAssigned
                 ? `<span class="badge bg-light text-dark border tabular-nums">${stockQty.toFixed(0)} units</span>`
                 : `<span class="text-muted small">—</span>`;
@@ -3765,7 +3788,7 @@
             return `
                 <tr>
                     <td class="fw-bold text-title">${p.name}</td>
-                    <td><span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212,154,61,0.3);">${p.category_name}</span></td>
+                    <td>${typeBadge}<span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212,154,61,0.3);">${p.category_name}</span></td>
                     <td class="tabular-nums">₱${p.price.toFixed(2)}</td>
                     <td>${stockBadge}</td>
                     <td class="text-center">${statusBadge}</td>
@@ -3779,6 +3802,7 @@
         const token = localStorage.getItem('access_token');
         const targetBranchId = parseInt(document.getElementById('ba-satellite-select').value);
         if (!targetBranchId) return;
+        const starterQty = parseFloat(document.getElementById('ba-starter-qty')?.value) || 25;
 
         try {
             const res = await fetch('/api/inventory/branch-assignment/', {
@@ -3792,6 +3816,7 @@
                     branch_id: targetBranchId,
                     product_id: productId,
                     assigned: targetState,
+                    starter_ingredient_qty: starterQty,
                     force: force
                 })
             });
@@ -3838,6 +3863,7 @@
         const token = localStorage.getItem('access_token');
         const targetBranchId = parseInt(document.getElementById('ba-satellite-select').value);
         const catFilterVal = document.getElementById('ba-cat-filter').value;
+        const starterQty = parseFloat(document.getElementById('ba-starter-qty')?.value) || 25;
 
         if (catFilterVal === 'all') {
             alert("Please select a specific category from the 'Filter by Category' dropdown before running bulk category assignment.");
@@ -3864,6 +3890,7 @@
                     branch_id: targetBranchId,
                     category_id: parseInt(catFilterVal),
                     assigned: targetState,
+                    starter_ingredient_qty: starterQty,
                     force: true
                 })
             });
@@ -3885,6 +3912,7 @@
         const token = localStorage.getItem('access_token');
         const targetBranchId = parseInt(document.getElementById('ba-satellite-select').value);
         if (!targetBranchId) return;
+        const starterQty = parseFloat(document.getElementById('ba-starter-qty')?.value) || 25;
 
         try {
             const res = await fetch('/api/inventory/branch-assignment/', {
@@ -3898,6 +3926,7 @@
                     branch_id: targetBranchId,
                     category_id: categoryId,
                     assigned: targetState,
+                    starter_ingredient_qty: starterQty,
                     force: true
                 })
             });
