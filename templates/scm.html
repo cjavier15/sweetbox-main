@@ -136,7 +136,7 @@
 <!-- Tabs Navigation -->
 <ul class="nav scm-tabs gap-2 mb-4" id="scmTabs" role="tablist">
     <li class="nav-item" id="tab-li-tracker" role="presentation"><button class="nav-link active" id="tab-btn-tracker" data-bs-toggle="tab" data-bs-target="#tracker"><i class="fas fa-layer-group me-2 text-gold"></i>Stock Tracker</button></li>
-    <li class="nav-item" id="tab-li-pw" role="presentation"><button class="nav-link" id="tab-btn-pw" data-bs-toggle="tab" data-bs-target="#product-watch"><i class="fas fa-eye me-2 text-gold"></i>Product Watch</button></li>
+    <li class="nav-item" id="tab-li-pw" role="presentation"><button class="nav-link" id="tab-btn-pw" data-bs-toggle="tab" data-bs-target="#product-watch"><i class="fas fa-boxes-stacked me-2 text-gold"></i>Product Availability</button></li>
     <li class="nav-item" id="tab-li-bom" role="presentation"><button class="nav-link" id="tab-btn-bom" data-bs-toggle="tab" data-bs-target="#bom"><i class="fas fa-receipt me-2 text-gold"></i>Bill-of-Materials</button></li>
     <li class="nav-item" id="tab-li-prescriptive" role="presentation"><button class="nav-link" id="tab-btn-prescriptive" data-bs-toggle="tab" data-bs-target="#prescriptive"><i class="fas fa-brain me-2 text-gold"></i>Prescriptive Actions</button></li>
 </ul>
@@ -151,10 +151,10 @@
             </div>
             <div class="flex-grow-1">
                 <h6 class="fw-bold mb-1" style="color: var(--sb-espresso-dark);">Central Commissary Hub Architecture Active</h6>
-                <p class="mb-0 small" style="color: var(--sb-text-body);">Raw ingredients and BOM production are centrally managed at Ibaan (Main Hub). Satellite branches track finished Cakes & Pastries in Product Watch.</p>
+                <p class="mb-0 small" style="color: var(--sb-text-body);">Raw ingredients and BOM production are centrally managed at Ibaan (Main Hub). Satellite branches track finished goods and assigned items in Product Availability.</p>
             </div>
             <button type="button" class="btn btn-sm btn-sb-gold fw-bold px-3 text-dark d-inline-flex align-items-center gap-1 shadow-sm" onclick="switchToProductWatchTab()">
-                <i class="fas fa-eye"></i> Go to Product Watch
+                <i class="fas fa-boxes-stacked"></i> Go to Product Availability
             </button>
         </div>
 
@@ -300,9 +300,9 @@
             <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
                     <h5 class="fw-bold mb-1 d-flex align-items-center gap-2 text-white">
-                        <i class="fas fa-eye text-gold"></i> Pre-made Product Watch
+                        <i class="fas fa-boxes-stacked text-gold"></i> Product Availability
                     </h5>
-                    <small style="color: var(--sb-text-subtle);">Monitor live finished goods inventory across display chillers & counters</small>
+                    <small style="color: var(--sb-text-subtle);">Monitor live product availability and stock levels across catalog items</small>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <button id="btn-request-product" class="btn btn-sb-gold px-3 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" onclick="openRequestProductModal()">
@@ -324,7 +324,7 @@
                 <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-in" onclick="setPWStatus('In Stock')" title="Click to filter by Optimal Stock">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="kpi-label">Optimal Display Stock</span>
+                            <span class="kpi-label">Optimal Stock</span>
                             <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
                                 <i class="fas fa-check-circle"></i>
                             </div>
@@ -338,7 +338,7 @@
                 <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-low" onclick="setPWStatus('Low Stock')" title="Click to filter by Low Stock">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="kpi-label">Low Display Stock</span>
+                            <span class="kpi-label">Low Stock</span>
                             <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
                                 <i class="fas fa-exclamation-triangle"></i>
                             </div>
@@ -366,13 +366,13 @@
                 <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-total" onclick="setPWStatus('all')" title="Click to show all products">
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="kpi-label">Total Display Units</span>
+                            <span class="kpi-label">Total Available Units</span>
                             <div class="kpi-icon-container" style="background-color: rgba(212,154,61,0.15); color: var(--sb-gold);">
                                 <i class="fas fa-cubes-stacked"></i>
                             </div>
                         </div>
                         <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-total" style="color: var(--sb-gold);">0</h2>
-                        <span class="text-muted small">total display units</span>
+                        <span class="text-muted small">total available units</span>
                     </div>
                 </div>
             </div>
@@ -439,7 +439,7 @@
                     <thead>
                         <tr>
                             <th>Product Name</th><th>Category</th><th>Selling Price</th>
-                            <th>Display Stock</th><th>Threshold</th><th>Branch</th><th>Status</th>
+                            <th>Available Stock</th><th>Threshold</th><th>Branch</th><th>Status</th>
                             <th class="text-end pe-4">Action</th>
                         </tr>
                     </thead>
@@ -2446,7 +2446,7 @@
             const transferBtn = canTransfer 
                 ? `<button class="btn btn-sm btn-sb-gold fw-bold me-1 text-dark" onclick="openTransferModal(${p.product_id}, '${safeName}', ${p.quantity})"><i class="fas fa-truck-fast me-1"></i>Transfer</button>`
                 : '';
-            const requestBtn = (!isHubStock)
+            const requestBtn = (!isHubStock && !p.is_made_to_order)
                 ? `<button class="btn btn-sm btn-sb-gold fw-bold me-1 text-dark" onclick="openRequestProductModal(${p.product_id}, '${safeName}', ${p.quantity}, ${p.threshold}, ${p.branch_id})"><i class="fas fa-paper-plane me-1"></i>Request</button>`
                 : '';
 
@@ -2459,11 +2459,17 @@
                 sizeBadge = `<span class="badge bg-light text-dark border ms-1 fw-bold">${sizeMatch[1]}</span>`;
             }
 
+            const typeBadge = p.is_made_to_order
+                ? `<span class="badge bg-warning-subtle text-dark border border-warning-subtle me-1" title="Made to order on demand from branch ingredients"><i class="fas fa-utensils me-1"></i>Made-to-Order</span>`
+                : `<span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1" title="Pre-made finished goods"><i class="fas fa-birthday-cake me-1"></i>Pre-Made</span>`;
+
+            const qtyUnit = p.is_made_to_order ? 'servings' : 'units';
+
             return `<tr>
                 <td class="fw-bold text-title">${displayName}${sizeBadge}</td>
-                <td><span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212,154,61,0.3);">${p.category}</span></td>
+                <td>${typeBadge}<span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); border: 1px solid rgba(212,154,61,0.3);">${p.category}</span></td>
                 <td class="fw-bold tabular-nums">₱${p.price.toFixed(2)}</td>
-                <td class="fw-bold tabular-nums">${p.quantity}</td>
+                <td class="fw-bold tabular-nums">${p.quantity} <small class="text-muted fw-normal">${qtyUnit}</small></td>
                 <td class="text-muted tabular-nums">${p.threshold}</td>
                 <td><span class="badge bg-light text-muted border">${p.branch}</span></td>
                 <td><span class="status-badge ${badgeClass}">${p.status}</span></td>

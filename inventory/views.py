@@ -14,6 +14,7 @@ from .models import (
 )
 from pos.models import Product, ProductCategory
 from accounts.models import Branch, AuditLog
+from pos.services import convert_to_ingredient_unit
 
 class LiveStockView(APIView):
     permission_classes = [IsAuthenticated]
@@ -31,18 +32,18 @@ class LiveStockView(APIView):
             if branch_filter == 'all':
                 is_hub_view = True
                 stocks = IngredientStock.objects.select_related('ingredient__category', 'branch').all()
-                prod_stocks = ProductStock.objects.select_related('product__category', 'branch').all()
+                prod_stocks = ProductStock.objects.select_related('product__category', 'branch').prefetch_related('product__bom_ingredients__ingredient').all()
             else:
                 sel_branch = Branch.objects.filter(branch_ID=branch_filter).first()
                 is_hub_view = bool(sel_branch and (sel_branch.main_hub or sel_branch.branch_ID == 1 or 'ibaan' in sel_branch.name.lower()))
                 is_satellite_branch = not is_hub_view
                 stocks = IngredientStock.objects.select_related('ingredient__category', 'branch').filter(branch_id=branch_filter)
-                prod_stocks = ProductStock.objects.select_related('product__category', 'branch').filter(branch_id=branch_filter)
+                prod_stocks = ProductStock.objects.select_related('product__category', 'branch').prefetch_related('product__bom_ingredients__ingredient').filter(branch_id=branch_filter)
         else:
             is_hub_view = bool(user.branch and (user.branch.main_hub or user.branch.branch_ID == 1 or 'ibaan' in user.branch.name.lower()))
             is_satellite_branch = not is_hub_view
             stocks = IngredientStock.objects.select_related('ingredient__category', 'branch').filter(branch=user.branch)
-            prod_stocks = ProductStock.objects.select_related('product__category', 'branch').filter(branch=user.branch)
+            prod_stocks = ProductStock.objects.select_related('product__category', 'branch').prefetch_related('product__bom_ingredients__ingredient').filter(branch=user.branch)
             
         inventory_data, restock_queue, product_watch_data = [], [], []
         kpis = {'in_stock': 0, 'low_stock': 0, 'critical': 0, 'expiring': 0}
@@ -89,20 +90,55 @@ class LiveStockView(APIView):
                     "type": "Ingredient"
                 })
 
-        # 2. Process Pre-Made Products (Product Watch)
+        # 2. Process Products (Product Availability)
         pw_in_stock = 0
         pw_low_stock = 0
         pw_critical = 0
         pw_total_units = Decimal('0.00')
 
+        # In-memory map of ingredient stocks: (branch_id, ingredient_id) -> stock
+        # Used to calculate available servings for Made-to-Order items without N+1 queries
+        ing_stock_map = {(s.branch_id, s.ingredient_id): s for s in stocks}
+        now_time = timezone.now()
+
         for p_stock in prod_stocks:
-            # Only include Pre-Made Cake & Pastry products in Product Watch
             cat_name = (p_stock.product.category.category_name if p_stock.product.category else '').strip().lower()
-            if not any(k in cat_name for k in ['cake', 'pastry', 'pastries']):
-                continue
-            qty, threshold = float(p_stock.quantity_available), float(p_stock.reorder_threshold)
-            pw_total_units += p_stock.quantity_available
-            
+            is_cp = any(k in cat_name for k in ['cake', 'pastry', 'pastries'])
+
+            if is_cp:
+                qty = float(p_stock.quantity_available)
+            else:
+                # Made-to-Order Meal or Drink: compute available servings from branch recipe ingredients
+                recipes = list(p_stock.product.bom_ingredients.all())
+                if not recipes:
+                    servings = int(p_stock.quantity_available)
+                else:
+                    min_servings = float('inf')
+                    for bom in recipes:
+                        ing = bom.ingredient
+                        ing_stock = ing_stock_map.get((p_stock.branch_id, bom.ingredient_id))
+                        if not ing_stock or ing_stock.quantity_available <= Decimal('0.00'):
+                            min_servings = 0
+                            break
+                        if ing_stock.expiry_date and ing_stock.expiry_date <= now_time:
+                            min_servings = 0
+                            break
+                        req_converted = convert_to_ingredient_unit(bom.quantity_required, bom.measurement_unit, ing.measurement_unit)
+                        if req_converted <= Decimal('0.00'):
+                            continue
+                        s_count = int(Decimal(str(ing_stock.quantity_available)) // req_converted)
+                        if s_count <= 0:
+                            min_servings = 0
+                            break
+                        if s_count < min_servings:
+                            min_servings = s_count
+                    servings = int(min_servings) if min_servings != float('inf') else 0
+
+                qty = float(max(int(p_stock.quantity_available), servings))
+
+            threshold = float(p_stock.reorder_threshold)
+            pw_total_units += Decimal(str(int(qty)))
+
             if qty == 0.0 or qty <= (threshold * 0.5):
                 status_flag = "Critical"
                 pw_critical += 1
@@ -118,7 +154,7 @@ class LiveStockView(APIView):
                 pw_in_stock += 1
                 if is_satellite_branch:
                     kpis['in_stock'] += 1
-                
+
             if is_satellite_branch and p_stock.expiry_date and p_stock.expiry_date <= thirty_days:
                 kpis['expiring'] += 1
 
@@ -129,16 +165,21 @@ class LiveStockView(APIView):
                 "product_name": p_stock.product.product_name,
                 "category": p_stock.product.category.category_name if p_stock.product.category else "General",
                 "category_id": p_stock.product.category_id,
-                "price": float(p_stock.product.price), "quantity": qty, "threshold": threshold,
-                "branch": p_stock.branch.name, "branch_id": p_stock.branch.branch_ID,
+                "price": float(p_stock.product.price),
+                "quantity": int(qty),
+                "threshold": threshold,
+                "branch": p_stock.branch.name,
+                "branch_id": p_stock.branch.branch_ID,
                 "batch_number": p_stock.batch_number or "",
                 "raw_expiry": raw_prod_expiry,
                 "expiry": raw_prod_expiry if raw_prod_expiry else "N/A",
-                "status": status_flag
+                "status": status_flag,
+                "is_made_to_order": not is_cp,
+                "product_type": "Made-to-Order" if not is_cp else "Pre-Made"
             })
 
-            # For satellite branches, enqueue low-stock products into restock queue for Ibaan Hub dispatch
-            if is_satellite_branch and status_flag in ["Low Stock", "Critical"]:
+            # For satellite branches, enqueue low-stock pre-made products into restock queue for Ibaan Hub dispatch
+            if is_satellite_branch and is_cp and status_flag in ["Low Stock", "Critical"]:
                 restock_queue.append({
                     "item": p_stock.product.product_name,
                     "branch": p_stock.branch.name,
