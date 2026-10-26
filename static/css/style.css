@@ -1,4 +1,12 @@
 /* ==========================================================================
+   GLOBAL VIEWPORT & OVERFLOW GUARD
+   ========================================================================== */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* ==========================================================================
    SWEET BOX ENTERPRISE DESIGN SYSTEM
    Theme: Warm Gold, Amber Honey & Roasted Espresso Brown
    Optimized for enterprise readability, figure clarity, and eye comfort
@@ -1235,3 +1243,57 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     box-shadow: none !important;
 }
 
+
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS & TOUCH UTILITIES (Mobile First Enhancements)
+   ========================================================================== */
+
+/* Prevent iOS Safari input auto-zoom on mobile viewports (< 768px) */
+@media (max-width: 767.98px) {
+    input.form-control, select.form-select, textarea.form-control,
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Horizontal Swipeable Pill Strips on Mobile (< 768px) */
+@media (max-width: 767.98px) {
+    .sb-mobile-scroll-row {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 4px;
+        scroll-snap-type: x proximity;
+    }
+    .sb-mobile-scroll-row::-webkit-scrollbar {
+        display: none;
+    }
+    .sb-mobile-scroll-row > * {
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+    }
+}
+
+/* Responsive KPI Card Typography (< 576px) */
+@media (max-width: 576px) {
+    .sb-kpi-card {
+        padding: 0.75rem !important;
+    }
+    .sb-kpi-card .sb-kpi-value,
+    .sb-kpi-card .stat-value,
+    .stat-value,
+    .sb-kpi-value {
+        font-size: clamp(1.2rem, 4.5vw, 1.85rem) !important;
+        line-height: 1.2;
+        word-break: break-all;
+    }
+    .sb-kpi-label, .kpi-label {
+        font-size: 0.72rem !important;
+    }
+    .sb-kpi-subtext {
+        font-size: 0.68rem !important;
+    }
+}

@@ -17,7 +17,7 @@
                 </div>
                 <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-weight: 700;"><i class="fas fa-wand-magic-sparkles text-gold me-1"></i>AI Powered</span>
             </div>
-            <div class="card-body p-3 p-md-4" id="chat-box" style="height: clamp(380px, 60vh, 560px); overflow-y: auto; background-color: var(--sb-bg-app);">
+            <div class="card-body p-3 p-md-4" id="chat-box" style="height: clamp(320px, calc(100dvh - 260px), 560px); overflow-y: auto; background-color: var(--sb-bg-app);">
                 <div id="chat-initial-view" class="text-center my-4">
                     <div class="d-inline-flex p-3 rounded-circle mb-3 shadow-sm" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);">
                         <i class="fas fa-wand-magic-sparkles fs-2 text-gold"></i>
@@ -26,7 +26,7 @@
                     <p class="text-muted small mx-auto mb-3" style="max-width: 480px;">
                         Grounded in historical sales telemetry and active local event variables.
                     </p>
-                    <div class="d-flex flex-wrap gap-2 justify-content-center pt-1" id="quick-prompt-chips">
+                    <div class="d-flex gap-2 justify-content-start justify-content-sm-center pt-1 overflow-x-auto sb-mobile-scroll-row flex-nowrap flex-sm-wrap pb-1" id="quick-prompt-chips">
                         <button type="button" class="ai-prompt-chip" onclick="sendPagePrompt('What was our highest revenue product in recent sales?')">
                             <i class="fas fa-chart-line text-gold me-1"></i> Top revenue products
                         </button>

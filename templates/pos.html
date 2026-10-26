@@ -153,6 +153,44 @@
         border-color: #E5E7EB;
         cursor: not-allowed;
     }
+    .pos-card-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 2.4em;
+        font-size: 0.88rem;
+        line-height: 1.25;
+    }
+    .pos-floating-cart-bar {
+        position: fixed;
+        bottom: calc(64px + var(--sb-safe-bottom, 0px));
+        left: 12px;
+        right: 12px;
+        background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);
+        color: #FFFFFF;
+        border-radius: var(--sb-radius-md);
+        border: 1.5px solid var(--sb-gold);
+        box-shadow: 0 8px 25px rgba(30, 18, 13, 0.45);
+        padding: 10px 16px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        z-index: 1035;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+    }
+    @media (max-width: 767.98px) {
+        #cart-list {
+            max-height: calc(100dvh - 430px) !important;
+            min-height: 160px;
+        }
+        .size-pill-btn {
+            padding: 4px 8px !important;
+            font-size: 0.75rem !important;
+            min-height: 30px !important;
+        }
+    }
     .no-scrollbar::-webkit-scrollbar {
         display: none;
     }
@@ -216,7 +254,7 @@
         <div class="card sb-card border-0 h-100 shadow-sm">
             <div class="card-body p-2 p-md-3 d-flex flex-column" style="min-height: 75vh;">
                 <!-- Enhanced Search Bar + Quick Filters -->
-                <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap flex-sm-nowrap">
                     <div class="input-group flex-grow-1 shadow-xs rounded">
                         <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-search text-muted"></i></span>
                         <input type="text" class="form-control border-start-0 border-end-0" placeholder="Search menu items, sizes, or categories..." id="search-input" oninput="filterProducts()">
@@ -224,7 +262,7 @@
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <div class="form-check form-switch d-flex align-items-center gap-1 ms-1 ps-0 text-nowrap">
+                    <div class="form-check form-switch d-flex align-items-center gap-1 ms-auto ms-sm-1 ps-0 text-nowrap">
                         <input class="form-check-input ms-0" type="checkbox" id="instock-filter-switch" onchange="filterProducts()" style="cursor: pointer;">
                         <label class="form-check-label small fw-semibold text-muted user-select-none" for="instock-filter-switch" style="cursor: pointer; font-size: 0.8rem;">
                             <i class="fas fa-check-circle text-success me-1"></i>In-Stock
@@ -233,7 +271,7 @@
                 </div>
 
                 <!-- Tier 1: Department Tabs -->
-                <div class="pos-dept-bar d-flex gap-1 overflow-x-auto pb-1 mb-1 no-scrollbar" id="pos-department-pills">
+                <div class="pos-dept-bar d-flex gap-1 overflow-x-auto pb-1 mb-1 no-scrollbar sb-mobile-scroll-row" id="pos-department-pills">
                     <button type="button" class="btn pos-pill-tab active" onclick="setDepartmentFilter('all', this)">
                         All Menu <span class="badge bg-light text-dark ms-1" id="dept-count-all">0</span>
                     </button>
@@ -252,12 +290,12 @@
                 </div>
 
                 <!-- Tier 2: Sub-Category Filter Pills -->
-                <div class="pos-subcat-bar d-flex gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar" id="pos-subcategory-pills" style="display: none;">
+                <div class="pos-subcat-bar d-flex gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar sb-mobile-scroll-row" id="pos-subcategory-pills" style="display: none;">
                     <!-- Injected dynamically by JS -->
                 </div>
 
                 <!-- Product Cards Catalog Grid -->
-                <div class="row g-2 g-md-3 overflow-auto flex-grow-1" id="product-catalog-container" style="max-height: 60vh; padding-right: 4px;">
+                <div class="row g-2 g-md-3 overflow-auto flex-grow-1 pb-5 mb-4 pb-md-0 mb-md-0" id="product-catalog-container" style="max-height: 60vh; padding-right: 4px;">
                     <!-- Products dynamically injected here -->
                 </div>
             </div>
@@ -632,7 +670,7 @@
                         <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between">
                             <div>
                                 <span class="badge mb-2 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
-                                <h6 class="card-title fw-bold text-title mb-1 fs-6 text-truncate" title="${g.base_name}">${g.base_name}</h6>
+                                <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
                             </div>
                             <div class="mt-2">
                                 <p class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
@@ -662,7 +700,7 @@
                         <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between">
                             <div>
                                 <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
-                                <h6 class="card-title fw-bold text-title mb-1 fs-6 text-truncate" title="${g.base_name}">${g.base_name}</h6>
+                                <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
                             </div>
                             <div class="my-1">
                                 <p id="price-disp-${idx}" class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
@@ -1288,5 +1326,48 @@
         }
     }
 
+
+    window.switchPosMobileView = function(view) {
+        const productCol = document.getElementById('pos-product-col');
+        const cartCol = document.getElementById('pos-cart-col');
+        const btnMenu = document.getElementById('pos-btn-menu-tab');
+        const btnCart = document.getElementById('pos-btn-cart-tab');
+        const floatBar = document.getElementById('pos-floating-cart-bar');
+
+        if (view === 'cart') {
+            if (productCol) productCol.classList.add('d-none');
+            if (cartCol) {
+                cartCol.classList.remove('d-none');
+                cartCol.classList.add('d-block');
+            }
+            if (btnMenu) btnMenu.classList.remove('active');
+            if (btnCart) btnCart.classList.add('active');
+            if (floatBar) floatBar.style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            if (productCol) productCol.classList.remove('d-none');
+            if (cartCol) {
+                cartCol.classList.add('d-none');
+                cartCol.classList.remove('d-block');
+            }
+            if (btnMenu) btnMenu.classList.add('active');
+            if (btnCart) btnCart.classList.remove('active');
+            updateCartUI();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768) {
+            const productCol = document.getElementById('pos-product-col');
+            const cartCol = document.getElementById('pos-cart-col');
+            if (productCol) productCol.classList.remove('d-none');
+            if (cartCol) cartCol.classList.remove('d-none');
+            const floatBar = document.getElementById('pos-floating-cart-bar');
+            if (floatBar) floatBar.style.display = 'none';
+        } else {
+            updateCartUI();
+        }
+    });
 </script>
 {% endblock %}

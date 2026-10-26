@@ -8,23 +8,23 @@
         <h3 class="fw-bold mb-1 text-espresso">Enterprise Analytics</h3>
         <p class="text-muted-warm small mb-0">Multi-Branch Real-Time Performance & Algorithmic Insights</p>
     </div>
-    <div class="d-flex flex-wrap align-items-center gap-2">
+    <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
         <!-- Branch Selector (Owner / Multi-Branch) -->
-        <div class="d-inline-flex align-items-center" id="analytics-branch-wrapper">
-            <select id="analytics-branch-filter" class="form-select form-select-sm bg-white shadow-xs fw-semibold border" style="border-color: var(--sb-border-subtle) !important; min-width: 170px;" onchange="onBranchFilterChange(this.value)">
+        <div class="d-inline-flex align-items-center flex-fill flex-md-grow-0" id="analytics-branch-wrapper">
+            <select id="analytics-branch-filter" class="form-select form-select-sm bg-white shadow-xs fw-semibold border w-100" style="border-color: var(--sb-border-subtle) !important; min-width: 170px;" onchange="onBranchFilterChange(this.value)">
                 <option value="all">All Branches</option>
             </select>
         </div>
-        <div class="btn-group bg-white p-1 rounded-3 shadow-xs border" role="group" style="border-color: var(--sb-border-subtle) !important;">
-            <button type="button" class="btn btn-sm filter-btn" onclick="applyFilter('this_week', this)">This Week</button>
-            <button type="button" class="btn btn-sm filter-btn active" onclick="applyFilter('this_month', this)">This Month</button>
-            <button type="button" class="btn btn-sm filter-btn" onclick="applyFilter('last_7_months', this)">Last 7 Months</button>
+        <div class="btn-group btn-group-sm bg-white p-1 rounded-3 shadow-xs border flex-fill flex-md-grow-0 justify-content-between" role="group" style="border-color: var(--sb-border-subtle) !important;">
+            <button type="button" class="btn btn-sm filter-btn flex-fill" onclick="applyFilter('this_week', this)">This Week</button>
+            <button type="button" class="btn btn-sm filter-btn active flex-fill" onclick="applyFilter('this_month', this)">This Month</button>
+            <button type="button" class="btn btn-sm filter-btn flex-fill" onclick="applyFilter('last_7_months', this)">Last 7 Months</button>
         </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary bg-white shadow-xs fw-semibold d-inline-flex align-items-center gap-1 border" style="border-color: var(--sb-border-subtle) !important;" onclick="manualRefresh()" id="btn-refresh" title="Refresh Live Analytics">
+        <button type="button" class="btn btn-sm btn-outline-secondary bg-white shadow-xs fw-semibold d-inline-flex align-items-center justify-content-center gap-1 border flex-fill flex-md-grow-0" style="border-color: var(--sb-border-subtle) !important;" onclick="manualRefresh()" id="btn-refresh" title="Refresh Live Analytics">
             <i class="fas fa-arrows-rotate" id="refresh-icon"></i> Refresh
         </button>
-        <button class="btn btn-warning fw-bold text-dark shadow-sm d-inline-flex align-items-center gap-2" onclick="exportKPIs()">
-            <i class="fas fa-file-arrow-down"></i> Export Report
+        <button class="btn btn-warning fw-bold text-dark shadow-sm d-inline-flex align-items-center justify-content-center gap-2 flex-fill flex-md-grow-0" onclick="exportKPIs()">
+            <i class="fas fa-file-arrow-down"></i> <span class="d-none d-sm-inline">Export Report</span><span class="d-sm-none">Export</span>
         </button>
     </div>
 </div>
@@ -88,14 +88,14 @@
                 </div>
                 <span class="badge bg-warning text-dark"><i class="fas fa-signal me-1"></i> Live Metric</span>
             </div>
-            <div style="height: 260px;" class="mt-2"><canvas id="dailySalesChart"></canvas></div>
+            <div style="height: clamp(240px, 35vh, 260px); min-height: 240px;" class="mt-2"><canvas id="dailySalesChart"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4">
         <div class="card shadow-sm border-0 h-100 p-3">
             <h6 class="fw-bold text-espresso mb-0">Payment Methods</h6>
             <small class="text-muted-warm mb-3 d-block">Transaction tender distribution</small>
-            <div style="height: 260px;" class="d-flex justify-content-center align-items-center">
+            <div style="height: clamp(240px, 35vh, 260px); min-height: 240px;" class="d-flex justify-content-center align-items-center">
                 <canvas id="paymentMethodChart"></canvas>
             </div>
         </div>
@@ -112,7 +112,7 @@
                     <small class="text-muted-warm">Actual revenue against algorithmic baseline</small>
                 </div>
             </div>
-            <div style="height: 290px;" class="mt-2"><canvas id="branchTargetChart"></canvas></div>
+            <div style="height: clamp(240px, 35vh, 290px); min-height: 240px;" class="mt-2"><canvas id="branchTargetChart"></canvas></div>
         </div>
     </div>
 </div>
@@ -195,7 +195,7 @@
 
 <!-- RESTORED: Event Creation Modal -->
 <div class="modal fade" id="eventModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-warning text-dark">
                 <h5 class="modal-title fw-bold">Log External Variable</h5>

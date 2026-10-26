@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <title>Sweet Box Enterprise Hub</title>
     <!-- Google Fonts & Font Awesome 6 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,14 +22,14 @@
 
     <!-- Mobile Top Navigation -->
     <nav class="navbar navbar-dark sb-sidebar d-md-none px-3 shadow-sm sticky-top" style="z-index: 1030;">
-        <div class="d-flex align-items-center gap-2">
-            <div class="sb-brand-logo" style="width: 34px; height: 34px; font-size: 0.95rem;"><i class="fas fa-cookie-bite"></i></div>
-            <div>
-                <span class="navbar-brand fw-bold text-gold mb-0 fs-6">Sweet Box</span>
-                <span id="mobile-top-user" class="text-white-50 d-block" style="font-size: 0.7rem; line-height: 1.1;">Enterprise Hub</span>
+        <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden me-2">
+            <div class="sb-brand-logo flex-shrink-0" style="width: 34px; height: 34px; font-size: 0.95rem;"><i class="fas fa-cookie-bite"></i></div>
+            <div class="text-truncate">
+                <span class="navbar-brand fw-bold text-gold mb-0 fs-6 text-truncate d-block">Sweet Box</span>
+                <span id="mobile-top-user" class="text-white-50 d-block text-truncate" style="font-size: 0.7rem; line-height: 1.1;">Enterprise Hub</span>
             </div>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
             <button class="navbar-toggler border-0 p-1" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -573,7 +573,24 @@
             window.location.href = '/login/'; 
         }
 
-        document.addEventListener("DOMContentLoaded", enforceRBAC);
+        document.addEventListener("DOMContentLoaded", () => {
+            enforceRBAC();
+            // Auto-close offcanvas navigation when clicking a link on mobile (< 992px)
+            document.querySelectorAll('#sidebarMenu a.nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    const offcanvasEl = document.getElementById('sidebarMenu');
+                    if (offcanvasEl && window.innerWidth < 992) {
+                        try {
+                            const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                            if (bsOffcanvas) bsOffcanvas.hide();
+                            else offcanvasEl.classList.remove('show');
+                        } catch(e) {
+                            offcanvasEl.classList.remove('show');
+                        }
+                    }
+                });
+            });
+        });
     </script>
     {% block scripts %}{% endblock %}
 </body>

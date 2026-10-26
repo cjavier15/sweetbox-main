@@ -100,6 +100,16 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
     }
+    @media (max-width: 575.98px) {
+        .table td, .table th {
+            padding: 0.55rem 0.5rem !important;
+            font-size: 0.8rem;
+        }
+        .filter-pill-btn {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+        }
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
@@ -110,8 +120,8 @@
         </h3>
         <small class="text-muted">Real-time multi-branch stock levels, recipe BOM & prescriptive AI</small>
     </div>
-    <div class="d-flex gap-2 align-items-center flex-wrap">
-        <select id="branch-filter" class="form-select bg-white d-none shadow-sm" style="min-width: 190px;" onchange="loadSCMData()">
+    <div class="d-flex gap-2 align-items-center flex-wrap w-100 w-md-auto">
+        <select id="branch-filter" class="form-select bg-white d-none shadow-sm flex-grow-1 flex-md-grow-0" style="min-width: 170px;" onchange="loadSCMData()">
             <option value="all">All Branches</option>
             <option value="1">Ibaan (Main Hub)</option>
             <option value="2">Padre Garcia</option>
@@ -121,20 +131,20 @@
             <option value="6">San Antonio Quezon</option>
             <option value="7">Cuenca</option>
         </select>
-        <button id="btn-branch-assignment" class="btn btn-outline-dark fw-bold px-3 d-none align-items-center gap-2 shadow-sm" onclick="openBranchAssignmentModal()">
-            <i class="fas fa-store text-gold"></i> Branch Catalog Assignment
+        <button id="btn-branch-assignment" class="btn btn-outline-dark fw-bold px-3 d-none align-items-center gap-2 shadow-sm flex-fill flex-md-grow-0" onclick="openBranchAssignmentModal()">
+            <i class="fas fa-store text-gold"></i> <span class="d-none d-sm-inline">Branch Catalog Assignment</span><span class="d-sm-none">Catalog</span>
         </button>
-        <button id="btn-add-ingredient-header" class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
-            <i class="fas fa-plus"></i> Add Ingredient
+        <button id="btn-add-ingredient-header" class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-2 shadow-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
+            <i class="fas fa-plus"></i> <span class="d-none d-sm-inline">Add Ingredient</span><span class="d-sm-none">Add Ing.</span>
         </button>
-        <button class="btn btn-sb-espresso fw-bold px-3 d-inline-flex align-items-center gap-2 shadow-sm" onclick="loadSCMData()">
-            <i class="fas fa-sync-alt"></i> Refresh Data
+        <button class="btn btn-sb-espresso fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-2 shadow-sm flex-fill flex-md-grow-0" onclick="loadSCMData()">
+            <i class="fas fa-sync-alt"></i> Refresh
         </button>
     </div>
 </div>
 
 <!-- Tabs Navigation -->
-<ul class="nav scm-tabs gap-2 mb-4" id="scmTabs" role="tablist">
+<ul class="nav scm-tabs gap-2 mb-4 sb-mobile-scroll-row" id="scmTabs" role="tablist">
     <li class="nav-item" id="tab-li-tracker" role="presentation"><button class="nav-link active" id="tab-btn-tracker" data-bs-toggle="tab" data-bs-target="#tracker"><i class="fas fa-layer-group me-2 text-gold"></i>Stock Tracker</button></li>
     <li class="nav-item" id="tab-li-pw" role="presentation"><button class="nav-link" id="tab-btn-pw" data-bs-toggle="tab" data-bs-target="#product-watch"><i class="fas fa-boxes-stacked me-2 text-gold"></i>Product Availability</button></li>
     <li class="nav-item" id="tab-li-bom" role="presentation"><button class="nav-link" id="tab-btn-bom" data-bs-toggle="tab" data-bs-target="#bom"><i class="fas fa-receipt me-2 text-gold"></i>Bill-of-Materials</button></li>
@@ -250,7 +260,7 @@
             </div>
             <!-- Quick Category & Status Pills -->
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top">
-                <div class="d-flex align-items-center gap-1 flex-wrap" id="inv-category-pills">
+                <div class="d-flex align-items-center gap-1 overflow-x-auto sb-mobile-scroll-row pb-1 text-nowrap flex-nowrap flex-sm-wrap" id="inv-category-pills">
                     <span class="small text-muted me-1 fw-bold">Categories:</span>
                     <button type="button" class="filter-pill-btn active" data-cat="all" onclick="setInvCatFilter('all', this)">All Categories</button>
                     <button type="button" class="filter-pill-btn" data-cat="Baking & Cakes" onclick="setInvCatFilter('Baking & Cakes', this)">Baking & Cakes</button>
@@ -258,7 +268,7 @@
                     <button type="button" class="filter-pill-btn" data-cat="Beverages" onclick="setInvCatFilter('Beverages', this)">Beverages</button>
                     <button type="button" class="filter-pill-btn" data-cat="Kitchen & Savory" onclick="setInvCatFilter('Kitchen & Savory', this)">Kitchen & Savory</button>
                 </div>
-                <div class="d-flex align-items-center gap-1 flex-wrap" id="inv-status-pills">
+                <div class="d-flex align-items-center gap-1 overflow-x-auto sb-mobile-scroll-row pb-1 text-nowrap flex-nowrap flex-sm-wrap" id="inv-status-pills">
                     <span class="small text-muted me-1 fw-bold">Status:</span>
                     <button type="button" class="filter-pill-btn active" data-status="all" onclick="filterInvByStatus('all')">All Status</button>
                     <button type="button" class="filter-pill-btn" data-status="In Stock" onclick="filterInvByStatus('In Stock')"><span class="badge rounded-circle bg-success me-1" style="width:7px;height:7px;display:inline-block;"></span>In Stock</button>
@@ -415,7 +425,7 @@
             
             <!-- Department Tabs (Tier 1) & Status Pills -->
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top">
-                <div class="d-flex align-items-center gap-1 flex-wrap" id="pw-department-pills">
+                <div class="d-flex align-items-center gap-1 overflow-x-auto sb-mobile-scroll-row pb-1 text-nowrap flex-nowrap flex-sm-wrap" id="pw-department-pills">
                     <span class="small text-muted me-1 fw-bold">Department:</span>
                     <button type="button" class="filter-pill-btn active" data-dept="all" onclick="setPWDepartment('all', this)">All</button>
                     <button type="button" class="filter-pill-btn" data-dept="cakes" onclick="setPWDepartment('cakes', this)">🎂 Cakes</button>
@@ -423,7 +433,7 @@
                     <button type="button" class="filter-pill-btn" data-dept="beverages" onclick="setPWDepartment('beverages', this)">☕ Beverages</button>
                     <button type="button" class="filter-pill-btn" data-dept="foods" onclick="setPWDepartment('foods', this)">🍔 Foods & Snacks</button>
                 </div>
-                <div class="d-flex align-items-center gap-1 flex-wrap" id="pw-status-pills">
+                <div class="d-flex align-items-center gap-1 overflow-x-auto sb-mobile-scroll-row pb-1 text-nowrap flex-nowrap flex-sm-wrap" id="pw-status-pills">
                     <span class="small text-muted me-1 fw-bold">Status:</span>
                     <button type="button" class="filter-pill-btn active" data-status="all" onclick="setPWStatus('all', this)">All</button>
                     <button type="button" class="filter-pill-btn" data-status="In Stock" onclick="setPWStatus('In Stock', this)"><span class="badge rounded-circle bg-success me-1" style="width:7px;height:7px;display:inline-block;"></span>In Stock</button>
@@ -502,7 +512,7 @@
             </div>
             
             <!-- Category Pills Bar with Recipe Counts -->
-            <div class="d-flex align-items-center gap-1 flex-wrap pt-2 border-top no-scrollbar" id="bom-category-pills" style="max-height: 120px; overflow-y: auto;">
+            <div class="d-flex align-items-center gap-1 overflow-x-auto sb-mobile-scroll-row pb-1 text-nowrap flex-nowrap flex-sm-wrap pt-2 border-top no-scrollbar" id="bom-category-pills" style="max-height: 120px; overflow-y: auto;">
                 <button type="button" class="filter-pill-btn active" data-cat="all" onclick="setBOMCategoryFilter('all', this)">
                     All Categories <span class="badge-pill-count" id="bom-all-count">0</span>
                 </button>
@@ -586,7 +596,7 @@
 
 <!-- Add Ingredient Modal -->
 <div class="modal fade" id="addIngredientModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -665,7 +675,7 @@
 
 <!-- BOM Modal -->
 <div class="modal fade" id="addBomModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="bom-modal-title">
@@ -761,7 +771,7 @@
 
 <!-- Kitchen Production Modal -->
 <div class="modal fade" id="produceModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -824,7 +834,7 @@
 
 <!-- Inter-Branch Product Transfer Modal -->
 <div class="modal fade" id="transferProductModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -913,7 +923,7 @@
 
 <!-- Request Finished Product Modal (Satellite Branches -> Main Hub) -->
 <div class="modal fade" id="requestProductModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -990,7 +1000,7 @@
 
 <!-- Stock Adjustment & Attribute Edit Modal -->
 <div class="modal fade" id="stockAdjustModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2" id="adj-modal-title">
@@ -1148,7 +1158,7 @@
 
 <!-- AI Override Modal -->
 <div class="modal fade" id="overrideModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark">
                 <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
@@ -1172,7 +1182,7 @@
 
 <!-- Branch Catalog & Product Assignment Modal -->
 <div class="modal fade" id="branchAssignmentModal" tabindex="-1" aria-labelledby="baModalTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-dark text-white">
                 <div>

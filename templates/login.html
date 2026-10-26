@@ -40,6 +40,19 @@
         .letter-spacing-2 {
             letter-spacing: 0.35em;
         }
+        @media (max-width: 576px) {
+            .login-card {
+                margin: 0.5rem;
+                max-width: 100%;
+                border-radius: var(--sb-radius-lg);
+            }
+            .login-header {
+                padding: 1.5rem 1.25rem 1.25rem;
+            }
+            input.form-control, select.form-select {
+                font-size: 16px !important;
+            }
+        }
     </style>
 </head>
 <body class="d-flex align-items-center justify-content-center p-3" style="min-height: 100dvh;">
@@ -54,7 +67,7 @@
             <h3 class="fw-bold mb-1" style="background: linear-gradient(135deg, var(--sb-gold-light) 0%, var(--sb-gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Sweet Box</h3>
             <small style="color: var(--sb-text-subtle); letter-spacing: 0.03em;">Enterprise Management Platform</small>
         </div>
-        <div class="card-body p-4" style="background-color: #FFFFFF;">
+        <div class="card-body p-3 p-sm-4" style="background-color: #FFFFFF;">
             <div id="error-message" class="alert alert-danger d-none py-2 px-3 small fw-bold d-flex align-items-center gap-2 mb-3"></div>
             
             <!-- Step 1: Email & Password -->
@@ -85,16 +98,31 @@
             <!-- Step 2: OTP Verification (Hidden by default) -->
             <form id="otpForm" class="d-none" onsubmit="verifyOTP(event)">
                 {% csrf_token %}
-                <div class="mb-4 text-center">
+                <div class="mb-3 text-center">
                     <div class="d-inline-flex p-3 rounded-circle mb-3" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso);">
                         <i class="fas fa-key fs-4"></i>
                     </div>
                     <h5 class="fw-bold text-title mb-1">Two-Factor Authentication</h5>
-                    <p class="text-muted small mb-3">Enter the 6-digit verification code sent to your credentials.</p>
+                    <p class="text-muted small mb-2">Enter the 6-digit verification code sent to your email.</p>
+                    <div class="small text-muted mb-3" style="font-size: 0.8rem;">
+                        Sent to: <strong id="otp-target-email" class="text-dark"></strong>
+                    </div>
                     <input type="text" id="otp" class="form-control text-center fs-3 fw-bold letter-spacing-2" maxlength="6" placeholder="000000" required inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+                    
+                    <!-- Resend OTP Button & Cooldown -->
+                    <div class="d-flex justify-content-center align-items-center mt-3">
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none fw-semibold p-0 d-inline-flex align-items-center gap-1" id="btn-resend-otp" onclick="resendOTP()" style="color: var(--sb-gold); font-size: 0.85rem;">
+                            <i class="fas fa-arrows-rotate"></i> Resend Code
+                        </button>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 fs-6" id="btn-verify">
+                <button type="submit" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2 fs-6 text-dark" id="btn-verify">
                     <i class="fas fa-check-circle"></i> Verify & Access
+                </button>
+
+                <!-- Back to Login Button -->
+                <button type="button" class="btn btn-outline-secondary w-100 fw-semibold mt-2 d-flex align-items-center justify-content-center gap-2" onclick="backToCredentials()">
+                    <i class="fas fa-arrow-left"></i> Back to Login
                 </button>
             </form>
 
@@ -280,9 +308,16 @@
                     routeUser(data.access);
                 } else {
                     tempEmail = data.email || email;
+                    const targetEmailEl = document.getElementById('otp-target-email');
+                    if (targetEmailEl) targetEmailEl.textContent = tempEmail;
                     errorBox.classList.add('d-none');
                     document.getElementById('loginForm').classList.add('d-none');
                     document.getElementById('otpForm').classList.remove('d-none');
+                    const otpInput = document.getElementById('otp');
+                    if (otpInput) {
+                        otpInput.value = '';
+                        setTimeout(() => otpInput.focus(), 100);
+                    }
                 }
             } else {
                 const msg = data.error || "Invalid credentials.";
@@ -352,6 +387,92 @@
             btn.innerText = "Verify & Access";
             btn.disabled = false;
         }
+    }
+
+    window.backToCredentials = function() {
+        document.getElementById('otpForm').classList.add('d-none');
+        document.getElementById('loginForm').classList.remove('d-none');
+        const otpInput = document.getElementById('otp');
+        if (otpInput) otpInput.value = '';
+        const errorBox = document.getElementById('error-message');
+        if (errorBox) {
+            errorBox.classList.add('d-none');
+            errorBox.innerHTML = '';
+        }
+        const btn = document.getElementById('btn-login');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-shield-halved"></i> Secure Login';
+            btn.disabled = false;
+        }
+        const passwordInput = document.getElementById('password');
+        if (passwordInput) {
+            passwordInput.focus();
+        } else {
+            document.getElementById('email')?.focus();
+        }
+    };
+
+    let resendCooldownTimer = null;
+    window.resendOTP = async function() {
+        const btnResend = document.getElementById('btn-resend-otp');
+        if (!btnResend || btnResend.disabled) return;
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const trustedToken = localStorage.getItem('trusted_device_token' + email);
+        const errorBox = document.getElementById('error-message');
+        
+        btnResend.disabled = true;
+        btnResend.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Sending...';
+        
+        try {
+            const csrfToken = getCSRFToken();
+            const response = await fetch('/api/auth/initiate/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ email: email, password: password, trusted_device_token: trustedToken })
+            });
+            
+            let data = {};
+            try { data = await response.json(); } catch(e) { data = {}; }
+            
+            if (response.ok) {
+                showSweetAlert("A new 6-digit OTP has been sent to your email.", "success");
+                if (errorBox) errorBox.classList.add('d-none');
+                startResendCooldown(30);
+            } else {
+                const msg = data.error || "Failed to resend OTP code.";
+                showSweetAlert(msg, "error");
+                btnResend.disabled = false;
+                btnResend.innerHTML = '<i class="fas fa-arrows-rotate"></i> Resend Code';
+            }
+        } catch(err) {
+            showSweetAlert("Network error requesting new OTP code.", "error");
+            btnResend.disabled = false;
+            btnResend.innerHTML = '<i class="fas fa-arrows-rotate"></i> Resend Code';
+        }
+    };
+
+    function startResendCooldown(seconds) {
+        const btnResend = document.getElementById('btn-resend-otp');
+        if (!btnResend) return;
+        btnResend.disabled = true;
+        let remaining = seconds;
+        btnResend.innerHTML = `<i class="fas fa-clock me-1"></i> Resend in ${remaining}s`;
+        
+        if (resendCooldownTimer) clearInterval(resendCooldownTimer);
+        resendCooldownTimer = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(resendCooldownTimer);
+                btnResend.disabled = false;
+                btnResend.innerHTML = '<i class="fas fa-arrows-rotate"></i> Resend Code';
+            } else {
+                btnResend.innerHTML = `<i class="fas fa-clock me-1"></i> Resend in ${remaining}s`;
+            }
+        }, 1000);
     }
 </script>
 </body>
