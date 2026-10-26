@@ -72,9 +72,14 @@
                             <i class="fas fa-boxes-stacked"></i> Inventory & BOM
                         </a>
                     </li>
+                    <li class="nav-item" id="nav-admin-panel">
+                        <a href="/admin-panel/" class="nav-link">
+                            <i class="fas fa-user-shield"></i> Admin Panel
+                        </a>
+                    </li>
                     <li class="nav-item" id="nav-admin">
                         <a href="/admin/login/" class="nav-link">
-                            <i class="fas fa-shield-halved"></i> Admin Panel
+                            <i class="fas fa-shield-halved"></i> Django Admin
                         </a>
                     </li>
                 </ul>
@@ -284,23 +289,23 @@
                 const path = window.location.pathname;
 
                 const accessMap = {
-                    'System Administrator': ['/enterprise/', '/scm/', '/admin/'],
-                    'Business Owner': ['/enterprise/', '/scm/', '/analytics/'],
-                    'Admin': ['/admin/', '/enterprise/', '/scm/'],
+                    'System Administrator': ['/admin-panel/', '/enterprise/', '/scm/', '/admin/'],
+                    'Business Owner': ['/enterprise/', '/scm/', '/admin-panel/', '/analytics/'],
+                    'Admin': ['/admin-panel/', '/admin/', '/enterprise/', '/scm/'],
                     'Branch Manager': ['/scm/'],
                     'Staff': ['/pos/']
                 };
 
                 const uiMap = {
-                    'System Administrator': ['nav-enterprise', 'nav-scm', 'nav-admin'],
-                    'Business Owner': ['nav-enterprise', 'nav-scm'],
-                    'Admin': ['nav-admin', 'nav-enterprise', 'nav-scm'],
+                    'System Administrator': ['nav-admin-panel', 'nav-enterprise', 'nav-scm', 'nav-admin'],
+                    'Business Owner': ['nav-enterprise', 'nav-scm', 'nav-admin-panel'],
+                    'Admin': ['nav-admin-panel', 'nav-admin', 'nav-enterprise', 'nav-scm'],
                     'Branch Manager': ['nav-scm'],
                     'Staff': ['nav-pos']
                 };
 
-                const allowedPaths = accessMap[role] || (data.is_superuser ? ['/enterprise/', '/scm/', '/pos/', '/admin/', '/analytics/'] : []);
-                const allowedUI = uiMap[role] || (data.is_superuser ? ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin'] : []);
+                const allowedPaths = accessMap[role] || (data.is_superuser ? ['/enterprise/', '/scm/', '/pos/', '/admin-panel/', '/admin/', '/analytics/'] : []);
+                const allowedUI = uiMap[role] || (data.is_superuser ? ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin-panel', 'nav-admin'] : []);
                 
                 if (!allowedPaths.some(p => path.includes(p)) && path !== '/' && path !== '/login/') {
                     window.location.href = allowedPaths[0] || '/login/';
@@ -308,7 +313,7 @@
                 }
 
                 // Process UI Removals on desktop sidebar and mobile bottom nav
-                const allUIElements = ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin'];
+                const allUIElements = ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin-panel', 'nav-admin'];
                 allUIElements.forEach(elementId => {
                     if (!allowedUI.includes(elementId)) {
                         const el = document.getElementById(elementId);

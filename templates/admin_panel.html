@@ -1,0 +1,1401 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* Admin Navigation Tabs */
+    .admin-tabs {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 6px;
+        scrollbar-width: none;
+    }
+    .admin-tabs::-webkit-scrollbar {
+        display: none;
+    }
+    .admin-tabs .nav-item {
+        flex: 0 0 auto !important;
+    }
+    .admin-tabs .nav-link {
+        white-space: nowrap !important;
+        color: var(--sb-text-muted);
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 1px solid transparent;
+        border-radius: var(--sb-radius-md);
+        padding: 8px 18px;
+        transition: var(--sb-transition);
+        background: transparent;
+    }
+    .admin-tabs .nav-link:hover {
+        color: var(--sb-espresso);
+        background: var(--sb-gold-subtle);
+    }
+    .admin-tabs .nav-link.active {
+        background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%) !important;
+        color: var(--sb-gold-light) !important;
+        box-shadow: var(--sb-shadow-xs);
+    }
+
+    /* KPI Cards */
+    .sb-kpi-card {
+        background: var(--sb-bg-surface);
+        border: 1px solid var(--sb-border);
+        border-radius: var(--sb-radius-lg);
+        padding: 1.1rem 1.25rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .sb-kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--sb-shadow-sm);
+    }
+
+    /* Branch Status Pulsing Dot */
+    .pulse-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+    }
+    .pulse-dot.online {
+        background-color: #198754;
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+        animation: pulse-green 2s infinite;
+    }
+    .pulse-dot.offline {
+        background-color: #dc3545;
+    }
+    @keyframes pulse-green {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(25, 135, 84, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+    }
+
+    /* Selectable Archive Card */
+    .archive-type-card {
+        cursor: pointer;
+        border: 2px solid var(--sb-border);
+        border-radius: var(--sb-radius-md);
+        background: var(--sb-bg-surface);
+        padding: 14px;
+        transition: all 0.2s ease;
+    }
+    .archive-type-card:hover {
+        border-color: var(--sb-gold);
+        transform: translateY(-2px);
+    }
+    .archive-type-card.active {
+        border-color: var(--sb-gold) !important;
+        background: rgba(212, 154, 61, 0.08) !important;
+        box-shadow: 0 4px 14px var(--sb-gold-glow);
+    }
+
+    /* Avatar Badge */
+    .user-avatar-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        background: linear-gradient(135deg, var(--sb-gold-light) 0%, var(--sb-gold) 100%);
+        color: var(--sb-espresso-dark);
+        flex-shrink: 0;
+    }
+
+    /* Badges & Tags */
+    .badge-role-owner {
+        background: rgba(212, 154, 61, 0.2);
+        color: var(--sb-gold-dark, #8a5814);
+        border: 1px solid rgba(212, 154, 61, 0.4);
+    }
+    .badge-role-manager {
+        background: rgba(13, 110, 253, 0.12);
+        color: #0d6efd;
+        border: 1px solid rgba(13, 110, 253, 0.3);
+    }
+    .badge-role-staff {
+        background: rgba(25, 135, 84, 0.12);
+        color: #198754;
+        border: 1px solid rgba(25, 135, 84, 0.3);
+    }
+    .badge-role-admin {
+        background: rgba(111, 66, 193, 0.12);
+        color: #6f42c1;
+        border: 1px solid rgba(111, 66, 193, 0.3);
+    }
+
+    /* Audit Log Event Badges */
+    .pill-auth { background: rgba(13, 110, 253, 0.15); color: #0d6efd; }
+    .pill-export { background: rgba(13, 202, 240, 0.15); color: #055160; }
+    .pill-create { background: rgba(25, 135, 84, 0.15); color: #0f5132; }
+    .pill-update { background: rgba(255, 193, 7, 0.2); color: #664d03; }
+    .pill-delete { background: rgba(220, 53, 69, 0.15); color: #842029; }
+    .pill-action { background: rgba(108, 117, 125, 0.15); color: #41464b; }
+</style>
+
+<div class="container-fluid px-1 px-sm-2 px-md-3 py-2">
+
+    <!-- Top Header Bar -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3 pb-2 border-bottom border-secondary border-opacity-10">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="sb-brand-logo" style="width: 36px; height: 36px; font-size: 1rem;">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div>
+                    <h3 class="fw-bold text-title mb-0 fs-4">Admin Panel — System Administration & Governance</h3>
+                    <small class="text-muted">User Management, Branch Configuration, Data Archival & Audit Logs</small>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 w-100 w-md-auto justify-content-end">
+            <span id="admin-last-sync" class="text-muted small d-none d-sm-inline">Synced Just now</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2" onclick="loadAdminData(true)" title="Refresh Data">
+                <i class="fas fa-rotate" id="refresh-icon"></i>
+                <span class="d-none d-sm-inline">Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 4 Navigation Tabs (Horizontal Touch Strip) -->
+    <div class="mb-3">
+        <ul class="nav nav-pills admin-tabs sb-mobile-scroll-row gap-2" id="adminTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active d-flex align-items-center gap-2" id="tab-users-btn" data-bs-toggle="pill" data-bs-target="#tab-users" type="button" role="tab">
+                    <i class="fas fa-users-gear text-gold"></i>
+                    <span>User Management</span>
+                    <span class="badge bg-secondary ms-1" id="badge-user-count" style="font-size: 0.72rem;">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link d-flex align-items-center gap-2" id="tab-branches-btn" data-bs-toggle="pill" data-bs-target="#tab-branches" type="button" role="tab">
+                    <i class="fas fa-store text-gold"></i>
+                    <span>Branch Settings</span>
+                    <span class="badge bg-secondary ms-1" id="badge-branch-count" style="font-size: 0.72rem;">7</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link d-flex align-items-center gap-2" id="tab-archive-btn" data-bs-toggle="pill" data-bs-target="#tab-archive" type="button" role="tab">
+                    <i class="fas fa-box-archive text-gold"></i>
+                    <span>Data Archive</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link d-flex align-items-center gap-2" id="tab-logs-btn" data-bs-toggle="pill" data-bs-target="#tab-logs" type="button" role="tab">
+                    <i class="fas fa-shield-halved text-gold"></i>
+                    <span>Access & Logs</span>
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Contents Container -->
+    <div class="tab-content" id="adminTabContent">
+
+        <!-- ============================================================== -->
+        <!-- TAB 1: USER MANAGEMENT (Matches Figures 42 & 43)              -->
+        <!-- ============================================================== -->
+        <div class="tab-pane fade show active" id="tab-users" role="tabpanel">
+            <div class="card sb-card shadow-sm border-0 mb-4">
+                <div class="card-body p-3 p-md-4">
+                    <!-- Controls Filter Bar -->
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-3">
+                        <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 flex-grow-1">
+                            <div class="position-relative flex-grow-1" style="max-width: 400px;">
+                                <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                                <input type="text" class="form-control form-control-sm ps-5" id="user-search-input" placeholder="Search name, email, branch..." oninput="filterUsers()">
+                            </div>
+                            <select class="form-select form-select-sm" id="user-role-filter" style="max-width: 180px;" onchange="filterUsers()">
+                                <option value="">All Roles</option>
+                                <option value="Business Owner">Business Owner</option>
+                                <option value="Branch Manager">Branch Manager</option>
+                                <option value="Staff">Front Staff / Cashier</option>
+                                <option value="Admin">Admin</option>
+                                <option value="System Administrator">System Administrator</option>
+                            </select>
+                            <select class="form-select form-select-sm" id="user-status-filter" style="max-width: 140px;" onchange="filterUsers()">
+                                <option value="">All Status</option>
+                                <option value="active">Active Only</option>
+                                <option value="inactive">Inactive Only</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-gold btn-sm d-flex align-items-center justify-content-center gap-2 shadow-sm" onclick="openAddUserModal()">
+                            <i class="fas fa-user-plus"></i>
+                            <span class="fw-semibold">Add User</span>
+                        </button>
+                    </div>
+
+                    <!-- Responsive Users Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="users-table">
+                            <thead class="table-light text-muted small text-uppercase">
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Branch Assignment</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <i class="fas fa-spinner fa-spin me-2"></i> Loading user accounts...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB 2: BRANCH SETTINGS (Matches Figures 44 & 45)             -->
+        <!-- ============================================================== -->
+        <div class="tab-pane fade" id="tab-branches" role="tabpanel">
+            <!-- 4 Branch Summary KPIs -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Online Branches</span>
+                            <div class="rounded p-2 bg-success bg-opacity-10 text-success">
+                                <i class="fas fa-circle-check fs-5"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="kpi-branches-online">0</h3>
+                        <small class="text-success fw-semibold"><i class="fas fa-signal me-1"></i> Active POS telemetry</small>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Offline Branches</span>
+                            <div class="rounded p-2 bg-danger bg-opacity-10 text-danger">
+                                <i class="fas fa-circle-pause fs-5"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="kpi-branches-offline">0</h3>
+                        <small class="text-muted">Temporarily paused</small>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Total Branches</span>
+                            <div class="rounded p-2 bg-warning bg-opacity-10 text-gold">
+                                <i class="fas fa-store fs-5"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="kpi-branches-total">7</h3>
+                        <small class="text-muted">1 Hub + 6 Satellites</small>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Total Active Staff</span>
+                            <div class="rounded p-2 bg-primary bg-opacity-10 text-primary">
+                                <i class="fas fa-user-group fs-5"></i>
+                            </div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="kpi-branches-staff">0</h3>
+                        <small class="text-muted">Assigned team members</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7 Branch Cards Grid -->
+            <div class="row g-3" id="branches-cards-container">
+                <div class="col-12 text-center py-5 text-muted">
+                    <i class="fas fa-spinner fa-spin me-2"></i> Loading branch network...
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB 3: DATA ARCHIVE MANAGEMENT (Matches Figures 46 to 49)      -->
+        <!-- ============================================================== -->
+        <div class="tab-pane fade" id="tab-archive" role="tabpanel">
+            <!-- Information Banner -->
+            <div class="alert alert-warning border-warning bg-warning bg-opacity-10 d-flex align-items-center gap-3 mb-4 rounded-3">
+                <i class="fas fa-box-archive fs-3 text-gold flex-shrink-0"></i>
+                <div>
+                    <h6 class="fw-bold text-title mb-1">Data Archive Management</h6>
+                    <small class="text-muted">Archive older operational transactions and inventory logs into permanent read-only archive storage to optimize database performance while maintaining strict regulatory data retention compliance.</small>
+                </div>
+            </div>
+
+            <!-- Archive KPIs -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Txns Archived</span>
+                            <div class="rounded p-2 bg-primary bg-opacity-10 text-primary"><i class="fas fa-receipt fs-5"></i></div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-txns">0</h3>
+                        <small class="text-muted">Sales receipts</small>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Inventory Logs</span>
+                            <div class="rounded p-2 bg-success bg-opacity-10 text-success"><i class="fas fa-boxes-packing fs-5"></i></div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-inv">0</h3>
+                        <small class="text-muted">Stock adjustments</small>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Activity Logs</span>
+                            <div class="rounded p-2 bg-info bg-opacity-10 text-info"><i class="fas fa-clipboard-check fs-5"></i></div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-logs">0</h3>
+                        <small class="text-muted">Audit events</small>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="sb-kpi-card">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold">Total Archived</span>
+                            <div class="rounded p-2 bg-warning bg-opacity-10 text-gold"><i class="fas fa-database fs-5"></i></div>
+                        </div>
+                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-total">0</h3>
+                        <small class="text-gold fw-semibold">Permanent storage</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archival Console: 2-Column Layout -->
+            <div class="row g-4 mb-4">
+                <!-- Left Column: Select Archive Type -->
+                <div class="col-12 col-lg-5">
+                    <div class="card sb-card shadow-sm border-0 h-100">
+                        <div class="card-header bg-transparent border-0 pt-3 pb-2">
+                            <h6 class="fw-bold text-title mb-0">1. Select Archive Dataset</h6>
+                            <small class="text-muted">Choose the category of historical data to archive</small>
+                        </div>
+                        <div class="card-body p-3 d-flex flex-column gap-2">
+                            <div class="archive-type-card active" id="card-type-TRANSACTIONS" onclick="selectArchiveType('TRANSACTIONS')">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded p-2 bg-primary bg-opacity-10 text-primary flex-shrink-0">
+                                        <i class="fas fa-receipt fs-4"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold text-title mb-1">Sales Transactions</h6>
+                                        <small class="text-muted d-block">Completed, voided, and refunded sales transactions & line items</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="archive-type-card" id="card-type-STOCK_ADJUSTMENTS" onclick="selectArchiveType('STOCK_ADJUSTMENTS')">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded p-2 bg-success bg-opacity-10 text-success flex-shrink-0">
+                                        <i class="fas fa-boxes-packing fs-4"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold text-title mb-1">Inventory Adjustments</h6>
+                                        <small class="text-muted d-block">Historical stock-in, stock-out, and spoilage records</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="archive-type-card" id="card-type-USERS" onclick="selectArchiveType('USERS')">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded p-2 bg-secondary bg-opacity-10 text-secondary flex-shrink-0">
+                                        <i class="fas fa-user-xmark fs-4"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold text-title mb-1">Inactive User Accounts</h6>
+                                        <small class="text-muted d-block">Archived staff profiles and inactive past employees</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="archive-type-card" id="card-type-AUDIT_LOGS" onclick="selectArchiveType('AUDIT_LOGS')">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded p-2 bg-info bg-opacity-10 text-info flex-shrink-0">
+                                        <i class="fas fa-clipboard-check fs-4"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold text-title mb-1">Activity & Audit Logs</h6>
+                                        <small class="text-muted d-block">Historical authentication and user action audit records</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Configuration & Execution -->
+                <div class="col-12 col-lg-7">
+                    <div class="card sb-card shadow-sm border-0 h-100">
+                        <div class="card-header bg-transparent border-0 pt-3 pb-2">
+                            <h6 class="fw-bold text-title mb-0">2. Configure Date Window & Parameters</h6>
+                            <small class="text-muted">Define retention criteria and inspect matched records</small>
+                        </div>
+                        <div class="card-body p-3 p-md-4">
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small fw-semibold text-muted">From Date (Inclusive)</label>
+                                    <input type="date" class="form-control" id="arc-from-date" onchange="previewArchiveCount()">
+                                </div>
+                                <div class="col-12 col-sm-6">
+                                    <label class="form-label small fw-semibold text-muted">To Date (Inclusive)</label>
+                                    <input type="date" class="form-control" id="arc-to-date" onchange="previewArchiveCount()">
+                                </div>
+                            </div>
+
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="arc-keep-active">
+                                <label class="form-check-label small" for="arc-keep-active">
+                                    <strong>Keep Active Copy in Database</strong>
+                                    <span class="text-muted d-block">If checked, snapshots records into ArchiveStorage without deleting rows from production.</span>
+                                </label>
+                            </div>
+
+                            <!-- Live Preview Alert Box -->
+                            <div class="alert alert-info border-info bg-info bg-opacity-10 d-flex align-items-center justify-content-between p-3 mb-4 rounded-3" id="archive-preview-box">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-magnifying-glass-chart text-info fs-4"></i>
+                                    <div>
+                                        <span class="fw-bold d-block">Matched Target Records</span>
+                                        <small class="text-muted">Ready to serialize into permanent ArchiveStorage</small>
+                                    </div>
+                                </div>
+                                <span class="badge bg-info text-dark fs-5 px-3 py-2 fw-bold" id="preview-record-count">0</span>
+                            </div>
+
+                            <div class="d-flex flex-column flex-sm-row gap-2 justify-content-end">
+                                <button type="button" class="btn btn-outline-secondary d-flex align-items-center justify-content-center gap-2" onclick="exportArchiveCsv()">
+                                    <i class="fas fa-file-csv text-success"></i>
+                                    <span>Export Archive (CSV)</span>
+                                </button>
+                                <button type="button" class="btn btn-gold d-flex align-items-center justify-content-center gap-2 fw-semibold shadow-sm" id="btn-execute-archive" onclick="executeArchival()">
+                                    <i class="fas fa-box-archive"></i>
+                                    <span>Archive Data</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Archive Operations -->
+            <div class="card sb-card shadow-sm border-0">
+                <div class="card-header bg-transparent border-0 pt-3 pb-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold text-title mb-0">Recent Archive Storage Records</h6>
+                        <small class="text-muted">Permanent historical JSON ledger entries</small>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light text-muted small text-uppercase">
+                                <tr>
+                                    <th>Archive ID</th>
+                                    <th>Module / Table</th>
+                                    <th>Record ID</th>
+                                    <th>Archived Timestamp</th>
+                                    <th>JSON Payload Preview</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-archives-body">
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">No archive records found.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- TAB 4: ACCESS & LOGS (Matches Figures 50 to 53)               -->
+        <!-- ============================================================== -->
+        <div class="tab-pane fade" id="tab-logs" role="tabpanel">
+            <!-- 1. Role Access Control Matrix Card -->
+            <div class="card sb-card shadow-sm border-0 mb-4">
+                <div class="card-header bg-transparent border-0 pt-3 pb-2">
+                    <h5 class="fw-bold text-title mb-1">Role Access Control Matrix (RBAC)</h5>
+                    <small class="text-muted">Enforced authorization matrix across all 4 official Sweet Box user roles</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover align-middle text-center mb-0">
+                            <thead class="table-light text-muted small text-uppercase">
+                                <tr>
+                                    <th class="text-start ps-3" style="min-width: 250px;">Feature / System Module</th>
+                                    <th>
+                                        <span class="badge badge-role-owner px-2 py-1">Business Owner</span>
+                                        <small class="d-block text-muted text-capitalize" style="font-size: 0.68rem;">HQ Flagship</small>
+                                    </th>
+                                    <th>
+                                        <span class="badge badge-role-manager px-2 py-1">Branch Manager</span>
+                                        <small class="d-block text-muted text-capitalize" style="font-size: 0.68rem;">SCM Hub</small>
+                                    </th>
+                                    <th>
+                                        <span class="badge badge-role-staff px-2 py-1">Front Staff</span>
+                                        <small class="d-block text-muted text-capitalize" style="font-size: 0.68rem;">POS Terminal</small>
+                                    </th>
+                                    <th>
+                                        <span class="badge badge-role-admin px-2 py-1">System Admin</span>
+                                        <small class="d-block text-muted text-capitalize" style="font-size: 0.68rem;">Governance</small>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="small">
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Enterprise Analytics & Financial KPIs</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Point-of-Sale (POS) & Order Processing</td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Inventory Stock Watch & SCM Monitor</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Bill-of-Materials (BOM) & Recipe Configuration</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Commissary Production & Inter-Branch Transfers</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Restock Requisition & Approvals</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Admin Panel & User Governance</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">Historical Data Archival & CSV Export</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                </tr>
+                                <tr>
+                                    <td class="text-start ps-3 fw-semibold">AI Executive Sales Analyst Chatbot</td>
+                                    <td><i class="fas fa-check-circle text-success fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                    <td><i class="fas fa-circle-xmark text-muted opacity-50 fs-5"></i></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Activity Log Card (Immutable Audit Trail) -->
+            <div class="card sb-card shadow-sm border-0">
+                <div class="card-header bg-transparent border-0 pt-3 pb-2">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                        <div>
+                            <h5 class="fw-bold text-title mb-1">System Activity & Audit Trail</h5>
+                            <small class="text-muted">Immutable tamper-evident security audit log</small>
+                        </div>
+                        <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
+                            <div class="position-relative flex-grow-1" style="max-width: 320px;">
+                                <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                                <input type="text" class="form-control form-control-sm ps-5" id="audit-search-input" placeholder="Search logs..." oninput="filterAuditLogs()">
+                            </div>
+                            <select class="form-select form-select-sm" id="audit-module-filter" style="max-width: 170px;" onchange="filterAuditLogs()">
+                                <option value="">All Modules</option>
+                                <option value="Authentication">Authentication</option>
+                                <option value="System Admin">System Admin</option>
+                                <option value="Point of Sale">Point of Sale</option>
+                                <option value="Inventory">Inventory</option>
+                                <option value="Enterprise Analytics">Analytics</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="audit-logs-list" style="max-height: 520px; overflow-y: auto;">
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-spinner fa-spin me-2"></i> Loading audit trails...
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 py-2 text-end">
+                    <small class="text-muted" id="audit-count-indicator">Showing 0 audit entries</small>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- USER ADD / EDIT MODAL                                         -->
+<!-- ============================================================== -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header py-3 px-4 text-white" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);">
+                <h5 class="modal-title fw-bold text-gold fs-6" id="userModalLabel">Add New User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="userForm" onsubmit="saveUser(event)">
+                <div class="modal-body p-4">
+                    <input type="hidden" id="modal-user-id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Full Name *</label>
+                        <input type="text" class="form-control" id="modal-user-name" placeholder="e.g. Maria Santos" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Email Address *</label>
+                        <input type="email" class="form-control" id="modal-user-email" placeholder="e.g. maria@sweetbox.ph" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted" id="modal-password-label">Password *</label>
+                        <input type="password" class="form-control" id="modal-user-password" placeholder="Min. 6 characters">
+                        <small class="text-muted d-block mt-1" id="modal-password-help" style="font-size: 0.75rem;">Required for new accounts. Leave blank to keep existing password when editing.</small>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted">Role *</label>
+                            <select class="form-select" id="modal-user-role" required>
+                                <option value="Staff">Front Staff / Cashier</option>
+                                <option value="Branch Manager">Branch Manager</option>
+                                <option value="Business Owner">Business Owner</option>
+                                <option value="Admin">Admin</option>
+                                <option value="System Administrator">System Administrator</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted">Assigned Branch</label>
+                            <select class="form-select" id="modal-user-branch">
+                                <option value="">All Branches / HQ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-check form-switch pt-2">
+                        <input class="form-check-input" type="checkbox" id="modal-user-active" checked>
+                        <label class="form-check-label small fw-semibold" for="modal-user-active">Account Active</label>
+                        <small class="text-muted d-block" style="font-size: 0.75rem;">Inactive accounts cannot initiate 2FA login.</small>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 px-4 border-0">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gold btn-sm fw-semibold shadow-sm" id="btn-save-user">Save Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- BRANCH EDIT MODAL                                             -->
+<!-- ============================================================== -->
+<div class="modal fade" id="branchEditModal" tabindex="-1" aria-labelledby="branchEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header py-3 px-4 text-white" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);">
+                <h5 class="modal-title fw-bold text-gold fs-6" id="branchEditModalLabel">Edit Branch Settings</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="branchEditForm" onsubmit="saveBranch(event)">
+                <div class="modal-body p-4">
+                    <input type="hidden" id="modal-branch-id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Branch Name *</label>
+                        <input type="text" class="form-control" id="modal-branch-name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Physical Address *</label>
+                        <textarea class="form-control" id="modal-branch-address" rows="3" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted">Assigned Branch Manager</label>
+                        <select class="form-select" id="modal-branch-manager">
+                            <option value="">Unassigned</option>
+                        </select>
+                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Assigning will set this user's role to Branch Manager and bind them to this branch.</small>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 px-4 border-0">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gold btn-sm fw-semibold shadow-sm" id="btn-save-branch">Save Branch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State storage
+    window.adminData = {
+        users: [],
+        branches: [],
+        archives: { recent: [] },
+        audit_logs: [],
+        current_user_id: null
+    };
+    let activeArchiveType = 'TRANSACTIONS';
+    let userModalInstance = null;
+    let branchModalInstance = null;
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('access_token');
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+    }
+
+    // Load Admin Data from API
+    async function loadAdminData(showSpinner = false) {
+        if (showSpinner) {
+            const icon = document.getElementById('refresh-icon');
+            if (icon) icon.classList.add('fa-spin');
+        }
+
+        try {
+            const res = await fetch('/api/accounts/admin/data/', {
+                headers: getAuthHeaders()
+            });
+
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) {
+                    alert("Unauthorized. Admin or Business Owner access required.");
+                    window.location.href = '/login/';
+                    return;
+                }
+                throw new Error("Failed to load admin panel data");
+            }
+
+            const data = await res.json();
+            window.adminData = data;
+
+            renderUsersTable();
+            renderBranches();
+            renderArchives();
+            renderAuditLogs();
+            populateBranchSelectors();
+
+            const syncEl = document.getElementById('admin-last-sync');
+            if (syncEl) syncEl.innerText = "Synced " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        } catch (err) {
+            console.error("Admin data loading error:", err);
+        } finally {
+            if (showSpinner) {
+                const icon = document.getElementById('refresh-icon');
+                if (icon) icon.classList.remove('fa-spin');
+            }
+        }
+    }
+
+    // Helper: Role badge generator
+    function getRoleBadge(role) {
+        if (!role) return '<span class="badge bg-secondary">Unknown</span>';
+        if (role === 'Business Owner') return `<span class="badge badge-role-owner px-2 py-1"><i class="fas fa-crown text-gold me-1"></i> ${escapeHtml(role)}</span>`;
+        if (role === 'Branch Manager') return `<span class="badge badge-role-manager px-2 py-1"><i class="fas fa-user-tie me-1"></i> ${escapeHtml(role)}</span>`;
+        if (role === 'Staff') return `<span class="badge badge-role-staff px-2 py-1"><i class="fas fa-cash-register me-1"></i> Front Staff</span>`;
+        return `<span class="badge badge-role-admin px-2 py-1"><i class="fas fa-shield-halved me-1"></i> ${escapeHtml(role)}</span>`;
+    }
+
+    // Helper: User Initials
+    function getInitials(name) {
+        if (!name) return 'SB';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    // Render Users Table
+    function renderUsersTable() {
+        const users = window.adminData.users || [];
+        const badgeCount = document.getElementById('badge-user-count');
+        if (badgeCount) badgeCount.innerText = users.length;
+
+        filterUsers();
+    }
+
+    function filterUsers() {
+        const query = (document.getElementById('user-search-input')?.value || '').toLowerCase().trim();
+        const roleFilter = document.getElementById('user-role-filter')?.value || '';
+        const statusFilter = document.getElementById('user-status-filter')?.value || '';
+        const currentUserId = window.adminData.current_user_id;
+
+        const filtered = (window.adminData.users || []).filter(u => {
+            const matchesQuery = !query || 
+                u.name.toLowerCase().includes(query) || 
+                u.email.toLowerCase().includes(query) || 
+                u.branch_name.toLowerCase().includes(query) || 
+                u.role.toLowerCase().includes(query);
+            const matchesRole = !roleFilter || u.role === roleFilter;
+            const matchesStatus = !statusFilter || (statusFilter === 'active' ? u.is_active : !u.is_active);
+            return matchesQuery && matchesRole && matchesStatus;
+        });
+
+        const tbody = document.getElementById('users-table-body');
+        if (!tbody) return;
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No users matched current filters.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(u => {
+            const isSelf = u.user_ID === currentUserId;
+            const statusBadge = u.is_active
+                ? `<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1"><i class="fas fa-circle-check me-1"></i> Active</span>`
+                : `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1"><i class="fas fa-circle-xmark me-1"></i> Inactive</span>`;
+
+            return `
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="user-avatar-badge">${getInitials(u.name)}</div>
+                            <div>
+                                <span class="fw-semibold text-title d-block">${escapeHtml(u.name)}</span>
+                                ${isSelf ? '<span class="badge bg-warning text-dark px-1 py-0" style="font-size:0.65rem;">You</span>' : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="text-muted small">${escapeHtml(u.email)}</span></td>
+                    <td>${getRoleBadge(u.role)}</td>
+                    <td>
+                        <span class="small fw-semibold text-dark">
+                            <i class="fas fa-location-dot text-gold me-1"></i> ${escapeHtml(u.branch_name)}
+                        </span>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td><span class="text-muted small">${escapeHtml(u.create_date)}</span></td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary" onclick="openEditUserModal(${u.user_ID})" title="Edit User">
+                                <i class="fas fa-pen-to-square"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-${u.is_active ? 'warning' : 'success'}" 
+                                onclick="toggleUserActive(${u.user_ID}, ${u.is_active})" 
+                                ${isSelf ? 'disabled title="You cannot deactivate your own account"' : `title="${u.is_active ? 'Deactivate' : 'Activate'} User"`}>
+                                <i class="fas fa-${u.is_active ? 'user-slash' : 'user-check'}"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Populate Branch Selectors
+    function populateBranchSelectors() {
+        const branches = window.adminData.branches || [];
+        const userBranchSelect = document.getElementById('modal-user-branch');
+        if (userBranchSelect) {
+            userBranchSelect.innerHTML = `<option value="">All Branches / HQ</option>` + 
+                branches.map(b => `<option value="${b.branch_ID}">${escapeHtml(b.name)}</option>`).join('');
+        }
+    }
+
+    // Open Add User Modal
+    function openAddUserModal() {
+        document.getElementById('userForm').reset();
+        document.getElementById('modal-user-id').value = '';
+        document.getElementById('userModalLabel').innerText = 'Add New User Account';
+        document.getElementById('modal-password-label').innerText = 'Password *';
+        document.getElementById('modal-user-password').required = true;
+        document.getElementById('modal-user-active').checked = true;
+
+        if (!userModalInstance) {
+            userModalInstance = new bootstrap.Modal(document.getElementById('userModal'));
+        }
+        userModalInstance.show();
+    }
+
+    // Open Edit User Modal
+    function openEditUserModal(userId) {
+        const u = (window.adminData.users || []).find(x => x.user_ID === userId);
+        if (!u) return;
+
+        document.getElementById('modal-user-id').value = u.user_ID;
+        document.getElementById('userModalLabel').innerText = `Edit User: ${u.name}`;
+        document.getElementById('modal-user-name').value = u.name;
+        document.getElementById('modal-user-email').value = u.email;
+        document.getElementById('modal-user-password').value = '';
+        document.getElementById('modal-password-label').innerText = 'New Password (Optional)';
+        document.getElementById('modal-user-password').required = false;
+        document.getElementById('modal-user-role').value = u.role;
+        document.getElementById('modal-user-branch').value = u.branch_id || '';
+        document.getElementById('modal-user-active').checked = u.is_active;
+
+        if (!userModalInstance) {
+            userModalInstance = new bootstrap.Modal(document.getElementById('userModal'));
+        }
+        userModalInstance.show();
+    }
+
+    // Save User (Create or Update)
+    async function saveUser(event) {
+        event.preventDefault();
+        const userId = document.getElementById('modal-user-id').value;
+        const name = document.getElementById('modal-user-name').value.trim();
+        const email = document.getElementById('modal-user-email').value.trim();
+        const password = document.getElementById('modal-user-password').value;
+        const role = document.getElementById('modal-user-role').value;
+        const branch_id = document.getElementById('modal-user-branch').value || null;
+        const is_active = document.getElementById('modal-user-active').checked;
+
+        const action = userId ? 'update' : 'create';
+        const payload = {
+            action: action,
+            user_id: userId || undefined,
+            name: name,
+            email: email,
+            role: role,
+            branch_id: branch_id,
+            is_active: is_active
+        };
+        if (password) payload.password = password;
+
+        try {
+            const res = await fetch('/api/accounts/admin/users/', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to save user account");
+
+            if (userModalInstance) userModalInstance.hide();
+            await loadAdminData(false);
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Toggle User Active Status
+    async function toggleUserActive(userId, currentActive) {
+        const u = (window.adminData.users || []).find(x => x.user_ID === userId);
+        const actionLabel = currentActive ? 'deactivate' : 'activate';
+        if (!confirm(`Are you sure you want to ${actionLabel} account for ${u ? u.name : 'this user'}?`)) return;
+
+        try {
+            const res = await fetch('/api/accounts/admin/users/', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    action: 'toggle_active',
+                    user_id: userId
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `Failed to ${actionLabel} user`);
+
+            await loadAdminData(false);
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Render Branches Tab
+    function renderBranches() {
+        const branches = window.adminData.branches || [];
+        const container = document.getElementById('branches-cards-container');
+        if (!container) return;
+
+        let onlineCount = 0;
+        let offlineCount = 0;
+        let totalStaff = 0;
+
+        branches.forEach(b => {
+            if (b.is_online) onlineCount++;
+            else offlineCount++;
+            totalStaff += (b.staff_count || 0);
+        });
+
+        document.getElementById('kpi-branches-online').innerText = onlineCount;
+        document.getElementById('kpi-branches-offline').innerText = offlineCount;
+        document.getElementById('kpi-branches-total').innerText = branches.length;
+        document.getElementById('kpi-branches-staff').innerText = totalStaff;
+        document.getElementById('badge-branch-count').innerText = branches.length;
+
+        container.innerHTML = branches.map((b, idx) => {
+            const isOnline = b.is_online;
+            return `
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="card sb-card shadow-sm border h-100 position-relative">
+                        <div class="card-body p-3 p-sm-4 d-flex flex-column justify-content-between">
+                            <div>
+                                <!-- Header -->
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-dark text-gold fw-bold px-2 py-1" style="font-size: 0.75rem;">#${idx + 1}</span>
+                                        <h5 class="fw-bold text-title mb-0 fs-6">${escapeHtml(b.name)}</h5>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-1">
+                                        ${b.main_hub ? '<span class="badge bg-warning text-dark px-2 py-1" style="font-size: 0.68rem;"><i class="fas fa-crown text-espresso me-1"></i> Main Hub</span>' : ''}
+                                        <span class="badge ${isOnline ? 'bg-success bg-opacity-10 text-success border border-success' : 'bg-danger bg-opacity-10 text-danger border border-danger'} px-2 py-1">
+                                            <span class="pulse-dot ${isOnline ? 'online' : 'offline'}"></span>
+                                            ${isOnline ? 'Online' : 'Offline'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Address -->
+                                <p class="text-muted small mb-3">
+                                    <i class="fas fa-location-dot text-gold me-1"></i> ${escapeHtml(b.address)}
+                                </p>
+
+                                <!-- Details Row -->
+                                <div class="bg-light p-2 rounded-2 mb-3">
+                                    <div class="d-flex justify-content-between small py-1 border-bottom border-secondary border-opacity-10">
+                                        <span class="text-muted"><i class="fas fa-user-tie me-1"></i> Branch Manager:</span>
+                                        <span class="fw-semibold text-dark">${escapeHtml(b.manager_name)}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between small py-1 border-bottom border-secondary border-opacity-10">
+                                        <span class="text-muted"><i class="fas fa-users me-1"></i> Assigned Staff:</span>
+                                        <span class="fw-semibold text-dark">${b.staff_count} active</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between small py-1">
+                                        <span class="text-muted"><i class="fas fa-boxes-stacked me-1"></i> Products Assigned:</span>
+                                        <span class="fw-semibold text-dark">${b.product_count} items</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Footer Actions -->
+                            <div class="d-flex gap-2 pt-2 border-top border-secondary border-opacity-10">
+                                <button type="button" class="btn btn-outline-secondary btn-sm flex-grow-1" onclick="openEditBranchModal(${b.branch_ID})">
+                                    <i class="fas fa-pen-to-square me-1"></i> Edit Branch
+                                </button>
+                                <button type="button" class="btn btn-${isOnline ? 'outline-danger' : 'outline-success'} btn-sm" onclick="toggleBranchStatus(${b.branch_ID}, ${!isOnline})">
+                                    <i class="fas fa-${isOnline ? 'pause' : 'play'} me-1"></i> ${isOnline ? 'Set Offline' : 'Set Online'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Toggle Branch Online / Offline Status
+    async function toggleBranchStatus(branchId, targetOnline) {
+        const branch = (window.adminData.branches || []).find(b => b.branch_ID === branchId);
+        const actionLabel = targetOnline ? 'Online' : 'Offline';
+        if (!confirm(`Set ${branch ? branch.name : 'this branch'} status to ${actionLabel}?`)) return;
+
+        try {
+            const res = await fetch('/api/accounts/admin/branches/', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    action: 'toggle_status',
+                    branch_id: branchId,
+                    is_online: targetOnline
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to update branch status");
+
+            await loadAdminData(false);
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Open Edit Branch Modal
+    function openEditBranchModal(branchId) {
+        const b = (window.adminData.branches || []).find(x => x.branch_ID === branchId);
+        if (!b) return;
+
+        document.getElementById('modal-branch-id').value = b.branch_ID;
+        document.getElementById('modal-branch-name').value = b.name;
+        document.getElementById('modal-branch-address').value = b.address;
+
+        const mgrSelect = document.getElementById('modal-branch-manager');
+        const users = window.adminData.users || [];
+        mgrSelect.innerHTML = `<option value="">Unassigned</option>` + users.map(u => {
+            const selected = (u.branch_id === b.branch_ID && u.role === 'Branch Manager') ? 'selected' : '';
+            return `<option value="${u.user_ID}" ${selected}>${escapeHtml(u.name)} (${u.role})</option>`;
+        }).join('');
+
+        if (!branchModalInstance) {
+            branchModalInstance = new bootstrap.Modal(document.getElementById('branchEditModal'));
+        }
+        branchModalInstance.show();
+    }
+
+    // Save Branch
+    async function saveBranch(event) {
+        event.preventDefault();
+        const branchId = document.getElementById('modal-branch-id').value;
+        const name = document.getElementById('modal-branch-name').value.trim();
+        const address = document.getElementById('modal-branch-address').value.trim();
+        const manager_user_id = document.getElementById('modal-branch-manager').value || null;
+
+        try {
+            const res = await fetch('/api/accounts/admin/branches/', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    action: 'update',
+                    branch_id: branchId,
+                    name: name,
+                    address: address,
+                    manager_user_id: manager_user_id
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to save branch settings");
+
+            if (branchModalInstance) branchModalInstance.hide();
+            await loadAdminData(false);
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Render Archives Tab
+    function renderArchives() {
+        const arc = window.adminData.archives || {};
+        document.getElementById('arc-kpi-txns').innerText = arc.transactions_archived || 0;
+        document.getElementById('arc-kpi-inv').innerText = arc.inventory_logs_archived || 0;
+        document.getElementById('arc-kpi-logs').innerText = arc.activity_logs_archived || 0;
+        document.getElementById('arc-kpi-total').innerText = arc.total_archived || 0;
+
+        const recent = arc.recent || [];
+        const tbody = document.getElementById('recent-archives-body');
+        if (!tbody) return;
+
+        if (recent.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No historical records in archive storage yet.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = recent.map(r => `
+            <tr>
+                <td class="fw-bold">#${r.archive_ID}</td>
+                <td><span class="badge bg-secondary px-2 py-1">${escapeHtml(r.module_table)}</span></td>
+                <td><span class="text-muted">ID: ${r.record_ID}</span></td>
+                <td><small class="text-muted">${escapeHtml(r.archived_time)}</small></td>
+                <td><code class="small text-truncate d-inline-block" style="max-width: 320px;">${escapeHtml(r.archived_data)}</code></td>
+            </tr>
+        `).join('');
+
+        previewArchiveCount();
+    }
+
+    // Select Archive Type
+    function selectArchiveType(type) {
+        activeArchiveType = type;
+        document.querySelectorAll('.archive-type-card').forEach(el => el.classList.remove('active'));
+        const activeCard = document.getElementById(`card-type-${type}`);
+        if (activeCard) activeCard.classList.add('active');
+
+        previewArchiveCount();
+    }
+
+    // Preview Matching Archive Count
+    async function previewArchiveCount() {
+        const fromDate = document.getElementById('arc-from-date')?.value || '';
+        const toDate = document.getElementById('arc-to-date')?.value || '';
+        const previewEl = document.getElementById('preview-record-count');
+
+        try {
+            const url = new URL('/api/accounts/admin/archives/', window.location.origin);
+            url.searchParams.append('mode', 'preview');
+            url.searchParams.append('archive_type', activeArchiveType);
+            if (fromDate) url.searchParams.append('from_date', fromDate);
+            if (toDate) url.searchParams.append('to_date', toDate);
+
+            const res = await fetch(url, { headers: getAuthHeaders() });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (previewEl) previewEl.innerText = data.preview_count || 0;
+        } catch (err) {
+            console.error("Preview archival count error:", err);
+        }
+    }
+
+    // Execute Archival
+    async function executeArchival() {
+        const fromDate = document.getElementById('arc-from-date')?.value || '';
+        const toDate = document.getElementById('arc-to-date')?.value || '';
+        const keepActive = document.getElementById('arc-keep-active')?.checked || false;
+        const count = parseInt(document.getElementById('preview-record-count')?.innerText || '0', 10);
+
+        if (count === 0) {
+            alert("No matching records found to archive.");
+            return;
+        }
+
+        const confirmMsg = keepActive
+            ? `Archive and snapshot ${count} records from ${activeArchiveType} into permanent archive storage (keeping live copy in database)?`
+            : `WARNING: Archiving will remove ${count} records from production ${activeArchiveType} and serialize them into permanent read-only archive storage. Proceed?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        const btn = document.getElementById('btn-execute-archive');
+        if (btn) btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/accounts/admin/archives/', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    archive_type: activeArchiveType,
+                    from_date: fromDate || null,
+                    to_date: toDate || null,
+                    keep_active: keepActive
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to execute archival");
+
+            alert(data.message || `Successfully archived ${data.archived_count} records.`);
+            await loadAdminData(false);
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // Export Archive CSV
+    function exportArchiveCsv() {
+        const token = localStorage.getItem('access_token');
+        const url = `/api/accounts/admin/archives/?mode=export`;
+        
+        // Fetch via blob to include Authorization header
+        fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to export archive CSV");
+            return res.blob();
+        })
+        .then(blob => {
+            const a = document.createElement('a');
+            a.href = window.URL.createObjectURL(blob);
+            a.download = `SweetBox_Archive_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        })
+        .catch(err => alert(err.message));
+    }
+
+    // Render Audit Logs
+    function renderAuditLogs() {
+        filterAuditLogs();
+    }
+
+    function filterAuditLogs() {
+        const query = (document.getElementById('audit-search-input')?.value || '').toLowerCase().trim();
+        const moduleFilter = document.getElementById('audit-module-filter')?.value || '';
+        const logs = window.adminData.audit_logs || [];
+
+        const filtered = logs.filter(l => {
+            const matchesQuery = !query || 
+                l.user_name.toLowerCase().includes(query) ||
+                l.action.toLowerCase().includes(query) ||
+                l.module.toLowerCase().includes(query) ||
+                l.details.toLowerCase().includes(query);
+            const matchesModule = !moduleFilter || l.module === moduleFilter;
+            return matchesQuery && matchesModule;
+        });
+
+        const listEl = document.getElementById('audit-logs-list');
+        const countEl = document.getElementById('audit-count-indicator');
+        if (countEl) countEl.innerText = `Showing ${filtered.length} of ${logs.length} audit entries`;
+
+        if (!listEl) return;
+        if (filtered.length === 0) {
+            listEl.innerHTML = `<div class="text-center py-4 text-muted">No audit log entries matched current criteria.</div>`;
+            return;
+        }
+
+        listEl.innerHTML = filtered.map(l => {
+            const badgeClass = `pill-${l.badge_type || 'action'}`;
+            return `
+                <div class="list-group-item px-3 py-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="user-avatar-badge mt-1">${getInitials(l.user_name)}</div>
+                            <div>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                    <span class="fw-bold text-title">${escapeHtml(l.action)}</span>
+                                    <span class="badge ${badgeClass} px-2 py-0" style="font-size: 0.7rem;">${escapeHtml(l.module)}</span>
+                                    <span class="text-muted small">&bull; ${escapeHtml(l.user_name)} (${escapeHtml(l.user_role)})</span>
+                                    <span class="badge bg-light text-muted border px-1 py-0" style="font-size: 0.68rem;">${escapeHtml(l.branch)}</span>
+                                </div>
+                                <p class="text-muted small mb-0">${escapeHtml(l.details)}</p>
+                            </div>
+                        </div>
+                        <span class="text-muted small text-nowrap">${escapeHtml(l.timestamp)}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Initialization & Background Polling with document.hidden hygiene
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAdminData(true);
+
+        // FinOps & RAM hygiene: Background polling every 30s only when tab is visible
+        setInterval(() => {
+            if (!document.hidden) {
+                loadAdminData(false);
+            }
+        }, 30000);
+    });
+</script>
+{% endblock %}
+
