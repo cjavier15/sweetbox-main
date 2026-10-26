@@ -2,9 +2,9 @@
 {% block content %}
 <style>
     .scm-tabs {
-        display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
         padding-bottom: 6px;
         scrollbar-width: none;
@@ -12,8 +12,11 @@
     .scm-tabs::-webkit-scrollbar {
         display: none;
     }
+    .scm-tabs .nav-item {
+        flex: 0 0 auto !important;
+    }
     .scm-tabs .nav-link {
-        white-space: nowrap;
+        white-space: nowrap !important;
         color: var(--sb-text-muted);
         font-weight: 600;
         font-size: 0.9rem;
@@ -144,7 +147,7 @@
 </div>
 
 <!-- Tabs Navigation -->
-<ul class="nav scm-tabs gap-2 mb-4 sb-mobile-scroll-row" id="scmTabs" role="tablist">
+<ul class="nav scm-tabs gap-2 mb-4 sb-mobile-scroll-row flex-nowrap overflow-x-auto" id="scmTabs" role="tablist">
     <li class="nav-item" id="tab-li-tracker" role="presentation"><button class="nav-link active" id="tab-btn-tracker" data-bs-toggle="tab" data-bs-target="#tracker"><i class="fas fa-layer-group me-2 text-gold"></i>Stock Tracker</button></li>
     <li class="nav-item" id="tab-li-pw" role="presentation"><button class="nav-link" id="tab-btn-pw" data-bs-toggle="tab" data-bs-target="#product-watch"><i class="fas fa-boxes-stacked me-2 text-gold"></i>Product Availability</button></li>
     <li class="nav-item" id="tab-li-bom" role="presentation"><button class="nav-link" id="tab-btn-bom" data-bs-toggle="tab" data-bs-target="#bom"><i class="fas fa-receipt me-2 text-gold"></i>Bill-of-Materials</button></li>
@@ -170,59 +173,67 @@
 
         <!-- KPIs -->
         <div class="row g-3 mb-4" id="kpi-container">
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="kpi-card-in" onclick="filterInvByStatus('In Stock')" title="Click to filter by In Stock">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-in" onclick="filterInvByStatus('In Stock')" title="Click to filter by In Stock">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">In Stock</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
                                 <i class="fas fa-check-circle"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="kpi-in" style="color: var(--sb-success);">0</h2>
-                        <span class="text-muted small">optimal level</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="kpi-in" style="color: var(--sb-success);">0</h2>
+                            <span class="text-muted small kpi-subtext">optimal level</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="kpi-card-low" onclick="filterInvByStatus('Low Stock')" title="Click to filter by Low Stock">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-low" onclick="filterInvByStatus('Low Stock')" title="Click to filter by Low Stock">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">Low Stock</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
                                 <i class="fas fa-exclamation-triangle"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="kpi-low" style="color: var(--sb-warning);">0</h2>
-                        <span class="text-muted small">near reorder threshold</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="kpi-low" style="color: var(--sb-warning);">0</h2>
+                            <span class="text-muted small kpi-subtext">near reorder threshold</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="kpi-card-crit" onclick="filterInvByStatus('Critical')" title="Click to filter by Critical Stock">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-crit" onclick="filterInvByStatus('Critical')" title="Click to filter by Critical Stock">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">Critical Stock</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
                                 <i class="fas fa-times-circle"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="kpi-crit" style="color: var(--sb-danger);">0</h2>
-                        <span class="text-muted small">urgent restocking required</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="kpi-crit" style="color: var(--sb-danger);">0</h2>
+                            <span class="text-muted small kpi-subtext">urgent restocking required</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="kpi-card-exp" onclick="filterInvByStatus('Expiring Soon')" title="Click to filter by Expiring Soon">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-exp" onclick="filterInvByStatus('Expiring Soon')" title="Click to filter by Expiring Soon">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">Expiring Soon</span>
-                            <div class="kpi-icon-container" style="background-color: #FFEDD5; color: #EA580C;">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: #FFEDD5; color: #EA580C;">
                                 <i class="fas fa-clock"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="kpi-exp" style="color: #EA580C;">0</h2>
-                        <span class="text-muted small">needs immediate rotation</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="kpi-exp" style="color: #EA580C;">0</h2>
+                            <span class="text-muted small kpi-subtext">needs immediate rotation</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -330,59 +341,67 @@
 
         <!-- Product Watch Dynamic KPIs -->
         <div class="row g-3 mb-4" id="pw-kpi-container">
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-in" onclick="setPWStatus('In Stock')" title="Click to filter by Optimal Stock">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-in" onclick="setPWStatus('In Stock')" title="Click to filter by Optimal Stock">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">Optimal Stock</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
                                 <i class="fas fa-check-circle"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-in" style="color: var(--sb-success);">0</h2>
-                        <span class="text-muted small">above threshold</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-in" style="color: var(--sb-success);">0</h2>
+                            <span class="text-muted small kpi-subtext">above threshold</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-low" onclick="setPWStatus('Low Stock')" title="Click to filter by Low Stock">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-low" onclick="setPWStatus('Low Stock')" title="Click to filter by Low Stock">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">Low Stock</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
                                 <i class="fas fa-exclamation-triangle"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-low" style="color: var(--sb-warning);">0</h2>
-                        <span class="text-muted small">near threshold</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-low" style="color: var(--sb-warning);">0</h2>
+                            <span class="text-muted small kpi-subtext">near threshold</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-crit" onclick="setPWStatus('Critical')" title="Click to filter by Critical Stock">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-crit" onclick="setPWStatus('Critical')" title="Click to filter by Critical Stock">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">Critical / Out of Stock</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
                                 <i class="fas fa-times-circle"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-crit" style="color: var(--sb-danger);">0</h2>
-                        <span class="text-muted small">urgent restocking required</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-crit" style="color: var(--sb-danger);">0</h2>
+                            <span class="text-muted small kpi-subtext">urgent restocking required</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable" id="pw-kpi-card-total" onclick="setPWStatus('all')" title="Click to show all products">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="col-6 col-xl-3">
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-total" onclick="setPWStatus('all')" title="Click to show all products">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
                             <span class="kpi-label">Total Available Units</span>
-                            <div class="kpi-icon-container" style="background-color: rgba(212,154,61,0.15); color: var(--sb-gold);">
+                            <div class="kpi-icon-container flex-shrink-0" style="background-color: rgba(212,154,61,0.15); color: var(--sb-gold);">
                                 <i class="fas fa-cubes-stacked"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-total" style="color: var(--sb-gold);">0</h2>
-                        <span class="text-muted small">total available units</span>
+                        <div>
+                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-total" style="color: var(--sb-gold);">0</h2>
+                            <span class="text-muted small kpi-subtext">total available units</span>
+                        </div>
                     </div>
                 </div>
             </div>

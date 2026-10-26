@@ -153,18 +153,76 @@
         border-color: #E5E7EB;
         cursor: not-allowed;
     }
+    .size-pill-btn {
+        white-space: nowrap !important;
+        font-size: 0.72rem !important;
+        padding: 3px 8px !important;
+        min-height: 26px !important;
+    }
+    #product-catalog-container {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)) !important;
+        gap: 12px !important;
+        align-content: start;
+    }
+    @media (max-width: 420px) {
+        #product-catalog-container {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+        }
+    }
+    .pos-product-card {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        height: 100% !important;
+        border-radius: var(--sb-radius-md) !important;
+        transition: var(--sb-transition) !important;
+        background: var(--sb-bg-surface) !important;
+        border: 1px solid var(--sb-border-subtle) !important;
+    }
+    .pos-product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--sb-shadow-sm) !important;
+        border-color: var(--sb-gold) !important;
+    }
     .pos-card-title {
+        font-size: 0.92rem;
+        font-weight: 700;
+        line-height: 1.25;
+        word-break: normal;
+        overflow-wrap: break-word;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        min-height: 2.4em;
-        font-size: 0.88rem;
-        line-height: 1.25;
+        min-height: 2.5em;
+        margin-bottom: 6px;
+    }
+    .pos-dept-bar,
+    .pos-subcat-bar {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px !important;
+        padding-bottom: 4px !important;
+        scrollbar-width: none;
+    }
+    .pos-dept-bar::-webkit-scrollbar,
+    .pos-subcat-bar::-webkit-scrollbar {
+        display: none;
+    }
+    .pos-dept-bar > *,
+    .pos-subcat-bar > *,
+    .pos-pill-tab,
+    .pos-subcat-pill {
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
     }
     .pos-floating-cart-bar {
         position: fixed;
-        bottom: calc(64px + var(--sb-safe-bottom, 0px));
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
         left: 12px;
         right: 12px;
         background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);
@@ -180,15 +238,66 @@
         align-items: center;
         cursor: pointer;
     }
-    @media (max-width: 767.98px) {
-        #cart-list {
-            max-height: calc(100dvh - 430px) !important;
-            min-height: 160px;
+    @media (min-width: 1200px) and (min-height: 680px) {
+        #pos-product-col .card-body {
+            max-height: calc(100vh - 180px);
+            overflow-y: hidden;
         }
-        .size-pill-btn {
-            padding: 4px 8px !important;
-            font-size: 0.75rem !important;
-            min-height: 30px !important;
+        #product-catalog-container {
+            max-height: calc(100vh - 310px) !important;
+            overflow-y: auto !important;
+        }
+        #pos-cart-col .card {
+            max-height: calc(100vh - 180px);
+        }
+        #cart-list {
+            max-height: calc(100vh - 430px) !important;
+            overflow-y: auto !important;
+        }
+    }
+    @media (max-width: 1199.98px), (max-height: 679.98px) {
+        #pos-product-col,
+        #pos-product-col .card,
+        #pos-product-col .card-body,
+        #pos-cart-col,
+        #pos-cart-col .card,
+        #pos-cart-col .card-body {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            min-height: unset !important;
+        }
+        #product-catalog-container {
+            max-height: none !important;
+            overflow: visible !important;
+            min-height: 320px !important;
+            padding-bottom: 80px !important;
+        }
+        #cart-list {
+            max-height: none !important;
+            overflow: visible !important;
+            min-height: 120px !important;
+        }
+    }
+    @media (max-width: 991.98px), (max-height: 559.98px) {
+        .pos-header {
+            padding: 8px 12px !important;
+            margin-bottom: 8px !important;
+        }
+        .pos-header .sb-brand-logo {
+            display: none !important;
+        }
+        .pos-header .badge {
+            display: none !important;
+        }
+        .pos-header h4 {
+            font-size: 1rem !important;
+        }
+        .pos-header small {
+            font-size: 0.72rem !important;
+        }
+        .pos-header #live-clock {
+            display: none !important;
         }
     }
     .no-scrollbar::-webkit-scrollbar {
@@ -226,8 +335,8 @@
     </div>
 </div>
 
-<!-- Mobile Segmented View Switcher (Only visible on < md screens) -->
-<div class="pos-mobile-toggle d-md-none mb-3">
+<!-- Mobile Segmented View Switcher (Only visible on < lg screens) -->
+<div class="pos-mobile-toggle d-lg-none mb-3" id="pos-mobile-tabs">
     <button type="button" id="pos-btn-menu-tab" class="active" onclick="switchPosMobileView('menu')">
         <i class="fas fa-utensils me-1"></i> Menu Catalog
     </button>
@@ -237,7 +346,7 @@
 </div>
 
 <!-- Sticky Bottom Floating Bar when viewing Catalog on Mobile -->
-<div class="pos-floating-cart-bar d-md-none" id="pos-floating-cart-bar" style="display: none;" onclick="switchPosMobileView('cart')">
+<div class="pos-floating-cart-bar d-lg-none" id="pos-floating-cart-bar" style="display: none;" onclick="switchPosMobileView('cart')">
     <div class="d-flex align-items-center gap-2">
         <span class="badge bg-warning text-dark px-2 py-1 fw-bold" id="floating-cart-count">0 items</span>
         <span class="small fw-semibold text-white">View Order</span>
@@ -250,19 +359,19 @@
 
 <div class="row g-3">
     <!-- Left Panel: Product Grid -->
-    <div class="col-12 col-md-8" id="pos-product-col">
+    <div class="col-12 col-lg-8" id="pos-product-col">
         <div class="card sb-card border-0 h-100 shadow-sm">
-            <div class="card-body p-2 p-md-3 d-flex flex-column" style="min-height: 75vh;">
+            <div class="card-body p-2 p-md-3 d-flex flex-column" id="pos-product-card-body">
                 <!-- Enhanced Search Bar + Quick Filters -->
                 <div class="d-flex align-items-center gap-2 mb-2 flex-wrap flex-sm-nowrap">
-                    <div class="input-group flex-grow-1 shadow-xs rounded">
+                    <div class="input-group flex-grow-1 shadow-xs rounded" style="min-width: 0;">
                         <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" class="form-control border-start-0 border-end-0" placeholder="Search menu items, sizes, or categories..." id="search-input" oninput="filterProducts()">
+                        <input type="text" class="form-control border-start-0 border-end-0" placeholder="Search menu items, sizes, or categories..." id="search-input" oninput="filterProducts()" style="min-width: 0;">
                         <button class="btn btn-outline-secondary border-start-0 bg-white text-muted" type="button" id="search-clear-btn" onclick="clearSearch()" style="border-color: var(--sb-border-subtle); display: none;">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <div class="form-check form-switch d-flex align-items-center gap-1 ms-auto ms-sm-1 ps-0 text-nowrap">
+                    <div class="form-check form-switch d-flex align-items-center gap-1 ms-auto ms-sm-1 ps-0 text-nowrap flex-shrink-0">
                         <input class="form-check-input ms-0" type="checkbox" id="instock-filter-switch" onchange="filterProducts()" style="cursor: pointer;">
                         <label class="form-check-label small fw-semibold text-muted user-select-none" for="instock-filter-switch" style="cursor: pointer; font-size: 0.8rem;">
                             <i class="fas fa-check-circle text-success me-1"></i>In-Stock
@@ -295,7 +404,7 @@
                 </div>
 
                 <!-- Product Cards Catalog Grid -->
-                <div class="row g-2 g-md-3 overflow-auto flex-grow-1 pb-5 mb-4 pb-md-0 mb-md-0" id="product-catalog-container" style="max-height: 60vh; padding-right: 4px;">
+                <div class="overflow-auto flex-grow-1 pb-5 mb-4 pb-md-0 mb-md-0" id="product-catalog-container">
                     <!-- Products dynamically injected here -->
                 </div>
             </div>
@@ -303,11 +412,11 @@
     </div>
 
     <!-- Right Panel: Cart & Billing -->
-    <div class="col-12 col-md-4 d-none d-md-block" id="pos-cart-col">
+    <div class="col-12 col-lg-4 d-none d-lg-block" id="pos-cart-col">
         <div class="card sb-card border-0 h-100 shadow-sm d-flex flex-column">
             <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 py-md-3 border-bottom" style="border-color: var(--sb-border-subtle) !important;">
                 <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-sm btn-outline-secondary d-md-none px-2 py-1" onclick="switchPosMobileView('menu')" title="Back to Menu">
+                    <button class="btn btn-sm btn-outline-secondary d-lg-none px-2 py-1" onclick="switchPosMobileView('menu')" title="Back to Menu">
                         <i class="fas fa-arrow-left"></i>
                     </button>
                     <h5 class="mb-0 fw-bold text-title d-flex align-items-center gap-2 fs-6 fs-md-5">
@@ -318,7 +427,7 @@
             </div>
             
             <!-- Cart Items -->
-            <div class="card-body overflow-auto flex-grow-1 p-2 p-md-3" id="cart-list" style="max-height: 38vh;">
+            <div class="card-body overflow-auto flex-grow-1 p-2 p-md-3" id="cart-list">
                 <p class="text-muted text-center mt-4">Cart is empty</p>
             </div>
 
@@ -660,23 +769,25 @@
 
             if (!isMulti) {
                 // Single-variant card
-                const clickAction = isOutOfStock 
-                    ? "alert('Item out of stock!')" 
-                    : `addToCart(${activeV.product_ID}, '${safeBaseName}', ${activeV.price}, ${activeV.stock})`;
-
                 return `
-                <div class="col-6 col-sm-6 col-md-4 product-card" data-group-key="${g.key}">
-                    <div class="card h-100 item-card ${isOutOfStock ? 'opacity-50' : ''}" onclick="${clickAction}">
-                        <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between">
-                            <div>
-                                <span class="badge mb-2 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
-                                <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
-                            </div>
-                            <div class="mt-2">
-                                <p class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
-                                <span class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
-                            </div>
+                <div class="pos-product-card product-card card h-100 item-card ${isOutOfStock ? 'opacity-75' : ''}" data-group-key="${g.key}">
+                    <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between h-100">
+                        <div>
+                            <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
+                            <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
                         </div>
+                        <div class="my-1">
+                            <p class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
+                            <span class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 justify-content-center my-2" style="min-height: 28px;">
+                            <span class="badge bg-light text-muted border" style="font-size: 0.72rem; padding: 4px 8px;">Standard</span>
+                        </div>
+                        <button type="button" 
+                                class="btn btn-sm btn-sb-gold fw-bold w-100 py-1 d-flex align-items-center justify-content-center gap-1 shadow-xs mt-auto ${isOutOfStock ? 'disabled' : ''}"
+                                onclick="${isOutOfStock ? "alert('Item out of stock!')" : `addToCart(${activeV.product_ID}, '${safeBaseName}', ${activeV.price}, ${activeV.stock})`}">
+                            <i class="fas fa-plus-circle"></i> Add to Order
+                        </button>
                     </div>
                 </div>`;
             } else {
@@ -695,28 +806,24 @@
                 }).join('');
 
                 return `
-                <div class="col-6 col-sm-6 col-md-4 product-card" data-group-key="${g.key}">
-                    <div class="card h-100 item-card">
-                        <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between">
-                            <div>
-                                <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
-                                <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
-                            </div>
-                            <div class="my-1">
-                                <p id="price-disp-${idx}" class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
-                                <span id="stock-disp-${idx}" class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
-                            </div>
-                            <div>
-                                <div class="d-flex flex-wrap gap-1 justify-content-center my-2" id="size-pills-${idx}">
-                                    ${sizePillsHtml}
-                                </div>
-                                <button type="button" 
-                                        class="btn btn-sm btn-sb-gold fw-bold w-100 py-1 d-flex align-items-center justify-content-center gap-1 shadow-xs"
-                                        onclick="addSelectedVariant('${g.key}', event)">
-                                    <i class="fas fa-plus-circle"></i> Add to Order
-                                </button>
-                            </div>
+                <div class="pos-product-card product-card card h-100 item-card" data-group-key="${g.key}">
+                    <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between h-100">
+                        <div>
+                            <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
+                            <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
                         </div>
+                        <div class="my-1">
+                            <p id="price-disp-${idx}" class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
+                            <span id="stock-disp-${idx}" class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 justify-content-center my-2" id="size-pills-${idx}" style="min-height: 28px;">
+                            ${sizePillsHtml}
+                        </div>
+                        <button type="button" 
+                                class="btn btn-sm btn-sb-gold fw-bold w-100 py-1 d-flex align-items-center justify-content-center gap-1 shadow-xs mt-auto ${isOutOfStock ? 'disabled' : ''}"
+                                onclick="addSelectedVariant('${g.key}', event)">
+                            <i class="fas fa-plus-circle"></i> Add to Order
+                        </button>
                     </div>
                 </div>`;
             }
@@ -912,7 +1019,7 @@
             }
 
             const isVisible = deptMatch && subCatMatch && inStockMatch && queryMatch;
-            card.style.display = isVisible ? 'block' : 'none';
+            card.style.display = isVisible ? '' : 'none';
             if (isVisible) visibleCount++;
         });
 
@@ -1013,7 +1120,7 @@
         const productCol = document.getElementById('pos-product-col');
         if (floatBar) {
             const isMenuVisible = productCol && !productCol.classList.contains('d-none');
-            floatBar.style.display = (totalItems > 0 && isMenuVisible && window.innerWidth < 768) ? 'flex' : 'none';
+            floatBar.style.display = (totalItems > 0 && isMenuVisible && window.innerWidth < 992) ? 'flex' : 'none';
         }
     }
 
@@ -1358,7 +1465,7 @@
     };
 
     window.addEventListener('resize', () => {
-        if (window.innerWidth >= 768) {
+        if (window.innerWidth >= 992) {
             const productCol = document.getElementById('pos-product-col');
             const cartCol = document.getElementById('pos-cart-col');
             if (productCol) productCol.classList.remove('d-none');

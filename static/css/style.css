@@ -1297,3 +1297,91 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
         font-size: 0.68rem !important;
     }
 }
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS & LAYOUT HYGIENE (Tablet, Mobile & Landscape)
+   ========================================================================== */
+
+/* Move persistent sidebar breakpoint to 1200px (and requires height >= 560px) */
+@media (max-width: 1199.98px), (max-height: 559.98px) {
+    .sb-sidebar:not(.show) {
+        display: none !important;
+    }
+    .sb-main-wrapper, main, main.sb-main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-bottom: calc(1rem + var(--sb-safe-bottom, 0px)) !important;
+    }
+    .sb-mobile-header {
+        display: flex !important;
+        height: 52px !important;
+        padding: 0 12px !important;
+    }
+}
+
+@media (min-width: 1200px) and (min-height: 560px) {
+    .sb-mobile-header {
+        display: none !important;
+    }
+    .sb-sidebar {
+        display: flex !important;
+    }
+}
+
+/* Eliminate overlapping mobile bottom nav */
+.sb-mobile-bottom-nav, #mobile-bottom-nav, .mobile-bottom-nav {
+    display: none !important;
+}
+
+/* Floating AI Analyst Button mobile/tablet dimensions */
+@media (max-width: 1199.98px), (max-height: 559.98px) {
+    .sb-floating-bubble-wrapper {
+        bottom: 16px !important;
+        right: 16px !important;
+        z-index: 1030 !important;
+    }
+    .sb-floating-ai-btn, .ai-floating-btn, #ai-fab, #ai-floating-bubble-btn {
+        width: 46px !important;
+        height: 46px !important;
+    }
+    .sb-floating-ai-btn .ai-bubble-inner i {
+        font-size: 1.15rem !important;
+    }
+}
+
+/* SCM Tabs horizontal smooth touch strip */
+.scm-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.scm-tabs::-webkit-scrollbar {
+    display: none;
+}
+.scm-tabs .nav-item {
+    flex: 0 0 auto !important;
+}
+.scm-tabs .nav-link {
+    white-space: nowrap !important;
+}
+
+/* KPI Scorecard layout hygiene */
+.kpi-icon-container, .sb-kpi-icon {
+    flex-shrink: 0 !important;
+}
+.kpi-label, .sb-kpi-label {
+    min-width: 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+.sb-kpi-card, .sb-kpi-card .card-body {
+    height: 100%;
+    overflow: visible;
+}
+.sb-kpi-subtext, .kpi-subtext {
+    white-space: normal;
+    line-height: 1.25;
+}

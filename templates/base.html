@@ -20,10 +20,10 @@
 </head>
 <body class="d-flex flex-column min-vh-100" style="background-color: var(--sb-bg-app);">
 
-    <!-- Mobile Top Navigation -->
-    <nav class="navbar navbar-dark sb-sidebar d-md-none px-3 shadow-sm sticky-top" style="z-index: 1030;">
+    <!-- Mobile/Tablet Top Header Bar (< 1200px or < 560px height) -->
+    <nav class="navbar navbar-dark sb-mobile-header d-xl-none px-3 shadow-sm sticky-top" style="z-index: 1030; height: 52px; padding: 0 12px; background: linear-gradient(180deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);">
         <div class="d-flex align-items-center gap-2 flex-grow-1 overflow-hidden me-2">
-            <div class="sb-brand-logo flex-shrink-0" style="width: 34px; height: 34px; font-size: 0.95rem;"><i class="fas fa-cookie-bite"></i></div>
+            <div class="sb-brand-logo flex-shrink-0" style="width: 32px; height: 32px; font-size: 0.9rem;"><i class="fas fa-cookie-bite"></i></div>
             <div class="text-truncate">
                 <span class="navbar-brand fw-bold text-gold mb-0 fs-6 text-truncate d-block">Sweet Box</span>
                 <span id="mobile-top-user" class="text-white-50 d-block text-truncate" style="font-size: 0.7rem; line-height: 1.1;">Enterprise Hub</span>
@@ -37,9 +37,9 @@
     </nav>
 
     <div class="d-flex flex-grow-1">
-        <!-- Persistent Offcanvas Sidebar -->
-        <div class="offcanvas-md offcanvas-start sb-sidebar text-white shadow" tabindex="-1" id="sidebarMenu" style="width: 260px;">
-            <div class="offcanvas-header d-md-none border-bottom border-secondary">
+        <!-- Persistent Offcanvas Sidebar (Offcanvas < 1200px or < 560px height) -->
+        <div class="offcanvas-xl offcanvas-start sb-sidebar text-white shadow" tabindex="-1" id="sidebarMenu" style="width: 260px;">
+            <div class="offcanvas-header d-xl-none border-bottom border-secondary">
                 <div class="d-flex align-items-center gap-2">
                     <div class="sb-brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;"><i class="fas fa-cookie-bite"></i></div>
                     <h5 class="offcanvas-title text-gold fw-bold mb-0">Sweet Box</h5>
@@ -47,7 +47,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close" onclick="document.getElementById('sidebarMenu').classList.remove('show');"></button>
             </div>
             
-            <div class="d-none d-md-flex align-items-center gap-3 p-4 sb-brand-header">
+            <div class="d-none d-xl-flex align-items-center gap-3 p-4 sb-brand-header">
                 <div class="sb-brand-logo"><i class="fas fa-cookie-bite fs-5"></i></div>
                 <div>
                     <h4 class="fw-bold text-gold mb-0">Sweet Box</h4>
@@ -93,25 +93,8 @@
         </main>
     </div>
 
-    <!-- Mobile Bottom Navigation Bar (Visible only on mobile devices) -->
-    <div class="sb-mobile-bottom-nav d-md-none" id="mobile-bottom-nav">
-        <a href="/enterprise/" class="sb-bottom-nav-item" id="mobile-nav-enterprise">
-            <i class="fas fa-chart-pie"></i>
-            <span>Analytics</span>
-        </a>
-        <a href="/pos/" class="sb-bottom-nav-item" id="mobile-nav-pos">
-            <i class="fas fa-cash-register"></i>
-            <span>POS</span>
-        </a>
-        <a href="/scm/" class="sb-bottom-nav-item" id="mobile-nav-scm">
-            <i class="fas fa-boxes-stacked"></i>
-            <span>Inventory</span>
-        </a>
-        <a href="javascript:void(0)" class="sb-bottom-nav-item" id="mobile-nav-menu" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
-            <i class="fas fa-bars"></i>
-            <span>Menu</span>
-        </a>
-    </div>
+    <!-- Mobile Bottom Navigation Bar removed to eliminate viewport overlapping and restore full vertical screen height -->
+    <div class="sb-mobile-bottom-nav d-none" id="mobile-bottom-nav" style="display: none !important;"></div>
 
     <!-- Floating AI Analyst Chat Bubble (Business Owner Exclusive) -->
     <div class="sb-floating-bubble-wrapper" id="ai-floating-bubble-container" style="display: none;">
@@ -579,7 +562,7 @@
             document.querySelectorAll('#sidebarMenu a.nav-link').forEach(link => {
                 link.addEventListener('click', () => {
                     const offcanvasEl = document.getElementById('sidebarMenu');
-                    if (offcanvasEl && window.innerWidth < 992) {
+                    if (offcanvasEl && (window.innerWidth < 1200 || window.innerHeight < 560)) {
                         try {
                             const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
                             if (bsOffcanvas) bsOffcanvas.hide();
