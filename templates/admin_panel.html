@@ -1385,9 +1385,40 @@
         }).join('');
     }
 
+    // Hash navigation & synchronization
+    function activateTabFromHash() {
+        const hash = window.location.hash;
+        if (hash) {
+            const targetBtn = document.querySelector(`button[data-bs-target="${hash}"]`);
+            if (targetBtn) {
+                const tab = bootstrap.Tab.getOrCreateInstance(targetBtn);
+                tab.show();
+            }
+        }
+    }
+    window.addEventListener('hashchange', activateTabFromHash);
+
     // Initialization & Background Polling with document.hidden hygiene
     document.addEventListener('DOMContentLoaded', () => {
+        activateTabFromHash();
         loadAdminData(true);
+
+        document.querySelectorAll('#adminTabs button[data-bs-toggle="pill"]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', (e) => {
+                const target = e.target.getAttribute('data-bs-target');
+                if (target && history.replaceState) {
+                    history.replaceState(null, null, target);
+                    document.querySelectorAll('#sidebar-links a').forEach(a => {
+                        const href = a.getAttribute('href') || '';
+                        if (href.endsWith(target)) {
+                            a.classList.add('active');
+                        } else if (href.includes('#')) {
+                            a.classList.remove('active');
+                        }
+                    });
+                }
+            });
+        });
 
         // FinOps & RAM hygiene: Background polling every 30s only when tab is visible
         setInterval(() => {

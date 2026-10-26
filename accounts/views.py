@@ -4,12 +4,15 @@ import jwt
 import random
 from django.conf import settings
 from django.utils import timezone
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login as django_login
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import TemplateView
+from django.shortcuts import redirect
 from django.core.mail import EmailMessage
 from django.core.cache import cache
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -51,6 +54,10 @@ class LoginInitiateView(APIView):
                 try:
                     payload = jwt.decode(trusted_token, settings.SECRET_KEY, algorithms=['HS256'])
                     if payload.get('user_id') == user.user_ID:
+                        try:
+                            django_login(request, user)
+                        except Exception:
+                            pass
                         refresh = RefreshToken.for_user(user)
                         log_audit(user, "Trusted Login", "Authentication", "User logged in via trusted device bypass.")
                         return Response({
@@ -99,6 +106,11 @@ class LoginVerifyView(APIView):
                 record.is_used = True
                 record.save()
                 
+                try:
+                    django_login(request, user)
+                except Exception:
+                    pass
+
                 refresh = RefreshToken.for_user(user)
                 
                 # Generate the 7-Day Trusted Device Token
@@ -676,3 +688,25 @@ class AdminArchiveManageView(APIView):
             "archived_count": archived_count,
             "message": f"Successfully archived {archived_count} records."
         }, status=status.HTTP_200_OK)
+
+
+class AdminPanelPageView(LoginRequiredMixin, TemplateView):
+    template_name = 'admin_panel.html'
+    login_url = '/login/'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
+        role = getattr(request.user, 'role', '')
+        if request.user.is_superuser or role in ['Admin', 'System Administrator']:
+            return super().dispatch(request, *args, **kwargs)
+
+        if role == 'Staff':
+            return redirect('/pos/')
+        if role == 'Branch Manager':
+            return redirect('/scm/')
+        if role == 'Business Owner':
+            return redirect('/enterprise/')
+
+        return HttpResponseForbidden("403 Forbidden: System Administrator access required.")

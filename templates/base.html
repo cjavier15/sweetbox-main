@@ -77,9 +77,29 @@
                             <i class="fas fa-user-shield"></i> Admin Panel
                         </a>
                     </li>
+                    <li class="nav-item" id="nav-admin-users">
+                        <a href="/admin-panel/#tab-users" class="nav-link">
+                            <i class="fas fa-users-gear"></i> User Accounts
+                        </a>
+                    </li>
+                    <li class="nav-item" id="nav-admin-branches">
+                        <a href="/admin-panel/#tab-branches" class="nav-link">
+                            <i class="fas fa-store"></i> Branch Settings
+                        </a>
+                    </li>
+                    <li class="nav-item" id="nav-admin-archive">
+                        <a href="/admin-panel/#tab-archive" class="nav-link">
+                            <i class="fas fa-box-archive"></i> Data Archive
+                        </a>
+                    </li>
+                    <li class="nav-item" id="nav-admin-logs">
+                        <a href="/admin-panel/#tab-logs" class="nav-link">
+                            <i class="fas fa-shield-halved"></i> Access & Audit Logs
+                        </a>
+                    </li>
                     <li class="nav-item" id="nav-admin">
                         <a href="/admin/login/" class="nav-link">
-                            <i class="fas fa-shield-halved"></i> Django Admin
+                            <i class="fas fa-database"></i> Django Admin
                         </a>
                     </li>
                 </ul>
@@ -289,31 +309,33 @@
                 const path = window.location.pathname;
 
                 const accessMap = {
-                    'System Administrator': ['/admin-panel/', '/enterprise/', '/scm/', '/admin/'],
-                    'Business Owner': ['/enterprise/', '/scm/', '/admin-panel/', '/analytics/'],
-                    'Admin': ['/admin-panel/', '/admin/', '/enterprise/', '/scm/'],
+                    'System Administrator': ['/admin-panel/', '/admin/'],
+                    'Admin': ['/admin-panel/', '/admin/'],
+                    'Business Owner': ['/enterprise/', '/scm/', '/analytics/'],
                     'Branch Manager': ['/scm/'],
                     'Staff': ['/pos/']
                 };
 
+                const adminNavs = ['nav-admin-panel', 'nav-admin-users', 'nav-admin-branches', 'nav-admin-archive', 'nav-admin-logs', 'nav-admin'];
+
                 const uiMap = {
-                    'System Administrator': ['nav-admin-panel', 'nav-enterprise', 'nav-scm', 'nav-admin'],
-                    'Business Owner': ['nav-enterprise', 'nav-scm', 'nav-admin-panel'],
-                    'Admin': ['nav-admin-panel', 'nav-admin', 'nav-enterprise', 'nav-scm'],
+                    'System Administrator': adminNavs,
+                    'Admin': adminNavs,
+                    'Business Owner': ['nav-enterprise', 'nav-scm'],
                     'Branch Manager': ['nav-scm'],
                     'Staff': ['nav-pos']
                 };
 
                 const allowedPaths = accessMap[role] || (data.is_superuser ? ['/enterprise/', '/scm/', '/pos/', '/admin-panel/', '/admin/', '/analytics/'] : []);
-                const allowedUI = uiMap[role] || (data.is_superuser ? ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin-panel', 'nav-admin'] : []);
+                const allowedUI = uiMap[role] || (data.is_superuser ? ['nav-enterprise', 'nav-pos', 'nav-scm', ...adminNavs] : []);
                 
                 if (!allowedPaths.some(p => path.includes(p)) && path !== '/' && path !== '/login/') {
                     window.location.href = allowedPaths[0] || '/login/';
                     return;
                 }
 
-                // Process UI Removals on desktop sidebar and mobile bottom nav
-                const allUIElements = ['nav-enterprise', 'nav-pos', 'nav-scm', 'nav-admin-panel', 'nav-admin'];
+                // Process UI Removals on desktop sidebar and mobile
+                const allUIElements = ['nav-enterprise', 'nav-pos', 'nav-scm', ...adminNavs];
                 allUIElements.forEach(elementId => {
                     if (!allowedUI.includes(elementId)) {
                         const el = document.getElementById(elementId);
@@ -339,9 +361,19 @@
                 }
 
                 // Highlight active navigation link on desktop
+                const hash = window.location.hash;
                 document.querySelectorAll('#sidebar-links a').forEach(a => {
                     const href = a.getAttribute('href');
-                    if (href && (path === href || (href !== '/' && path.startsWith(href)))) {
+                    if (!href) return;
+                    let isActive = false;
+                    if (hash && href.includes('#')) {
+                        isActive = href.endsWith(hash);
+                    } else if (!hash && href === path) {
+                        isActive = true;
+                    } else if (!href.includes('#') && path === href) {
+                        isActive = true;
+                    }
+                    if (isActive) {
                         a.classList.add('active');
                     } else {
                         a.classList.remove('active');

@@ -184,3 +184,25 @@ class AdminPanelApiTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res['Content-Type'], 'text/csv')
 
+
+    def test_admin_panel_page_view_unauthenticated_redirect(self):
+        res = self.client.get('/admin-panel/')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/login/', res.url)
+
+    def test_admin_panel_page_view_staff_redirect(self):
+        self.client.force_login(self.staff)
+        res = self.client.get('/admin-panel/')
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.url, '/pos/')
+
+    def test_admin_panel_page_view_owner_redirect(self):
+        self.client.force_login(self.owner)
+        res = self.client.get('/admin-panel/')
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.url, '/enterprise/')
+
+    def test_admin_panel_page_view_admin_success(self):
+        self.client.force_login(self.admin)
+        res = self.client.get('/admin-panel/')
+        self.assertEqual(res.status_code, 200)

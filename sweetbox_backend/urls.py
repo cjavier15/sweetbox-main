@@ -6,6 +6,7 @@ from django.views.generic.base import RedirectView, TemplateView
 from accounts.views import (
     LoginInitiateView,
     LoginVerifyView,
+    AdminPanelPageView,
     AdminPanelDataView,
     AdminUserManageView,
     AdminBranchManageView,
@@ -37,7 +38,7 @@ urlpatterns = [
     path('pos/', TemplateView.as_view(template_name='pos.html'), name='pos_frontend'),
     path('analytics/', TemplateView.as_view(template_name='analytics.html'), name='analytics_frontend'),
     path('scm/', TemplateView.as_view(template_name='scm.html'), name='scm_frontend'),
-    path('admin-panel/', TemplateView.as_view(template_name='admin_panel.html'), name='admin_panel_frontend'),
+    path('admin-panel/', AdminPanelPageView.as_view(), name='admin_panel_page'),
 
     path('enterprise/', EnterpriseDashboardView.as_view(), name='enterprise-dashboard'),
 
