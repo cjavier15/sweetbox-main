@@ -38,7 +38,7 @@
 
     <div class="d-flex flex-grow-1">
         <!-- Persistent Offcanvas Sidebar (Offcanvas < 1200px or < 560px height) -->
-        <div class="offcanvas-xl offcanvas-start sb-sidebar text-white shadow" tabindex="-1" id="sidebarMenu" style="width: 260px;">
+        <div class="offcanvas-xl offcanvas-start sb-sidebar text-white shadow" tabindex="-1" id="sidebarMenu">
             <div class="offcanvas-header d-xl-none border-bottom border-secondary">
                 <div class="d-flex align-items-center gap-2">
                     <div class="sb-brand-logo" style="width: 32px; height: 32px; font-size: 0.9rem;"><i class="fas fa-cookie-bite"></i></div>
@@ -88,7 +88,7 @@
         </div>
 
         <!-- Dynamic Module Injector -->
-        <main class="flex-grow-1 p-2 p-sm-3 p-md-4 overflow-auto sb-main-content" style="background-color: var(--sb-bg-app);">
+        <main class="flex-grow-1 p-2 p-sm-3 p-md-4 overflow-auto sb-main-content sb-main-wrapper" style="background-color: var(--sb-bg-app);">
             {% block content %}{% endblock %}
         </main>
     </div>

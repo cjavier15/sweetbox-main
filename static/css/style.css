@@ -1307,6 +1307,25 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     .sb-sidebar:not(.show) {
         display: none !important;
     }
+    .sb-sidebar.show {
+        display: flex !important;
+        flex-direction: column !important;
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 260px !important;
+        max-width: 85vw !important;
+        z-index: 1045 !important;
+        visibility: visible !important;
+        transform: none !important;
+    }
+    .sb-sidebar .offcanvas-header {
+        display: flex !important;
+    }
+    .sb-sidebar .sb-brand-header {
+        display: none !important;
+    }
     .sb-main-wrapper, main, main.sb-main-content {
         margin-left: 0 !important;
         width: 100% !important;
@@ -1326,6 +1345,38 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     }
     .sb-sidebar {
         display: flex !important;
+        flex-direction: column !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 250px !important;
+        min-width: 250px !important;
+        max-width: 250px !important;
+        height: 100vh !important;
+        z-index: 1040 !important;
+        visibility: visible !important;
+        transform: none !important;
+        flex-shrink: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+    .sb-sidebar .offcanvas-header {
+        display: none !important;
+    }
+    .sb-sidebar .sb-brand-header {
+        display: flex !important;
+    }
+    .sb-sidebar .nav-link {
+        white-space: nowrap;
+    }
+    .sb-main-wrapper,
+    main,
+    main.sb-main-content {
+        margin-left: 250px !important;
+        width: calc(100% - 250px) !important;
+        max-width: calc(100% - 250px) !important;
+        min-height: 100vh !important;
     }
 }
 
