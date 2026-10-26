@@ -172,14 +172,18 @@
         }
     }
     .pos-product-card {
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
-        height: 100% !important;
-        border-radius: var(--sb-radius-md) !important;
-        transition: var(--sb-transition) !important;
-        background: var(--sb-bg-surface) !important;
-        border: 1px solid var(--sb-border-subtle) !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        border-radius: var(--sb-radius-md);
+        transition: var(--sb-transition);
+        background: var(--sb-bg-surface);
+        border: 1px solid var(--sb-border-subtle);
+    }
+    .pos-product-card.d-none,
+    .pos-product-card[hidden] {
+        display: none !important;
     }
     .pos-product-card:hover {
         transform: translateY(-2px);
@@ -381,20 +385,20 @@
 
                 <!-- Tier 1: Department Tabs -->
                 <div class="pos-dept-bar d-flex gap-1 overflow-x-auto pb-1 mb-1 no-scrollbar sb-mobile-scroll-row" id="pos-department-pills">
-                    <button type="button" class="btn pos-pill-tab active" onclick="setDepartmentFilter('all', this)">
+                    <button type="button" class="btn pos-pill-tab active" data-dept="all" onclick="setDepartmentFilter('all', this)">
                         All Menu <span class="badge bg-light text-dark ms-1" id="dept-count-all">0</span>
                     </button>
-                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('cakes', this)">
+                    <button type="button" class="btn pos-pill-tab" data-dept="cakes" onclick="setDepartmentFilter('cakes', this)">
                         🎂 Cakes <span class="badge bg-light text-dark ms-1" id="dept-count-cakes">0</span>
                     </button>
-                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('pastries', this)">
+                    <button type="button" class="btn pos-pill-tab" data-dept="pastries" onclick="setDepartmentFilter('pastries', this)">
                         🥐 Pastries <span class="badge bg-light text-dark ms-1" id="dept-count-pastries">0</span>
                     </button>
-                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('beverages', this)">
+                    <button type="button" class="btn pos-pill-tab" data-dept="beverages" onclick="setDepartmentFilter('beverages', this)">
                         ☕ Beverages <span class="badge bg-light text-dark ms-1" id="dept-count-beverages">0</span>
                     </button>
-                    <button type="button" class="btn pos-pill-tab" onclick="setDepartmentFilter('food', this)">
-                        🍔 Foods & Snacks <span class="badge bg-light text-dark ms-1" id="dept-count-food">0</span>
+                    <button type="button" class="btn pos-pill-tab" data-dept="foods" onclick="setDepartmentFilter('foods', this)">
+                        🍔 Foods & Snacks <span class="badge bg-light text-dark ms-1" id="dept-count-foods">0</span><span class="d-none" id="dept-count-food">0</span>
                     </button>
                 </div>
 
@@ -656,33 +660,26 @@
     }
 
     // Global Catalog & Navigation State
+    let allProducts = [];
     let rawProducts = [];
     let groupedCatalog = [];
+    let currentDepartment = 'all';
+    let currentSubcategory = 'all';
     let currentDept = 'all';
     let currentSubCat = 'all';
 
-    const DEPARTMENT_CONFIG = {
-        'all': {
-            name: 'All Menu',
-            categories: []
-        },
-        'cakes': {
-            name: '🎂 Cakes',
-            categories: ['Decorated Cakes', 'Everyday Cakes', 'Drip Cakes', 'Best Seller Cakes', 'Premium Cakes', 'Square Cakes']
-        },
-        'pastries': {
-            name: '🥐 Pastries',
-            categories: ['Pastries']
-        },
-        'beverages': {
-            name: '☕ Beverages',
-            categories: ['Milk Tea', 'Espresso Based', 'Non-Espresso Based', 'Fruit Tea', 'Frappe Coffee Based', 'Frappe Non-Coffee Based', 'Other Drinks']
-        },
-        'food': {
-            name: '🍔 Foods & Snacks',
-            categories: ['Rice Meals', 'Pasta', 'Finger Foods', 'Burgers & Sandwiches', 'Gourmet Burgers & Sandwiches']
+    function getDepartmentForCategory(categoryName) {
+        const cat = (categoryName || '').trim().toLowerCase();
+        if (cat.includes('cake')) return 'cakes';
+        if (cat.includes('pastry') || cat.includes('pastries')) return 'pastries';
+        if (
+            cat.includes('tea') || cat.includes('espresso') || cat.includes('frappe') ||
+            cat.includes('drink') || cat.includes('beverage') || cat.includes('coffee')
+        ) {
+            return 'beverages';
         }
-    };
+        return 'foods';
+    }
 
     const SIZE_TAG_REGEX = /\s*\(((?:Hot\s+|Cold\s+|Iced\s+)?(?:\d+x\d+|\d+[\"”]|12oz|16oz|22oz|Medio|Grande))\)\s*$/i;
 
@@ -692,11 +689,12 @@
         try {
             const response = await fetch('/api/pos/products/', { headers: { 'Authorization': `Bearer ${token}` } });
             rawProducts = await response.json();
+            allProducts = rawProducts;
 
             // Group multi-size products
             const groupsMap = new Map();
             rawProducts.forEach(p => {
-                const stock = p.quantity_available ?? p.stock ?? p.quantity ?? 0;
+                const stock = Number(p.quantity_available ?? p.stock ?? p.quantity ?? 0);
                 const m = p.product_name.match(SIZE_TAG_REGEX);
                 let baseName = p.product_name;
                 let sizeTag = null;
@@ -706,13 +704,7 @@
                 }
                 const key = `${p.category_name}:::${baseName.toLowerCase()}`;
                 if (!groupsMap.has(key)) {
-                    let deptKey = 'all';
-                    for (const [dKey, dVal] of Object.entries(DEPARTMENT_CONFIG)) {
-                        if (dVal.categories.includes(p.category_name)) {
-                            deptKey = dKey;
-                            break;
-                        }
-                    }
+                    const deptKey = getDepartmentForCategory(p.category_name);
                     groupsMap.set(key, {
                         key: key,
                         base_name: baseName,
@@ -728,13 +720,14 @@
                     product_name: p.product_name,
                     price: parseFloat(p.price),
                     stock: stock,
+                    quantity_available: stock,
                     sizeTag: sizeTag || 'Regular'
                 });
             });
 
             groupedCatalog = Array.from(groupsMap.values());
 
-            // Set default active variant for each group
+            // Set default active variant for each group (prefer first in-stock variant)
             groupedCatalog.forEach(g => {
                 const inStockVariant = g.variants.find(v => v.stock > 0);
                 g.activeVariantId = inStockVariant ? inStockVariant.product_ID : g.variants[0].product_ID;
@@ -743,10 +736,7 @@
             // Update department counts
             updateDepartmentCounts();
 
-            // Render cards
-            renderCatalogCards();
-
-            // Apply filters
+            // Filter in-memory & render catalog
             filterProducts();
 
         } catch (error) {
@@ -755,22 +745,45 @@
         }
     }
 
-    function renderCatalogCards() {
+    function renderCatalogCards(itemsToRender) {
         const catalog = document.getElementById('product-catalog-container');
         if (!catalog) return;
 
-        catalog.innerHTML = groupedCatalog.map((g, idx) => {
+        const items = (itemsToRender !== undefined) ? itemsToRender : groupedCatalog;
+
+        if (!items || items.length === 0) {
+            catalog.innerHTML = `
+                <div class="text-center py-5 w-100" style="grid-column: 1 / -1;" id="pos-empty-catalog-msg">
+                    <div class="mb-3">
+                        <i class="fas fa-search fs-1 text-muted opacity-50"></i>
+                    </div>
+                    <h6 class="fw-bold text-muted mb-2">No menu items match your current filter or search.</h6>
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="resetFilters()">
+                        <i class="fas fa-rotate-left me-1"></i> Reset Filters
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        catalog.innerHTML = items.map((g, idx) => {
             const activeV = g.variants.find(v => v.product_ID === g.activeVariantId) || g.variants[0];
             const isMulti = g.variants.length > 1;
             const isOutOfStock = activeV.stock <= 0;
             const badgeClass = isOutOfStock ? 'badge-critical' : 'badge-instock';
             const stockText = isOutOfStock ? 'Out of Stock' : `${activeV.stock} in stock`;
             const safeBaseName = g.base_name.replace(/'/g, "\\'");
+            const cardUid = `card-${idx}-${activeV.product_ID}`;
 
             if (!isMulti) {
                 // Single-variant card
                 return `
-                <div class="pos-product-card product-card card h-100 item-card ${isOutOfStock ? 'opacity-75' : ''}" data-group-key="${g.key}">
+                <div class="pos-product-card product-card card h-100 item-card ${isOutOfStock ? 'opacity-75' : ''}" 
+                     data-group-key="${g.key}" 
+                     data-dept="${g.department}" 
+                     data-category="${g.category_name}" 
+                     data-name="${g.base_name}" 
+                     data-stock="${activeV.stock}">
                     <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between h-100">
                         <div>
                             <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
@@ -798,7 +811,7 @@
                     return `
                     <button type="button" 
                             class="btn size-pill-btn ${isActive ? 'active' : ''} ${isDis ? 'disabled-pill' : ''}"
-                            onclick="selectCardSize('${g.key}', ${v.product_ID}, ${idx}, event)"
+                            onclick="selectCardSize('${g.key}', ${v.product_ID}, '${cardUid}', event)"
                             ondblclick="addVariantDirect(${v.product_ID}, event)"
                             title="${v.sizeTag} - ₱${v.price.toFixed(2)} (${v.stock} in stock)">
                         ${v.sizeTag}
@@ -806,17 +819,22 @@
                 }).join('');
 
                 return `
-                <div class="pos-product-card product-card card h-100 item-card" data-group-key="${g.key}">
+                <div class="pos-product-card product-card card h-100 item-card" 
+                     data-group-key="${g.key}" 
+                     data-dept="${g.department}" 
+                     data-category="${g.category_name}" 
+                     data-name="${g.base_name}" 
+                     data-stock="${activeV.stock}">
                     <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between h-100">
                         <div>
                             <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
                             <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
                         </div>
                         <div class="my-1">
-                            <p id="price-disp-${idx}" class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
-                            <span id="stock-disp-${idx}" class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
+                            <p id="price-disp-${cardUid}" class="card-text fw-bold mb-1 tabular-nums fs-6 fs-md-5" style="color: var(--sb-espresso);">₱${activeV.price.toFixed(2)}</p>
+                            <span id="stock-disp-${cardUid}" class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
                         </div>
-                        <div class="d-flex flex-wrap gap-1 justify-content-center my-2" id="size-pills-${idx}" style="min-height: 28px;">
+                        <div class="d-flex flex-wrap gap-1 justify-content-center my-2" id="size-pills-${cardUid}" style="min-height: 28px;">
                             ${sizePillsHtml}
                         </div>
                         <button type="button" 
@@ -830,7 +848,7 @@
         }).join('');
     }
 
-    function selectCardSize(groupKey, variantId, cardIdx, event) {
+    function selectCardSize(groupKey, variantId, cardUid, event) {
         if (event) event.stopPropagation();
         const group = groupedCatalog.find(g => g.key === groupKey);
         if (!group) return;
@@ -839,9 +857,9 @@
 
         group.activeVariantId = variantId;
 
-        const priceEl = document.getElementById(`price-disp-${cardIdx}`);
-        const stockEl = document.getElementById(`stock-disp-${cardIdx}`);
-        const pillsContainer = document.getElementById(`size-pills-${cardIdx}`);
+        const priceEl = document.getElementById(`price-disp-${cardUid}`);
+        const stockEl = document.getElementById(`stock-disp-${cardUid}`);
+        const pillsContainer = document.getElementById(`size-pills-${cardUid}`);
 
         if (priceEl) priceEl.innerText = `₱${variant.price.toFixed(2)}`;
         if (stockEl) {
@@ -859,6 +877,11 @@
                     btn.classList.remove('active');
                 }
             });
+        }
+
+        const card = document.querySelector(`.pos-product-card[data-group-key="${CSS.escape(groupKey)}"]`);
+        if (card) {
+            card.setAttribute('data-stock', variant.stock);
         }
     }
 
@@ -879,7 +902,7 @@
         if (event) event.stopPropagation();
         const p = rawProducts.find(x => x.product_ID === variantId);
         if (!p) return;
-        const stock = p.quantity_available ?? p.stock ?? p.quantity ?? 0;
+        const stock = Number(p.quantity_available ?? p.stock ?? p.quantity ?? 0);
         if (stock <= 0) {
             return alert(`Cannot add ${p.product_name}. Item is out of stock!`);
         }
@@ -887,11 +910,22 @@
     }
 
     function setDepartmentFilter(deptKey, btnElement) {
+        currentDepartment = deptKey;
         currentDept = deptKey;
+        currentSubcategory = 'all';
         currentSubCat = 'all';
 
-        document.querySelectorAll('#pos-department-pills .pos-pill-tab').forEach(b => b.classList.remove('active'));
-        if (btnElement) btnElement.classList.add('active');
+        document.querySelectorAll('#pos-department-pills [data-dept]').forEach(b => {
+            if (b.getAttribute('data-dept') === deptKey) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+        if (btnElement) {
+            document.querySelectorAll('#pos-department-pills .pos-pill-tab').forEach(b => b.classList.remove('active'));
+            btnElement.classList.add('active');
+        }
 
         renderSubcategoryPills(deptKey);
         filterProducts();
@@ -899,43 +933,60 @@
 
     function renderSubcategoryPills(deptKey) {
         const subcatContainer = document.getElementById('pos-subcategory-pills');
-        if (deptKey === 'all' || !DEPARTMENT_CONFIG[deptKey]) {
+        if (!subcatContainer) return;
+
+        if (deptKey === 'all') {
             subcatContainer.style.display = 'none';
             subcatContainer.innerHTML = '';
             return;
         }
 
-        const categories = DEPARTMENT_CONFIG[deptKey].categories;
+        const inStockToggle = document.getElementById('in-stock-toggle') || document.getElementById('filter-in-stock') || document.getElementById('instock-filter-switch');
+        const inStockOnly = inStockToggle ? inStockToggle.checked : false;
+
+        const subcatCounts = {};
+        groupedCatalog.forEach(g => {
+            const matchesDept = (g.department === deptKey) || 
+                                (deptKey === 'foods' && g.department === 'food') || 
+                                (deptKey === 'food' && g.department === 'foods');
+            if (matchesDept) {
+                if (!inStockOnly || g.variants.some(v => v.stock > 0)) {
+                    subcatCounts[g.category_name] = (subcatCounts[g.category_name] || 0) + 1;
+                }
+            }
+        });
+
+        const categories = Object.keys(subcatCounts).sort();
         if (categories.length <= 1) {
             subcatContainer.style.display = 'none';
             subcatContainer.innerHTML = '';
             return;
         }
 
-        const subcatCounts = {};
-        groupedCatalog.forEach(g => {
-            if (g.department === deptKey) {
-                subcatCounts[g.category_name] = (subcatCounts[g.category_name] || 0) + 1;
-            }
-        });
-
         const allDeptCount = Object.values(subcatCounts).reduce((a, b) => a + b, 0);
+        const deptDisplayNames = {
+            'cakes': 'Cakes',
+            'pastries': 'Pastries',
+            'beverages': 'Beverages',
+            'foods': 'Foods & Snacks',
+            'food': 'Foods & Snacks'
+        };
+        const deptLabel = deptDisplayNames[deptKey] || deptKey;
 
         let pillsHtml = `
-            <button type="button" class="btn pos-subcat-pill active" onclick="setSubcategoryFilter('all', this)">
-                All ${DEPARTMENT_CONFIG[deptKey].name.replace(/[^\w\s&]/g, '').trim()} (${allDeptCount})
+            <button type="button" class="btn pos-subcat-pill ${currentSubcategory === 'all' ? 'active' : ''}" onclick="setSubcategoryFilter('all', this)">
+                All ${deptLabel} (${allDeptCount})
             </button>
         `;
 
         categories.forEach(cat => {
             const count = subcatCounts[cat] || 0;
-            if (count > 0) {
-                pillsHtml += `
-                    <button type="button" class="btn pos-subcat-pill" onclick="setSubcategoryFilter('${cat.replace(/'/g, "\\'")}', this)">
-                        ${cat} (${count})
-                    </button>
-                `;
-            }
+            const isActive = (currentSubcategory.toLowerCase() === cat.toLowerCase()) ? 'active' : '';
+            pillsHtml += `
+                <button type="button" class="btn pos-subcat-pill ${isActive}" onclick="setSubcategoryFilter('${cat.replace(/'/g, "\\'")}', this)">
+                    ${cat} (${count})
+                </button>
+            `;
         });
 
         subcatContainer.innerHTML = pillsHtml;
@@ -943,9 +994,12 @@
     }
 
     function setSubcategoryFilter(subCatName, btnElement) {
+        currentSubcategory = subCatName;
         currentSubCat = subCatName;
+
         document.querySelectorAll('#pos-subcategory-pills .pos-subcat-pill').forEach(b => b.classList.remove('active'));
         if (btnElement) btnElement.classList.add('active');
+
         filterProducts();
     }
 
@@ -957,13 +1011,36 @@
         filterProducts();
     }
 
+    function resetFilters() {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
+        const clearBtn = document.getElementById('search-clear-btn');
+        if (clearBtn) clearBtn.style.display = 'none';
+
+        const inStockToggle = document.getElementById('in-stock-toggle') || document.getElementById('filter-in-stock') || document.getElementById('instock-filter-switch');
+        if (inStockToggle) inStockToggle.checked = false;
+
+        const allDeptBtn = document.querySelector('#pos-department-pills [data-dept="all"]') || document.querySelector('#pos-department-pills .pos-pill-tab');
+        setDepartmentFilter('all', allDeptBtn);
+    }
+
     function updateDepartmentCounts() {
-        const counts = { all: groupedCatalog.length, cakes: 0, pastries: 0, beverages: 0, food: 0 };
+        const inStockToggle = document.getElementById('in-stock-toggle') || document.getElementById('filter-in-stock') || document.getElementById('instock-filter-switch');
+        const inStockOnly = inStockToggle ? inStockToggle.checked : false;
+
+        const counts = { all: 0, cakes: 0, pastries: 0, beverages: 0, foods: 0, food: 0 };
         groupedCatalog.forEach(g => {
-            if (counts[g.department] !== undefined) {
-                counts[g.department]++;
+            if (!inStockOnly || g.variants.some(v => v.stock > 0)) {
+                counts.all++;
+                const dept = g.department;
+                if (counts[dept] !== undefined) {
+                    counts[dept]++;
+                }
+                if (dept === 'foods') counts.food++;
+                if (dept === 'food') counts.foods++;
             }
         });
+
         const allEl = document.getElementById('dept-count-all');
         if (allEl) allEl.innerText = counts.all;
         const cakesEl = document.getElementById('dept-count-cakes');
@@ -972,8 +1049,10 @@
         if (pastEl) pastEl.innerText = counts.pastries;
         const bevEl = document.getElementById('dept-count-beverages');
         if (bevEl) bevEl.innerText = counts.beverages;
+        const foodsEl = document.getElementById('dept-count-foods');
+        if (foodsEl) foodsEl.innerText = counts.foods;
         const foodEl = document.getElementById('dept-count-food');
-        if (foodEl) foodEl.innerText = counts.food;
+        if (foodEl) foodEl.innerText = counts.food || counts.foods;
     }
 
     function filterProducts() {
@@ -984,61 +1063,56 @@
             clearBtn.style.display = query.length > 0 ? 'block' : 'none';
         }
 
-        const inStockSwitch = document.getElementById('instock-filter-switch');
-        const inStockOnly = inStockSwitch ? inStockSwitch.checked : false;
+        const inStockToggle = document.getElementById('in-stock-toggle') || document.getElementById('filter-in-stock') || document.getElementById('instock-filter-switch');
+        const inStockOnly = inStockToggle ? inStockToggle.checked : false;
 
-        let visibleCount = 0;
+        // Update department counts respecting in-stock switch
+        updateDepartmentCounts();
 
-        document.querySelectorAll('.product-card').forEach(card => {
-            const groupKey = card.getAttribute('data-group-key');
-            const group = groupedCatalog.find(g => g.key === groupKey);
-            if (!group) return;
-
+        const filtered = groupedCatalog.filter(group => {
             // 1. Department Filter
-            let deptMatch = (currentDept === 'all') || (group.department === currentDept);
+            const groupDept = group.department;
+            const deptMatch = (currentDepartment === 'all') || 
+                              (groupDept === currentDepartment) || 
+                              (currentDepartment === 'foods' && groupDept === 'food') || 
+                              (currentDepartment === 'food' && groupDept === 'foods');
 
-            // 2. Subcategory Filter
-            let subCatMatch = (currentSubCat === 'all') || (group.category_name === currentSubCat);
+            // 2. Sub-Category Filter
+            const groupCategory = (group.category_name || '').trim();
+            const subCatMatch = (currentSubcategory === 'all') || 
+                                (groupCategory.toLowerCase() === currentSubcategory.toLowerCase());
 
-            // 3. In-Stock Filter
+            // 3. Search Query Filter
+            const groupBaseName = (group.base_name || '').trim();
+            let searchMatch = true;
+            if (query) {
+                searchMatch = groupBaseName.toLowerCase().includes(query) ||
+                              groupCategory.toLowerCase().includes(query) ||
+                              group.variants.some(v => 
+                                  (v.product_name || '').toLowerCase().includes(query) || 
+                                  (v.sizeTag || '').toLowerCase().includes(query)
+                              );
+            }
+
+            // 4. In-Stock Filter
             let inStockMatch = true;
             if (inStockOnly) {
-                inStockMatch = group.variants.some(v => v.stock > 0);
+                inStockMatch = group.variants.some(v => Number(v.stock) > 0);
+                if (inStockMatch) {
+                    // Auto-select first in-stock variant
+                    const activeV = group.variants.find(v => v.product_ID === group.activeVariantId);
+                    if (!activeV || activeV.stock <= 0) {
+                        const firstInStock = group.variants.find(v => v.stock > 0);
+                        if (firstInStock) group.activeVariantId = firstInStock.product_ID;
+                    }
+                }
             }
 
-            // 4. Query Filter
-            let queryMatch = true;
-            if (query.length > 0) {
-                const baseNameMatch = group.base_name.toLowerCase().includes(query);
-                const catMatch = group.category_name.toLowerCase().includes(query);
-                const variantMatch = group.variants.some(v => 
-                    v.product_name.toLowerCase().includes(query) || 
-                    (v.sizeTag && v.sizeTag.toLowerCase().includes(query))
-                );
-                queryMatch = baseNameMatch || catMatch || variantMatch;
-            }
-
-            const isVisible = deptMatch && subCatMatch && inStockMatch && queryMatch;
-            card.style.display = isVisible ? '' : 'none';
-            if (isVisible) visibleCount++;
+            return deptMatch && subCatMatch && searchMatch && inStockMatch;
         });
 
-        let emptyEl = document.getElementById('pos-empty-catalog-msg');
-        const container = document.getElementById('product-catalog-container');
-        if (visibleCount === 0) {
-            if (!emptyEl) {
-                emptyEl = document.createElement('div');
-                emptyEl.id = 'pos-empty-catalog-msg';
-                emptyEl.className = 'col-12 text-center py-5 text-muted';
-                emptyEl.innerHTML = '<i class="fas fa-search fs-1 mb-2 text-muted opacity-50"></i><p class="mb-0 fw-semibold">No menu items match your search or filters.</p>';
-                container.appendChild(emptyEl);
-            }
-            emptyEl.style.display = 'block';
-        } else if (emptyEl) {
-            emptyEl.style.display = 'none';
-        }
+        renderCatalogCards(filtered);
     }
-
     function addToCart(id, name, price, maxStock) {
         const existing = cart.find(i => i.product_id === id);
         const currentQty = existing ? existing.quantity : 0;

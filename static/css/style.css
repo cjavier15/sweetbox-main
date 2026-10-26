@@ -1385,3 +1385,19 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     white-space: normal;
     line-height: 1.25;
 }
+
+/* POS Product Card & Hidden Rule */
+.pos-product-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    border-radius: var(--sb-radius-md);
+    transition: var(--sb-transition);
+    background: var(--sb-bg-surface);
+    border: 1px solid var(--sb-border-subtle);
+}
+.pos-product-card.d-none,
+.pos-product-card[hidden] {
+    display: none !important;
+}
