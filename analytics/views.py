@@ -580,15 +580,182 @@ class ExportKPIReportView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        user = request.user
+        role = getattr(user, 'role', '')
+        is_owner = (role == 'Business Owner' or user.is_superuser)
+        is_manager = (role == 'Branch Manager')
+
+        if not (is_owner or is_manager):
+            return Response({"error": "Staff members are not authorized to export executive KPI reports."}, status=403)
+
+        branch_param = request.query_params.get('branch_id') or request.query_params.get('branch') or 'all'
+        if is_manager:
+            if not user.branch or str(branch_param).lower() == 'all' or str(user.branch.branch_ID) != str(branch_param):
+                return Response({"error": "Branch Managers can only export reports for their own assigned branch."}, status=403)
+
+        timeframe = request.query_params.get('timeframe') or request.query_params.get('filter') or 'month'
+
+        # Normalize timeframe window
+        tf_lower = str(timeframe).lower()
+        if 'week' in tf_lower:
+            days = 7
+            tf_label = 'This Week (7 Days)'
+        elif '7' in tf_lower or ('month' in tf_lower and '7' in tf_lower):
+            days = 210
+            tf_label = 'Last 7 Months'
+        else:
+            days = 30
+            tf_label = 'This Month (30 Days)'
+
+        today = timezone.now().date()
+        start_date = timezone.now() - timedelta(days=days)
+
+        # Target branch evaluation
+        if str(branch_param).lower() != 'all':
+            target_branches = list(Branch.objects.filter(branch_ID=branch_param))
+        else:
+            target_branches = list(Branch.objects.all().order_by('branch_ID'))
+
+        # Pre-compute BOM costs in memory
+        bom_cost_map = {}
+        for bom in BillOfMaterial.objects.select_related('ingredient').all():
+            cost = Decimal(str(bom.quantity_required)) * bom.ingredient.cost_per_unit
+            bom_cost_map[bom.product_id] = bom_cost_map.get(bom.product_id, Decimal('0.00')) + cost
+
+        live_summaries = []
+
+        for branch in target_branches:
+            recent_txns = Transaction.objects.filter(
+                branch=branch,
+                transaction_status='Completed',
+                transaction_date__gte=start_date
+            ).prefetch_related('items__product')
+
+            total_rev = recent_txns.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+
+            cogs = Decimal('0.00')
+            for txn in recent_txns:
+                for item in txn.items.all():
+                    item_unit_cost = bom_cost_map.get(
+                        item.product_id,
+                        (item.product.price * Decimal('0.35')) if item.product else Decimal('0.00')
+                    )
+                    cogs += item_unit_cost * Decimal(str(item.quantity))
+
+            gross_margin = total_rev - cogs
+
+            is_sat = not bool(branch.main_hub or branch.branch_ID == 1 or 'ibaan' in branch.name.lower())
+            if is_sat:
+                prod_stocks = ProductStock.objects.filter(branch=branch).select_related('product')
+                inv_val = Decimal('0.00')
+                for ps in prod_stocks:
+                    if ps.total_cost > 0:
+                        inv_val += ps.total_cost
+                    else:
+                        unit_c = bom_cost_map.get(ps.product_id, ps.product.price * Decimal('0.35'))
+                        inv_val += Decimal(str(ps.quantity_available)) * unit_c
+                stockouts = ProductStock.objects.filter(branch=branch, quantity_available__lte=0).count()
+            else:
+                ing_cost = IngredientStock.objects.filter(branch=branch).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+                prod_cost = ProductStock.objects.filter(branch=branch).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
+                comp_prod = Decimal('0.00')
+                for ps in ProductStock.objects.filter(branch=branch).select_related('product'):
+                    if ps.total_cost > 0:
+                        comp_prod += ps.total_cost
+                    else:
+                        unit_c = bom_cost_map.get(ps.product_id, ps.product.price * Decimal('0.35'))
+                        comp_prod += Decimal(str(ps.quantity_available)) * unit_c
+                inv_val = ing_cost + max(prod_cost, comp_prod)
+                stockouts = IngredientStock.objects.filter(branch=branch, quantity_available__lte=0).count() + ProductStock.objects.filter(branch=branch, quantity_available__lte=0).count()
+
+            # Dynamic KPI calculation
+            inv_turnover = round(cogs / inv_val, 2) if (inv_val > 0 and cogs > 0) else Decimal('0.00')
+            gmroi = round(gross_margin / inv_val, 2) if (inv_val > 0 and gross_margin > 0) else Decimal('0.00')
+            dead_stock_value = Decimal('0.00')
+
+            # Upsert today's KPIRecord for evaluated branch so ledger is never empty
+            KPIRecord.objects.update_or_create(
+                branch=branch,
+                period_date=today,
+                defaults={
+                    'inventory_turnover': inv_turnover,
+                    'gmroi': gmroi,
+                    'gross_margin': round(gross_margin, 2),
+                    'total_revenue': round(total_rev, 2),
+                    'dead_stock_value': dead_stock_value,
+                    'stockout_count': stockouts
+                }
+            )
+
+            live_summaries.append({
+                'timeframe': tf_label,
+                'period_date': today.strftime('%Y-%m-%d'),
+                'branch_name': branch.name,
+                'total_revenue': total_rev,
+                'cogs': cogs,
+                'gross_margin': gross_margin,
+                'inventory_value': inv_val,
+                'inventory_turnover': inv_turnover,
+                'gmroi': gmroi,
+                'dead_stock_value': dead_stock_value,
+                'stockout_count': stockouts
+            })
+
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="SweetBox_KPI_Report.csv"'
 
         writer = csv.writer(response)
-        writer.writerow(['Branch', 'Period Date', 'Total Revenue (PHP)', 'Gross Margin', 'Inventory Turnover', 'GMROI', 'Stockouts'])
+        writer.writerow(['SWEET BOX KPI PERFORMANCE REPORT'])
+        writer.writerow([])
+        writer.writerow(['=== CURRENT PERIOD LIVE KPI SUMMARY ==='])
+        writer.writerow([
+            'Timeframe', 'Period Date', 'Branch Name', 'Total Revenue (PHP)',
+            'COGS (PHP)', 'Gross Margin (PHP)', 'Inventory Value (PHP)',
+            'Inventory Turnover', 'GMROI', 'Dead Stock Value (PHP)', 'Stockout Count'
+        ])
+        for s in live_summaries:
+            writer.writerow([
+                s['timeframe'],
+                s['period_date'],
+                s['branch_name'],
+                f"{s['total_revenue']:.2f}",
+                f"{s['cogs']:.2f}",
+                f"{s['gross_margin']:.2f}",
+                f"{s['inventory_value']:.2f}",
+                f"{s['inventory_turnover']:.2f}",
+                f"{s['gmroi']:.2f}",
+                f"{s['dead_stock_value']:.2f}",
+                s['stockout_count']
+            ])
 
-        kpis = KPIRecord.objects.all().order_by('-period_date')
-        for kpi in kpis:
-            writer.writerow([kpi.branch.name, kpi.period_date, kpi.total_revenue, kpi.gross_margin, kpi.inventory_turnover, kpi.gmroi, kpi.stockout_count])
+        writer.writerow([])
+        writer.writerow(['=== HISTORICAL KPI RECORDS LEDGER ==='])
+        writer.writerow([
+            'Period Date', 'Branch Name', 'Total Revenue (PHP)',
+            'Gross Margin (PHP)', 'Inventory Turnover', 'GMROI',
+            'Dead Stock Value (PHP)', 'Stockout Count'
+        ])
 
-        AuditLog.objects.create(user=request.user, action="Report Export", module="Analytics", details="Exported KPI CSV Report.")
+        hist_kpis = KPIRecord.objects.select_related('branch').order_by('-period_date', 'branch__branch_ID')
+        if str(branch_param).lower() != 'all':
+            hist_kpis = hist_kpis.filter(branch_id=branch_param)
+
+        for kpi in hist_kpis:
+            writer.writerow([
+                kpi.period_date.strftime('%Y-%m-%d'),
+                kpi.branch.name,
+                f"{kpi.total_revenue:.2f}",
+                f"{kpi.gross_margin:.2f}",
+                f"{kpi.inventory_turnover:.2f}",
+                f"{kpi.gmroi:.2f}",
+                f"{kpi.dead_stock_value:.2f}",
+                kpi.stockout_count
+            ])
+
+        AuditLog.objects.create(
+            user=request.user,
+            action="Report Export",
+            module="Analytics",
+            details=f"Exported SweetBox KPI Report CSV for branch '{branch_param}' (timeframe: {timeframe})."
+        )
         return response

@@ -11,7 +11,7 @@
     <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
         <!-- Branch Selector (Owner / Multi-Branch) -->
         <div class="d-inline-flex align-items-center flex-fill flex-md-grow-0" id="analytics-branch-wrapper">
-            <select id="analytics-branch-filter" class="form-select form-select-sm bg-white shadow-xs fw-semibold border w-100" style="border-color: var(--sb-border-subtle) !important; min-width: 170px;" onchange="onBranchFilterChange(this.value)">
+            <select id="analytics-branch-filter" name="branchFilter" class="form-select form-select-sm bg-white shadow-xs fw-semibold border w-100" style="border-color: var(--sb-border-subtle) !important; min-width: 170px;" onchange="onBranchFilterChange(this.value)">
                 <option value="all">All Branches</option>
             </select>
         </div>
@@ -262,6 +262,7 @@
 
     async function applyFilter(filterString, btnElement) {
         currentFilter = filterString;
+        window.currentTimeframe = filterString;
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btnElement.classList.add('active');
         await renderEnterpriseCharts();
@@ -269,6 +270,7 @@
 
     async function onBranchFilterChange(val) {
         currentBranch = val;
+        window.currentBranch = val;
         await renderEnterpriseCharts();
     }
 
@@ -676,8 +678,14 @@
             btn.disabled = true;
         }
 
+        const branchSelect = document.getElementById('branchFilter') || document.getElementById('analytics-branch-filter');
+        const branchVal = branchSelect ? branchSelect.value : (currentBranch || 'all');
+        const timeframeVal = window.currentTimeframe || currentFilter || 'month';
+
         const token = localStorage.getItem('access_token');
-        fetch('/api/analytics/etl/export/', {
+        const exportUrl = `/api/analytics/etl/export/?branch_id=${encodeURIComponent(branchVal)}&timeframe=${encodeURIComponent(timeframeVal)}`;
+
+        fetch(exportUrl, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
         })
@@ -692,7 +700,7 @@
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = 'SweetBox_KPI_Report.csv';
+            a.download = `SweetBox_KPI_Report.csv`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);

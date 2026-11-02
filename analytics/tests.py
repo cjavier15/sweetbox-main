@@ -264,3 +264,31 @@ class AnalyticsTests(TestCase):
         self.assertEqual(actions[0]['branch'], self.branch.name)
         self.assertEqual(actions[0]['branch_id'], self.branch.branch_ID)
 
+    def test_export_kpi_report_owner_success(self):
+        self.client.force_authenticate(user=self.owner)
+        res = self.client.get('/api/analytics/etl/export/?branch_id=all&timeframe=month')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'text/csv')
+        content = res.content.decode('utf-8')
+        self.assertIn('SWEET BOX KPI PERFORMANCE REPORT', content)
+        self.assertIn('CURRENT PERIOD LIVE KPI SUMMARY', content)
+        self.assertIn('HISTORICAL KPI RECORDS LEDGER', content)
+        self.assertTrue(KPIRecord.objects.filter(branch=self.branch).exists())
+
+    def test_export_kpi_report_permissions(self):
+        # Staff is forbidden
+        self.client.force_authenticate(user=self.staff)
+        res_staff = self.client.get('/api/analytics/etl/export/?branch_id=all&timeframe=month')
+        self.assertEqual(res_staff.status_code, 403)
+
+        # Manager forbidden from exporting all branches
+        self.client.force_authenticate(user=self.manager)
+        res_mgr_all = self.client.get('/api/analytics/etl/export/?branch_id=all&timeframe=month')
+        self.assertEqual(res_mgr_all.status_code, 403)
+
+        # Manager allowed to export their own branch
+        res_mgr_own = self.client.get(f'/api/analytics/etl/export/?branch_id={self.branch.branch_ID}&timeframe=month')
+        self.assertEqual(res_mgr_own.status_code, 200)
+        self.assertEqual(res_mgr_own['Content-Type'], 'text/csv')
+
+
