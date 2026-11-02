@@ -291,4 +291,63 @@ class AnalyticsTests(TestCase):
         self.assertEqual(res_mgr_own.status_code, 200)
         self.assertEqual(res_mgr_own['Content-Type'], 'text/csv')
 
+    def test_branch_target_update_view_permissions_and_validation(self):
+        # Staff is forbidden
+        self.client.force_authenticate(user=self.staff)
+        res_staff = self.client.post('/api/analytics/branch-targets/', {'targets': [{'branch_id': self.branch.branch_ID, 'monthly_target': 70000}]}, format='json')
+        self.assertEqual(res_staff.status_code, 403)
+
+        # Owner is allowed
+        self.client.force_authenticate(user=self.owner)
+        # Validation: target < 1000
+        res_invalid = self.client.post('/api/analytics/branch-targets/', {'targets': [{'branch_id': self.branch.branch_ID, 'monthly_target': 500}]}, format='json')
+        self.assertEqual(res_invalid.status_code, 400)
+
+        # Valid target update
+        res_valid = self.client.post('/api/analytics/branch-targets/', {'targets': [{'branch_id': self.branch.branch_ID, 'monthly_target': 80000}]}, format='json')
+        self.assertEqual(res_valid.status_code, 200)
+        self.assertIn('targets', res_valid.data)
+
+        # Verify persisted in ConstraintParameter
+        cp = ConstraintParameter.objects.filter(branch=self.branch, ingredient__isnull=True, product__isnull=True).first()
+        self.assertIsNotNone(cp)
+        self.assertEqual(float(cp.capacity_limit), 80000.0)
+
+        # Verify reflected in dashboard-data across timeframes
+        # Month
+        res_month = self.client.get('/api/analytics/dashboard-data/?filter=this_month')
+        self.assertEqual(res_month.status_code, 200)
+        b_data = [b for b in res_month.data['branch_performance'] if b['branch_id'] == self.branch.branch_ID][0]
+        self.assertEqual(b_data['base_monthly_target'], 80000.0)
+        self.assertEqual(b_data['target_sales'], 80000.0)
+
+        # Week (scaled 0.25)
+        res_week = self.client.get('/api/analytics/dashboard-data/?filter=this_week')
+        b_data_week = [b for b in res_week.data['branch_performance'] if b['branch_id'] == self.branch.branch_ID][0]
+        self.assertEqual(b_data_week['target_sales'], 20000.0)
+
+        # 7 Months (scaled 7.0)
+        res_7m = self.client.get('/api/analytics/dashboard-data/?filter=last_7_months')
+        b_data_7m = [b for b in res_7m.data['branch_performance'] if b['branch_id'] == self.branch.branch_ID][0]
+        self.assertEqual(b_data_7m['target_sales'], 560000.0)
+
+    def test_chatbot_ingredient_production_recommendation(self):
+        # Create a BOM relationship for self.product and self.ingredient
+        BillOfMaterial.objects.create(product=self.product, ingredient=self.ingredient, quantity_required=Decimal('0.10'))
+        
+        self.client.force_authenticate(user=self.owner)
+        payload = {
+            'branch_id': self.branch.branch_ID,
+            'query': 'give me a production recommendation based on coffee beans'
+        }
+        res = self.client.post('/api/analytics/chat/', payload, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('reply', res.data)
+        reply = res.data['reply']
+        
+        # Verify it gives prescriptive production guidance and never refuses
+        self.assertNotIn('not recorded in our current sweet box database records', reply.lower())
+        self.assertIn('coffee beans', reply.lower())
+
+
 

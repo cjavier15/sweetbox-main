@@ -5,7 +5,7 @@ from google import genai
 from django.conf import settings
 from django.db.models import F, Sum
 from inventory.models import IngredientStock, ConstraintParameter, Ingredient, BillOfMaterial, ProductStock
-from analytics.models import PrescriptiveOutput, ExternalVariable, ChatbotLog
+from analytics.models import PrescriptiveOutput, ExternalVariable, ChatbotLog, ProductClassification
 from django.utils import timezone
 from datetime import timedelta
 from pos.models import Transaction, TransactionItem, Product
@@ -564,10 +564,15 @@ def is_sweetbox_related_query(query_text):
         "payment", "cash", "e-wallet", "gcash", "maya", "discount", "pwd", "senior",
         "kpi", "restock", "produce", "production", "transfer", "spoilage", "cost", "price",
         "event", "events", "holiday", "payday", "fiesta", "weather", "season", "trend",
-        "performance", "target", "forecast", "demand", "summary", "report", "loss", "threshold",
+        "performance", "target", "targets", "forecast", "demand", "summary", "report", "loss", "threshold",
         "sell", "selling", "seller", "sellers", "best", "top", "item", "items", "runway", "burn",
         "supply", "supplies", "store", "shop", "bakery", "kitchen", "margin", "customer", "customers",
-        "volume", "business", "operations", "status", "lead time", "capacity"
+        "volume", "business", "operations", "status", "lead time", "capacity", "directive", "dispatch",
+        "allocation", "allocate", "batch", "yield", "bake", "baking", "recipe", "recommendation", "recommend",
+        # Ingredients & Baking terms
+        "flour", "all purpose flour", "all-purpose flour", "sugar", "butter", "egg", "eggs", "milk",
+        "cream", "cheese", "cream cheese", "cocoa", "chocolate", "vanilla", "yeast", "salt", "ube",
+        "matcha", "syrup", "tea", "boba", "pearls", "bento", "ganache", "almond", "carrots", "bread"
     ]
     
     return any(kw in q for kw in sweetbox_keywords)
@@ -575,7 +580,9 @@ def is_sweetbox_related_query(query_text):
 def _build_dynamic_sales_response(
     branch, user, user_query, total_rev, total_txns, avg_txn,
     sorted_prods, low_stocks, event_list, event_multiplier, impact_events,
-    payment_methods, all_branches_data
+    payment_methods, all_branches_data,
+    bom_production_plans=None, matched_ingredients=None,
+    satellite_needs_text=None, top_products_telemetry_text=None
 ):
     """
     Intelligent intent-based dynamic generator that formulates targeted, structured,
@@ -583,6 +590,80 @@ def _build_dynamic_sales_response(
     """
     q = user_query.lower()
     
+    # Intent 0: Ingredient-Based Production Recommendation & BOM Allocation
+    prod_rec_keywords = ['recommendation', 'recommend', 'produce', 'production', 'batch', 'bake', 'baking', 'allocate', 'allocation', 'recipe', 'bom', 'yield', 'make']
+    ing_keywords = ['flour', 'sugar', 'butter', 'egg', 'eggs', 'milk', 'cream', 'cheese', 'cocoa', 'chocolate', 'ube', 'yeast', 'vanilla', 'boba', 'tea', 'ingredient', 'ingredients']
+
+    is_production_query = any(k in q for k in prod_rec_keywords) or ('based on' in q and any(k in q for k in ing_keywords))
+    is_ingredient_query = any(k in q for k in ing_keywords) or bool(matched_ingredients)
+
+    if (is_production_query and is_ingredient_query) or (bool(bom_production_plans) and ('flour' in q or 'production' in q or 'recommendation' in q)):
+        # Select best matching ingredient plan
+        selected_plan = None
+        if bom_production_plans:
+            for ing_key, plan in bom_production_plans.items():
+                if any(word in q for word in ing_key.lower().split()):
+                    selected_plan = plan
+                    break
+            if not selected_plan:
+                selected_plan = list(bom_production_plans.values())[0]
+
+        if selected_plan:
+            ing_name = selected_plan['ingredient_name']
+            unit = selected_plan['unit']
+            q_avail = selected_plan['quantity_available']
+            reorder_th = selected_plan['reorder_threshold']
+            q_safe = selected_plan['safe_usable_stock']
+            batches = selected_plan['batches']
+            total_cons = selected_plan['total_consumed']
+            rem_bal = selected_plan['remaining_balance']
+            products = selected_plan['products']
+
+            lines = [
+                f"🏭 **Sweet Box Executive Production Recommendation — {ing_name}**",
+                f"**Production Hub:** {branch.name} Commissary | **Active Context:** Daily Production & BOM Allocation\n",
+                f"📦 **1. Current Ingredient Inventory & Safety Runway**",
+                f"- **Stock on Hand:** **{q_avail:.2f} {unit}**",
+                f"- **Reorder Threshold:** {reorder_th:.2f} {unit}",
+                f"- **Safe Usable Buffer:** **{q_safe:.2f} {unit}** ({'Optimal buffer available' if q_safe > 0 else 'Operating near/below threshold; prioritize high-velocity items'})",
+                f"- **Supply Status:** {'⚠️ Low Stock / Strict Prioritization' if q_avail <= reorder_th else '✅ Healthy Operating Buffer'}\n",
+                f"📋 **2. Key BOM Product Utilization & 30-Day Sales Velocity**"
+            ]
+
+            for p in products[:5]:
+                lines.append(
+                    f"- **{p['product_name']}**: Requires **{p['qty_required']:.2f} {unit}**/unit | "
+                    f"30d Sales: **{p['units_30d']} units** | Retail: ₱{p['price']:.2f} | Unit Margin: ₱{p['margin']:.2f}"
+                )
+
+            lines.append("\n💡 **3. Recommended Daily Production Batch Plan**")
+            if batches:
+                tot_rev = sum(b['est_revenue'] for b in batches)
+                tot_margin = sum(b['est_margin'] for b in batches)
+                for b in batches:
+                    lines.append(
+                        f"- **{b['batch_units']}x {b['product_name']}**: Consumes **{b['ing_consumed']:.2f} {unit}** "
+                        f"(Est. Revenue: ₱{b['est_revenue']:,.2f} | Est. Margin: ₱{b['est_margin']:,.2f})"
+                    )
+                lines.append(
+                    f"\n* **Total Ingredient Consumption:** **{total_cons:.2f} {unit}**\n"
+                    f"* **Projected Batch Revenue:** **₱{tot_rev:,.2f}** (Gross Margin: **₱{tot_margin:,.2f}**)"
+                )
+            else:
+                lines.append("- Allocate stock toward core flagship cakes (Bento & Minimalist series) in small 5–10 unit test batches.")
+
+            lines.append(f"\n⚖️ **4. Post-Production Balance & Supply Chain Directives**")
+            lines.append(f"- **Remaining Ingredient Balance:** **{rem_bal:.2f} {unit}**.")
+            if rem_bal <= reorder_th:
+                lines.append(f"- **Procurement Alert:** Submit a restock order for **30.00–50.00 {unit}** through SCM to prevent line downtime (Lead time: ~3 days).")
+            else:
+                lines.append(f"- **Procurement Status:** Stock balance remains safely buffered above reorder threshold.")
+
+            if satellite_needs_text and "All satellite" not in satellite_needs_text:
+                lines.append(f"\n🚚 **Satellite Dispatch Strategy:**\nSynchronize baking output with counter display deficits:\n{satellite_needs_text}")
+
+            return "\n".join(lines)
+
     # Intent 1: Best Sellers / Top Products / Cakes / Pastries / Beverage Sales
     prod_keywords = ['product', 'products', 'top', 'best', 'popular', 'cake', 'cakes', 'pastry', 'pastries', 'coffee', 'drink', 'sold', 'item', 'items', 'selling', 'seller']
     if any(k in q for k in prod_keywords) and not any(k in q for k in ['stock', 'ingredient', 'restock', 'raw']):
@@ -594,12 +675,14 @@ def _build_dynamic_sales_response(
         
         lines = [
             f"🏆 **Top-Performing Products — {branch.name}**\n",
-            f"Our #1 best-selling product is **{top_name}** with **{top_stats['Quantity_Sold']} units sold**, generating **₱{top_stats['Revenue']:,.2f}** in revenue.{event_note}\n",
+            f"Our #1 best-selling product is **{top_name}** with **{top_stats['units_30d'] if 'units_30d' in top_stats else top_stats.get('Quantity_Sold', 0)} units sold**, generating **₱{top_stats.get('revenue_30d', top_stats.get('Revenue', 0.0)):,.2f}** in revenue.{event_note}\n",
             "**Sales Rankings:**"
         ]
         for rank, (name, stats) in enumerate(sorted_prods[:7], start=1):
-            share = round((stats['Revenue'] / max(total_rev, 1.0)) * 100, 1)
-            lines.append(f"{rank}. **{name}**: {stats['Quantity_Sold']} units sold | ₱{stats['Revenue']:,.2f} ({share}% of branch revenue)")
+            sold = stats['units_30d'] if 'units_30d' in stats else stats.get('Quantity_Sold', 0)
+            rev = stats.get('revenue_30d', stats.get('Revenue', 0.0))
+            share = round((rev / max(total_rev, 1.0)) * 100, 1)
+            lines.append(f"{rank}. **{name}**: {sold} units sold | ₱{rev:,.2f} ({share}% of branch revenue)")
             
         lines.append(f"\n💡 **Recommendation:** Prioritize kitchen batch production and maintain safety stock for top pastry and cake lines to prevent stockouts during peak afternoon demand.")
         return "\n".join(lines)
@@ -709,7 +792,9 @@ def _build_dynamic_sales_response(
         return "\n".join(lines)
 
     # Default Intent: Executive Sales & Operations Overview
-    top_str = f"**Top Product:** {sorted_prods[0][0]} ({sorted_prods[0][1]['Quantity_Sold']} sold)" if sorted_prods else "No top product recorded"
+    top_prod_name = sorted_prods[0][0] if sorted_prods else "No top product recorded"
+    top_units = sorted_prods[0][1].get('units_30d', sorted_prods[0][1].get('Quantity_Sold', 0)) if sorted_prods else 0
+    top_str = f"**Top Product:** {top_prod_name} ({top_units} sold)"
     low_count = low_stocks.count()
     low_str = f"⚠️ {low_count} ingredient(s) low" if low_count > 0 else "✅ Inventory levels optimal"
     ev_str = f"Active local events ({', '.join(impact_events)}) applying {event_multiplier}x multiplier." if impact_events else "Baseline operations."
@@ -722,15 +807,36 @@ def _build_dynamic_sales_response(
         f"- {top_str}\n"
         f"- **Stock Health:** {low_str}\n"
         f"- **Context:** {ev_str}\n\n"
-        f"How would you like to drill down further? You can ask about **top-selling products**, **branch comparisons**, **low stock ingredients**, or **event impacts**."
+        f"How would you like to drill down further? You can ask about **top-selling products**, **production recommendations based on ingredients**, **branch comparisons**, **low stock ingredients**, or **event impacts**."
     )
 
-def generate_sales_report(branch, user, user_query):
+def generate_sales_report(branch, user=None, user_query=None, **kwargs):
     """
-    Answers sales and operational queries using only real historical telemetry and local events.
-    Enforces scope limitation, hallucination prevention, and records all interactions in ChatbotLog.
+    Answers sales, operational, BOM production, restocking, and strategic queries using real historical telemetry,
+    ingredient stocks, BOM allocations, constraints, and local events.
+    Enforces scope limitation, prevents hallucinations, and records all interactions in ChatbotLog.
     """
-    q_strip = user_query.strip()
+    # Robust parameter resolution
+    if isinstance(user, str) and user_query is None:
+        user_query = user
+        user = kwargs.get('user')
+    elif user_query is None:
+        user_query = kwargs.get('user_query', '') or kwargs.get('query', '')
+
+    if isinstance(branch, (int, str)):
+        branch_obj = Branch.objects.filter(branch_ID=branch).first()
+        if not branch_obj:
+            branch_obj = Branch.objects.filter(name__icontains=str(branch)).first() or Branch.objects.first()
+        branch = branch_obj
+    elif not branch:
+        branch = Branch.objects.filter(main_hub=True).first() or Branch.objects.first()
+
+    if user is None:
+        user = kwargs.get('user') or getattr(branch, 'manager', None) or Branch.objects.first()
+
+    user_name = getattr(user, 'name', 'Executive')
+
+    q_strip = str(user_query).strip()
     q_lower = q_strip.lower()
     
     # 1. Handle Greetings
@@ -739,13 +845,13 @@ def generate_sales_report(branch, user, user_query):
         active_vars = ExternalVariable.objects.filter(is_active=True)
         event_note = f" We currently have {active_vars.count()} active local event(s) influencing customer traffic." if active_vars.exists() else ""
         reply = (
-            f"Hello, {user.name}! Welcome to your Sweet Box AI Sales Analyst.{event_note} "
+            f"Hello, {user_name}! Welcome to your Sweet Box AI Sales Analyst.{event_note} "
             f"I have synchronized multi-branch sales records, inventory stock levels, and event telemetry. "
             f"How can I assist you with your business decisions today?"
         )
         ChatbotLog.objects.create(
             branch=branch, 
-            user=user, 
+            user=user if hasattr(user, 'user_ID') else None, 
             query_text=_clean_db_text(user_query), 
             response_text=_clean_db_text(reply)
         )
@@ -760,15 +866,35 @@ def generate_sales_report(branch, user, user_query):
         )
         ChatbotLog.objects.create(
             branch=branch, 
-            user=user, 
+            user=user if hasattr(user, 'user_ID') else None, 
             query_text=_clean_db_text(user_query), 
             response_text=_clean_db_text(reply)
         )
         return reply
 
-    # 3. Gather Historical Sales Telemetry (Past 30 - 180 Days)
-    recent_date = timezone.now() - timedelta(days=180)
-    
+    # 3. Multi-Module Telemetry Gathering
+    now = timezone.now()
+    thirty_days_ago = now - timedelta(days=30)
+    recent_date = now - timedelta(days=180)
+
+    # A. Pre-compute BOM costs in memory
+    bom_cost_map = {}
+    boms_by_ingredient = {}
+    for bom in BillOfMaterial.objects.select_related('ingredient', 'product', 'product__category').all():
+        cost = Decimal(str(bom.quantity_required)) * bom.ingredient.cost_per_unit
+        bom_cost_map[bom.product_id] = bom_cost_map.get(bom.product_id, Decimal('0.00')) + cost
+        
+        if bom.ingredient_id not in boms_by_ingredient:
+            boms_by_ingredient[bom.ingredient_id] = []
+        boms_by_ingredient[bom.ingredient_id].append(bom)
+
+    # B. Product Classifications
+    classification_map = {
+        pc.product_id: pc.classification 
+        for pc in ProductClassification.objects.all()
+    }
+
+    # C. Target branch completed transactions (180-day window)
     transactions = Transaction.objects.filter(
         branch=branch, 
         transaction_status='Completed',
@@ -784,41 +910,247 @@ def generate_sales_report(branch, user, user_query):
     total_txns = transactions.count()
     avg_txn = round(float(total_rev) / max(total_txns, 1), 2)
     
-    data_pipeline = []
+    product_stats = {}
     payment_methods = {}
     for txn in transactions:
-        pm_list = list(txn.payments.all())
-        pm = pm_list[0] if pm_list else None
-        method_name = pm.payment_method if pm else 'Cash'
-        payment_methods[method_name] = payment_methods.get(method_name, 0) + float(txn.total_amount)
-        
+        for pm in txn.payments.all():
+            m_name = pm.payment_method or 'Cash'
+            payment_methods[m_name] = payment_methods.get(m_name, 0) + float(pm.amount_paid)
+
+        is_recent_30d = txn.transaction_date >= thirty_days_ago if txn.transaction_date else False
+
         for item in txn.items.all():
-            data_pipeline.append({
-                'Product': item.product.product_name,
-                'Category': item.product.category.category_name if item.product.category else 'General',
-                'Quantity_Sold': item.quantity,
-                'Revenue': float(item.subtotal)
+            prod = item.product
+            pid = prod.product_ID
+            pname = prod.product_name
+            cat_name = prod.category.category_name if prod.category else 'General'
+            price = float(prod.price)
+            unit_c = float(bom_cost_map.get(pid, prod.price * Decimal('0.35')))
+            margin = price - unit_c
+
+            if pname not in product_stats:
+                product_stats[pname] = {
+                    'product_id': pid,
+                    'category': cat_name,
+                    'price': price,
+                    'unit_cost': unit_c,
+                    'margin': margin,
+                    'units_180d': 0,
+                    'revenue_180d': 0.0,
+                    'units_30d': 0,
+                    'revenue_30d': 0.0,
+                    'classification': classification_map.get(pid, 'Standard')
+                }
+
+            product_stats[pname]['units_180d'] += item.quantity
+            product_stats[pname]['revenue_180d'] += float(item.subtotal)
+
+            if is_recent_30d:
+                product_stats[pname]['units_30d'] += item.quantity
+                product_stats[pname]['revenue_30d'] += float(item.subtotal)
+
+    sorted_prods = sorted(
+        product_stats.items(),
+        key=lambda x: (x[1]['units_30d'], x[1]['revenue_180d']),
+        reverse=True
+    )
+
+    top_products_telemetry_lines = []
+    for name, s in sorted_prods[:15]:
+        top_products_telemetry_lines.append(
+            f"- {name} ({s['category']}) | 30d Units: {s['units_30d']} | Price: ₱{s['price']:.2f} | "
+            f"BOM Cost: ₱{s['unit_cost']:.2f} | Margin: ₱{s['margin']:.2f} | Class: {s['classification']}"
+        )
+    top_products_telemetry_text = "\n".join(top_products_telemetry_lines) if top_products_telemetry_lines else "No product sales records."
+
+    # D. Raw Ingredient Stock & Constraints (Ibaan Central Commissary)
+    ibaan_hub = Branch.objects.filter(main_hub=True).first() or Branch.objects.filter(branch_ID=1).first() or branch
+    hub_ingredient_stocks = IngredientStock.objects.filter(branch=ibaan_hub).select_related('ingredient')
+    hub_stock_map = {s.ingredient_id: s for s in hub_ingredient_stocks}
+    constraint_map = {cp.ingredient_id: cp for cp in ConstraintParameter.objects.filter(branch=ibaan_hub, ingredient__isnull=False)}
+
+    all_ingredients = Ingredient.objects.all().order_by('ingredient_name')
+    ingredient_telemetry_lines = []
+    matched_ingredients = []
+
+    for ing in all_ingredients:
+        stk = hub_stock_map.get(ing.ingredient_ID)
+        q_avail = float(stk.quantity_available) if stk else 0.0
+        reorder_th = float(stk.reorder_threshold) if stk else 0.0
+        cost_unit = float(ing.cost_per_unit)
+        safe_buffer = max(0.0, q_avail - reorder_th)
+
+        status_str = "Critical" if q_avail <= (0.5 * reorder_th) else "Low Stock" if q_avail <= reorder_th else "In Stock"
+
+        cp = constraint_map.get(ing.ingredient_ID)
+        min_ord = float(cp.min_order_quantity) if cp else 5.0
+        max_ord = float(cp.max_order_quantity) if cp else 50.0
+        lead_days = cp.lead_time_days if cp else 3
+
+        ing_info = {
+            'ingredient_obj': ing,
+            'name': ing.ingredient_name,
+            'unit': ing.measurement_unit,
+            'cost_per_unit': cost_unit,
+            'quantity_available': q_avail,
+            'reorder_threshold': reorder_th,
+            'safe_usable_stock': safe_buffer,
+            'status': status_str,
+            'min_order_quantity': min_ord,
+            'max_order_quantity': max_ord,
+            'lead_time_days': lead_days
+        }
+
+        ing_clean_name = ing.ingredient_name.lower()
+        is_matched = (
+            ing_clean_name in q_lower 
+            or (ing_clean_name.replace('-', ' ') in q_lower)
+            or ('flour' in ing_clean_name and 'flour' in q_lower)
+            or ('sugar' in ing_clean_name and 'sugar' in q_lower and 'brown' not in ing_clean_name and 'syrup' not in ing_clean_name)
+            or ('butter' in ing_clean_name and 'butter' in q_lower)
+            or ('egg' in ing_clean_name and ('egg' in q_lower or 'eggs' in q_lower))
+            or ('milk' in ing_clean_name and 'milk' in q_lower and 'tea' not in q_lower)
+            or ('cream cheese' in ing_clean_name and 'cream cheese' in q_lower)
+            or ('whipping cream' in ing_clean_name and 'cream' in q_lower and 'cream cheese' not in q_lower)
+            or ('cocoa' in ing_clean_name and ('cocoa' in q_lower or 'chocolate' in q_lower))
+            or ('ube' in ing_clean_name and 'ube' in q_lower)
+            or ('boba' in ing_clean_name and ('boba' in q_lower or 'pearl' in q_lower))
+        )
+        if is_matched:
+            matched_ingredients.append(ing_info)
+
+        ingredient_telemetry_lines.append(
+            f"- {ing.ingredient_name}: {q_avail:.2f} {ing.measurement_unit} available (Reorder Thresh: {reorder_th:.2f} {ing.measurement_unit}, "
+            f"Safe Buffer: {safe_buffer:.2f} {ing.measurement_unit}, Status: {status_str}, Cost: ₱{cost_unit:.2f}/{ing.measurement_unit})"
+        )
+
+    # E. Bill of Materials (BOM) Production Matrix
+    bom_analysis_lines = []
+    bom_production_plans = {}
+
+    target_ings_to_analyze = matched_ingredients if matched_ingredients else [
+        {
+            'ingredient_obj': ing,
+            'name': ing.ingredient_name,
+            'unit': ing.measurement_unit,
+            'cost_per_unit': float(ing.cost_per_unit),
+            'quantity_available': float(hub_stock_map[ing.ingredient_ID].quantity_available) if ing.ingredient_ID in hub_stock_map else 0.0,
+            'reorder_threshold': float(hub_stock_map[ing.ingredient_ID].reorder_threshold) if ing.ingredient_ID in hub_stock_map else 0.0,
+            'safe_usable_stock': max(0.0, float(hub_stock_map[ing.ingredient_ID].quantity_available) - float(hub_stock_map[ing.ingredient_ID].reorder_threshold)) if ing.ingredient_ID in hub_stock_map else 0.0,
+            'status': 'In Stock',
+            'min_order_quantity': 5.0,
+            'max_order_quantity': 50.0,
+            'lead_time_days': 3
+        }
+        for ing in all_ingredients[:8]
+    ]
+
+    for ing_info in target_ings_to_analyze:
+        ing_obj = ing_info['ingredient_obj']
+        ing_name = ing_info['name']
+        q_avail = ing_info['quantity_available']
+        q_safe = ing_info['safe_usable_stock']
+        unit = ing_info['unit']
+
+        boms_for_ing = boms_by_ingredient.get(ing_obj.ingredient_ID, [])
+        if not boms_for_ing:
+            continue
+
+        prods_using_ing = []
+        for b in boms_for_ing:
+            p = b.product
+            req = float(b.quantity_required)
+            stats = product_stats.get(p.product_name, {
+                'units_30d': 0, 'price': float(p.price), 'unit_cost': float(bom_cost_map.get(p.product_ID, p.price * Decimal('0.35'))),
+                'margin': float(p.price) - float(bom_cost_map.get(p.product_ID, p.price * Decimal('0.35'))),
+                'classification': classification_map.get(p.product_ID, 'Standard')
             })
-            
-    product_stats = {}
-    for item in data_pipeline:
-        p_name = item['Product']
-        if p_name not in product_stats:
-            product_stats[p_name] = {'Quantity_Sold': 0, 'Revenue': 0.0}
-        product_stats[p_name]['Quantity_Sold'] += item['Quantity_Sold']
-        product_stats[p_name]['Revenue'] += item['Revenue']
 
-    sorted_prods = []
-    if not product_stats:
-        summary_data = "No sales transaction records available in the selected window."
-        top_products_data = "No product sales recorded."
-    else:
-        sorted_prods = sorted(product_stats.items(), key=lambda x: x[1]['Revenue'], reverse=True)[:10]
-        top_products_lines = [f"- {name}: {stats['Quantity_Sold']} units sold, ₱{stats['Revenue']:,.2f} revenue" for name, stats in sorted_prods]
-        top_products_data = "\n".join(top_products_lines)
-        summary_data = f"Total Completed Transactions: {total_txns}\nTotal Revenue: ₱{float(total_rev):,.2f}\nAverage Order Value: ₱{avg_txn:,.2f}\nPayment Methods: {json.dumps(payment_methods)}"
+            max_yield_avail = int(q_avail // req) if req > 0 else 0
+            max_yield_safe = int(q_safe // req) if req > 0 else 0
 
-    # 4. Multi-Branch Summary for Cross-Branch Context
+            prods_using_ing.append({
+                'product_name': p.product_name,
+                'category': p.category.category_name if p.category else 'General',
+                'qty_required': req,
+                'units_30d': stats['units_30d'],
+                'price': stats['price'],
+                'margin': stats['margin'],
+                'classification': stats['classification'],
+                'max_yield_avail': max_yield_avail,
+                'max_yield_safe': max_yield_safe
+            })
+
+        prods_using_ing.sort(key=lambda x: (x['units_30d'], x['margin']), reverse=True)
+
+        active_candidates = [p for p in prods_using_ing if p['units_30d'] > 0][:4]
+        if not active_candidates:
+            active_candidates = prods_using_ing[:4]
+
+        usable_budget = q_safe if q_safe > 0 else (q_avail * 0.8)
+        tot_vel = sum(c['units_30d'] for c in active_candidates) or len(active_candidates)
+
+        allocated_batches = []
+        consumed_ing = 0.0
+        for cand in active_candidates:
+            weight = (cand['units_30d'] / tot_vel) if tot_vel > 0 else (1.0 / len(active_candidates))
+            ing_portion = usable_budget * weight
+            batch_units = max(1, int(ing_portion // cand['qty_required']))
+            actual_ing_needed = batch_units * cand['qty_required']
+
+            if (consumed_ing + actual_ing_needed) > q_avail:
+                batch_units = max(0, int((q_avail - consumed_ing) // cand['qty_required']))
+                actual_ing_needed = batch_units * cand['qty_required']
+
+            if batch_units > 0:
+                consumed_ing += actual_ing_needed
+                allocated_batches.append({
+                    'product_name': cand['product_name'],
+                    'batch_units': batch_units,
+                    'qty_required': cand['qty_required'],
+                    'ing_consumed': round(actual_ing_needed, 2),
+                    'est_revenue': round(batch_units * cand['price'], 2),
+                    'est_margin': round(batch_units * cand['margin'], 2)
+                })
+
+        rem_balance = max(0.0, q_avail - consumed_ing)
+        bom_production_plans[ing_name] = {
+            'ingredient_name': ing_name,
+            'unit': unit,
+            'quantity_available': q_avail,
+            'reorder_threshold': ing_info['reorder_threshold'],
+            'safe_usable_stock': q_safe,
+            'products': prods_using_ing[:8],
+            'batches': allocated_batches,
+            'total_consumed': round(consumed_ing, 2),
+            'remaining_balance': round(rem_balance, 2)
+        }
+
+        bom_analysis_lines.append(f"Ingredient: {ing_name} ({q_avail:.2f} {unit} available, Safe Buffer: {q_safe:.2f} {unit}):")
+        for p in prods_using_ing[:5]:
+            bom_analysis_lines.append(f"  * {p['product_name']}: {p['qty_required']:.2f} {unit}/unit | 30d Sales: {p['units_30d']} units | Retail: ₱{p['price']:.2f} | Margin: ₱{p['margin']:.2f} | Max Yield: {p['max_yield_avail']} units")
+        if allocated_batches:
+            batch_summary = ", ".join([f"{b['batch_units']}x {b['product_name']} ({b['ing_consumed']:.2f} {unit})" for b in allocated_batches])
+            bom_analysis_lines.append(f"  * Recommended Production Batch: {batch_summary} (Consumes: {consumed_ing:.2f} {unit}, Post-Batch Remainder: {rem_balance:.2f} {unit})")
+
+    bom_telemetry_text = "\n".join(bom_analysis_lines) if bom_analysis_lines else "No specific BOM ingredient query."
+
+    # F. Satellite Branches Finished Goods Deficit
+    sat_stocks = ProductStock.objects.filter(
+        quantity_available__lte=F('reorder_threshold')
+    ).select_related('product', 'branch')
+
+    sat_needs_by_branch = {}
+    for ps in sat_stocks:
+        b_name = ps.branch.name
+        if b_name not in sat_needs_by_branch:
+            sat_needs_by_branch[b_name] = []
+        sat_needs_by_branch[b_name].append(f"{ps.product.product_name} ({int(ps.quantity_available)} left, threshold: {int(ps.reorder_threshold)})")
+
+    sat_lines = [f"- {b}: {', '.join(prods[:4])}" for b, prods in sat_needs_by_branch.items()]
+    satellite_needs_text = "\n".join(sat_lines[:4]) if sat_lines else "All satellite branch counter display stocks are optimal."
+
+    # G. Multi-Branch Summary for Cross-Branch Context
     all_branches_data = []
     for b in Branch.objects.all():
         b_txns = Transaction.objects.filter(branch=b, transaction_status='Completed', transaction_date__gte=recent_date)
@@ -836,45 +1168,57 @@ def generate_sales_report(branch, user, user_query):
     branch_comp_lines = [f"- {b['name']}{' (Main Hub)' if b['is_hub'] else ''}: ₱{b['revenue']:,.2f} ({b['transactions']} transactions)" for b in all_branches_data]
     multi_branch_summary = "\n".join(branch_comp_lines) if branch_comp_lines else "No multi-branch telemetry."
 
-    # 5. Gather Inventory Telemetry
-    low_stocks = IngredientStock.objects.filter(branch=branch, quantity_available__lte=F('reorder_threshold'))
-    low_stock_summary = ", ".join([f"{s.ingredient.ingredient_name} ({s.quantity_available} {s.ingredient.measurement_unit} left, threshold: {s.reorder_threshold})" for s in low_stocks[:5]]) if low_stocks.exists() else "All ingredients are at optimal levels."
-
-    # 6. Gather Local Events & Variables
+    # H. Gather Local Events & Variables
     event_list, event_multiplier, impact_events = _get_active_events_context(branch)
     var_context = json.dumps(event_list, indent=2) if event_list else "No active external events or holidays."
 
+    # Low stocks at target branch
+    low_stocks = IngredientStock.objects.filter(branch=branch, quantity_available__lte=F('reorder_threshold'))
+    pending_prescriptions = PrescriptiveOutput.objects.filter(status='Pending Review').select_related('ingredient', 'branch')
+    presc_lines = [f"- {po.branch.name}: {po.recommendation}" for po in pending_prescriptions[:5]]
+    pending_presc_text = "\n".join(presc_lines) if presc_lines else "No pending prescriptive directives."
+
     prompt = f"""
-    You are the dedicated Sweet Box Enterprise AI Analyst for {user.name} at the {branch.name} branch.
+    You are the dedicated Sweet Box AI Executive Prescriptive & Decision-Support Analyst for {user_name} at the {branch.name} branch (Central Production Hub: {ibaan_hub.name}).
     
-    CRITICAL OPERATIONAL & HALLUCINATION PREVENTION RULES:
-    1. Base your answer EXCLUSIVELY and STRICTLY on the historical data, inventory telemetry, branch comparisons, and local events provided below.
-    2. DIRECT INTENT FOCUS: Directly and specifically address the user's question without defaulting to a broad generic summary.
-       - If asking about top-selling products, cakes, or sales performance, detail the top products, quantities, and revenue share.
-       - If asking about low stock, restocks, or ingredients, detail the low-stock items, burn rates, and supply runway.
-       - If asking about branch comparisons or which branch sells most, detail the multi-branch performance metrics.
-       - If asking about payment methods, break down cash vs digital wallets (GCash/Maya).
-       - If asking about local events, explain how active holidays/festivals affect demand.
-    3. Do NOT invent transactions, product names, or financial numbers not present in the records.
-    4. If asked about information not in the telemetry, state clearly: "The requested data is not recorded in our current Sweet Box database records."
-    5. CITE the Local Events & Variables whenever explaining customer demand trends, sales variations, or seasonal volume.
-    6. Keep responses concise, professional, structured with markdown bolding and bullet points, and immediately actionable for enterprise leadership.
-    
-    ACTIVE LOCAL EVENTS & VARIABLES:
+    CRITICAL DECISION-SUPPORT & HALLUCINATION PREVENTION GUIDELINES:
+    1. Base your answer on the historical sales telemetry, Bill of Materials (BOM) allocations, ingredient inventory, branch comparisons, and local events provided below.
+    2. NEVER refuse legitimate business, production, recipe, inventory, or operational questions with "The requested data is not recorded in our current Sweet Box database records". All telemetry below is authentic Sweet Box production data. Only decline queries if they are completely unrelated to business, retail, food service, baking, or Sweet Box operations.
+    3. INGREDIENT & PRODUCTION RECOMMENDATION PROTOCOL:
+       When the user asks for a production recommendation based on an ingredient (e.g., "give me a production recommendation based on all purpose flour" or any other ingredient):
+       a. State the exact current stock of that ingredient at Ibaan (Main Hub Commissary), its measurement unit, unit cost, and reorder threshold, noting how much safe usable stock (quantity_available - reorder_threshold) is available before triggering a low-stock alert.
+       b. List the top-selling products in the database that require that ingredient in their Bill of Materials (BOM), citing each product's exact BOM deduction per unit, retail price, and recent 30-day sales velocity.
+       c. Provide a concrete, mathematically feasible production batch plan (exact unit numbers per cake/pastry to produce today) that stays within the safe usable stock and production limits, prioritizing high-velocity/high-margin items and satellite branch display needs.
+       d. State the exact post-production remaining ingredient balance and whether a restock order should be queued immediately.
+    4. CITE active Local Events & External Variables whenever explaining customer demand trends, sales variations, or seasonal volume.
+    5. Format responses with clean Markdown headers, bullet points, bold product names, and tabular numbers for executive clarity.
+
+    ACTIVE LOCAL EVENTS & EXTERNAL VARIABLES:
     {var_context}
-    
-    BRANCH FINANCIAL OVERVIEW ({branch.name}):
-    {summary_data}
-    
-    ALL BRANCHES COMPARISON:
+
+    BRANCH FINANCIAL & SALES OVERVIEW ({branch.name}):
+    Total Completed Transactions (180d): {total_txns}
+    Total Revenue: ₱{float(total_rev):,.2f} | Average Order Value: ₱{avg_txn:,.2f}
+    Payment Methods: {json.dumps(payment_methods)}
+
+    MULTI-BRANCH NETWORK COMPARISON:
     {multi_branch_summary}
-    
-    TOP PRODUCTS SALES TELEMETRY:
-    {top_products_data}
-    
-    INVENTORY STATUS ({branch.name}):
-    Low-Stock Ingredients: {low_stock_summary}
-    
+
+    TOP PRODUCTS VELOCITY & UNIT ECONOMICS (30-DAY / 180-DAY):
+    {top_products_telemetry_text}
+
+    RAW INGREDIENT INVENTORY & CONSTRAINTS (IBAAN MAIN HUB COMMISSARY):
+    {chr(10).join(ingredient_telemetry_lines[:25])}
+
+    BILL OF MATERIALS (BOM) RECIPE ALLOCATION & PRODUCTION CAPABILITY:
+    {bom_telemetry_text}
+
+    SATELLITE BRANCH COUNTER DISPLAY DEFICITS (FINISHED GOODS DISPATCH NEEDS):
+    {satellite_needs_text}
+
+    PENDING SYSTEM PRESCRIPTIONS:
+    {pending_presc_text}
+
     USER QUERY:
     "{user_query}"
     """
@@ -885,20 +1229,22 @@ def generate_sales_report(branch, user, user_query):
     except Exception:
         reply = None
 
-    if not reply:
+    if not reply or "not recorded in our current sweet box database records" in reply.lower():
         # Intelligent intent-driven fallback
         reply = _build_dynamic_sales_response(
             branch=branch, user=user, user_query=user_query,
             total_rev=float(total_rev), total_txns=total_txns, avg_txn=avg_txn,
             sorted_prods=sorted_prods, low_stocks=low_stocks,
             event_list=event_list, event_multiplier=event_multiplier, impact_events=impact_events,
-            payment_methods=payment_methods, all_branches_data=all_branches_data
+            payment_methods=payment_methods, all_branches_data=all_branches_data,
+            bom_production_plans=bom_production_plans, matched_ingredients=matched_ingredients,
+            satellite_needs_text=satellite_needs_text, top_products_telemetry_text=top_products_telemetry_text
         )
 
     # Always persist every query and response to ChatbotLog in the database
     ChatbotLog.objects.create(
         branch=branch, 
-        user=user, 
+        user=user if hasattr(user, 'user_ID') else None, 
         query_text=_clean_db_text(user_query), 
         response_text=_clean_db_text(reply)
     )

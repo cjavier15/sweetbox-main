@@ -16,7 +16,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from datetime import timedelta
 from django.db import transaction as db_transaction
-from inventory.models import IngredientStock, BillOfMaterial, ProductStock
+from inventory.models import IngredientStock, BillOfMaterial, ProductStock, ConstraintParameter
 from decimal import Decimal
 from django.db.models.functions import TruncDate, TruncMonth
 
@@ -187,6 +187,58 @@ class SalesChatbotView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+DEFAULT_BRANCH_MONTHLY_TARGETS = {
+    'Ibaan (Main Hub)': Decimal('65000.00'),
+    'Sampaguita': Decimal('60000.00'),
+    'South Supermarket Lipa': Decimal('45000.00'),
+    'San Jose': Decimal('42000.00'),
+    'Padre Garcia': Decimal('38000.00'),
+    'Cuenca': Decimal('35000.00'),
+    'San Antonio Quezon': Decimal('32000.00')
+}
+
+def get_branch_monthly_targets():
+    """
+    Retrieves the base monthly sales target for each branch.
+    Checks ConstraintParameter for custom branch constraints (ingredient__isnull=True, product__isnull=True, capacity_limit > 0).
+    Falls back to calibrated defaults per branch if not customized.
+    """
+    targets = {}
+    branches = Branch.objects.all().order_by('branch_ID')
+    custom_constraints = {
+        cp.branch_id: cp.capacity_limit
+        for cp in ConstraintParameter.objects.filter(
+            ingredient__isnull=True,
+            product__isnull=True,
+            capacity_limit__gt=0
+        )
+    }
+
+    for b in branches:
+        if b.branch_ID in custom_constraints:
+            targets[b.branch_ID] = Decimal(str(custom_constraints[b.branch_ID]))
+        else:
+            name_lower = b.name.lower()
+            if 'ibaan' in name_lower:
+                val = Decimal('65000.00')
+            elif 'sampaguita' in name_lower:
+                val = Decimal('60000.00')
+            elif 'lipa' in name_lower or 'south' in name_lower:
+                val = Decimal('45000.00')
+            elif 'jose' in name_lower:
+                val = Decimal('42000.00')
+            elif 'garcia' in name_lower:
+                val = Decimal('38000.00')
+            elif 'cuenca' in name_lower:
+                val = Decimal('35000.00')
+            elif 'antonio' in name_lower or 'quezon' in name_lower:
+                val = Decimal('32000.00')
+            else:
+                val = DEFAULT_BRANCH_MONTHLY_TARGETS.get(b.name, Decimal('40000.00'))
+            targets[b.branch_ID] = val
+
+    return targets
+
 class EnterpriseDashboardDataView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -341,35 +393,39 @@ class EnterpriseDashboardDataView(APIView):
             clean = 'Split Payment' if 'Split' in raw else 'E-Wallet' if any(x in raw for x in ['GCash', 'Maya', 'E-Wallet']) else 'Cash' if 'Cash' in raw else 'Other'
             payment_data[clean] = payment_data.get(clean, 0) + p['count']
 
-        # 4. Branch Performance & Targets
-        monthly_targets = {
-            'Ibaan (Main Hub)': 20000.00,
-            'South Supermarket Lipa': 16000.00,
-            'Sampaguita': 18000.00,
-            'San Jose': 12000.00,
-            'Padre Garcia': 11000.00,
-            'San Antonio Quezon': 10000.00,
-            'Cuenca': 9000.00
-        }
+        # 4. Branch Performance & Targets (Dynamic & Editable)
+        branch_monthly_targets_map = get_branch_monthly_targets()
         
-        branch_qs = [target_branch] if target_branch else Branch.objects.all()
+        branch_qs = [target_branch] if target_branch else Branch.objects.all().order_by('branch_ID')
         branch_performance = []
         for b in branch_qs:
             b_rev = txns_current.filter(branch=b).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
-            base_monthly_target = monthly_targets.get(b.name, 15000.00)
+            base_monthly_target = branch_monthly_targets_map.get(b.branch_ID, Decimal('40000.00'))
             
+            # Scaled period target: week = base * 0.25, 7months = base * 7.0, month = base * 1.0
             if days == 7:
-                target = base_monthly_target / 4
+                target_sales = round(base_monthly_target * Decimal('0.25'), 2)
             elif days == 210:
-                target = base_monthly_target * 7
+                target_sales = round(base_monthly_target * Decimal('7.00'), 2)
             else:
-                target = base_monthly_target
+                target_sales = round(base_monthly_target, 2)
                 
+            actual_float = float(b_rev)
+            target_float = float(target_sales)
+            achievement_pct = round((actual_float / target_float * 100) if target_float > 0 else 0.0, 1)
+            status_str = 'On Target' if actual_float >= target_float else 'Below Target'
+            
             branch_performance.append({
-                'branch': b.name,
-                'actual': float(b_rev),
-                'target': float(target),
-                'status': 'On Target' if float(b_rev) >= target else 'Below Target'
+                'branch_id': b.branch_ID,
+                'branch_name': b.name,
+                'branch': b.name,  # backwards compatibility
+                'actual_sales': actual_float,
+                'actual': actual_float,  # backwards compatibility
+                'target_sales': target_float,
+                'target': target_float,  # backwards compatibility
+                'base_monthly_target': float(base_monthly_target),
+                'achievement_pct': achievement_pct,
+                'status': status_str
             })
             
         branch_performance.sort(key=lambda x: x['actual'], reverse=True)
@@ -759,3 +815,90 @@ class ExportKPIReportView(APIView):
             details=f"Exported SweetBox KPI Report CSV for branch '{branch_param}' (timeframe: {timeframe})."
         )
         return response
+
+class BranchTargetUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        role = getattr(user, 'role', '')
+        if not (role in ['Business Owner', 'Admin', 'System Administrator'] or user.is_superuser):
+            return Response(
+                {"error": "Only the Business Owner and System Administrators can configure branch sales targets."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        targets_payload = request.data.get('targets')
+        if targets_payload is None:
+            branch_id = request.data.get('branch_id')
+            monthly_target = request.data.get('monthly_target')
+            if branch_id is not None and monthly_target is not None:
+                targets_payload = [{'branch_id': branch_id, 'monthly_target': monthly_target}]
+            else:
+                return Response(
+                    {"error": "Payload must include 'targets' array or 'branch_id' and 'monthly_target'."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        if not isinstance(targets_payload, list) or len(targets_payload) == 0:
+            return Response({"error": "Targets list cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated_targets = {}
+        for item in targets_payload:
+            b_id = item.get('branch_id')
+            raw_target = item.get('monthly_target')
+            if b_id is None or raw_target is None:
+                return Response(
+                    {"error": "Each target item must specify 'branch_id' and 'monthly_target'."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                m_target = Decimal(str(raw_target))
+            except Exception:
+                return Response(
+                    {"error": f"Invalid monthly target format for branch ID {b_id}."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if m_target < Decimal('1000.00'):
+                return Response(
+                    {"error": f"Monthly target for branch ID {b_id} must be at least ₱1,000.00."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            branch = Branch.objects.filter(branch_ID=b_id).first()
+            if not branch:
+                return Response({"error": f"Branch ID {b_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            ConstraintParameter.objects.update_or_create(
+                branch=branch,
+                ingredient=None,
+                product=None,
+                defaults={
+                    'capacity_limit': m_target,
+                    'production_limit': Decimal('100.00'),
+                    'min_order_quantity': Decimal('1.00'),
+                    'max_order_quantity': Decimal('1000.00'),
+                    'lead_time_days': 1
+                }
+            )
+            updated_targets[branch.branch_ID] = {
+                'branch_id': branch.branch_ID,
+                'branch_name': branch.name,
+                'monthly_target': float(m_target)
+            }
+
+        target_summary_str = ", ".join([f"{v['branch_name']}: ₱{v['monthly_target']:,.2f}" for v in updated_targets.values()])
+        AuditLog.objects.create(
+            user=user,
+            action="Updated Branch Sales Targets",
+            module="Analytics",
+            details=f"Updated monthly sales targets for {len(updated_targets)} branch(es): {target_summary_str}."
+        )
+
+        return Response({
+            "message": f"Successfully updated sales targets for {len(updated_targets)} branch(es).",
+            "targets": updated_targets
+        }, status=status.HTTP_200_OK)
+

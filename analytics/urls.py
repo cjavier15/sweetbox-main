@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RestockDirectiveView,SalesChatbotView, EnterpriseDashboardDataView, EnterpriseDashboardView, CurrentUserView, ProcessPrescriptionView, ExternalVariableView, RunETLPipelineView, ExportKPIReportView
+from .views import RestockDirectiveView, SalesChatbotView, EnterpriseDashboardDataView, EnterpriseDashboardView, CurrentUserView, ProcessPrescriptionView, ExternalVariableView, RunETLPipelineView, ExportKPIReportView, BranchTargetUpdateView
 
 # Note the exact spelling of urlpatterns here:
 urlpatterns = [
@@ -13,4 +13,5 @@ urlpatterns = [
     path('external-variables/<int:var_id>/', ExternalVariableView.as_view(), name='external-variables-delete'),
     path('etl/run/', RunETLPipelineView.as_view(), name='etl-run'),
     path('etl/export/', ExportKPIReportView.as_view(), name='etl-export'),
+    path('branch-targets/', BranchTargetUpdateView.as_view(), name='branch-targets-update'),
 ]

@@ -111,6 +111,9 @@
                     <h6 class="fw-bold text-espresso mb-0">Branch Sales vs Target</h6>
                     <small class="text-muted-warm">Actual revenue against algorithmic baseline</small>
                 </div>
+                <button type="button" class="btn btn-sm btn-outline-dark fw-semibold d-flex align-items-center gap-1 shadow-sm" onclick="openEditTargetsModal()">
+                    <i class="bi bi-pencil-square"></i> Edit Targets
+                </button>
             </div>
             <div style="height: clamp(240px, 35vh, 290px); min-height: 240px;" class="mt-2"><canvas id="branchTargetChart"></canvas></div>
         </div>
@@ -121,8 +124,15 @@
 <div class="row g-3 mb-4">
     <div class="col-lg-5">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <h6 class="fw-bold text-espresso mb-1">Branch Performance Ranking</h6>
-            <small class="text-muted-warm mb-3 d-block">Volume & target accomplishment</small>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <h6 class="fw-bold text-espresso mb-1">Branch Performance Ranking</h6>
+                    <small class="text-muted-warm d-block">Volume & target accomplishment</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-dark fw-semibold d-flex align-items-center gap-1 shadow-sm" onclick="openEditTargetsModal()">
+                    <i class="bi bi-pencil-square"></i> Edit Targets
+                </button>
+            </div>
             <div id="branch-ranking-container" class="d-flex flex-column gap-3 overflow-auto" style="max-height: 400px;">
                 <!-- Injected via JS -->
             </div>
@@ -240,6 +250,69 @@
         </div>
     </div>
 </div>
+
+<!-- Branch Targets Configuration Modal -->
+<div class="modal fade" id="editBranchTargetsModal" tabindex="-1" aria-labelledby="editBranchTargetsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-espresso text-white py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-sliders text-warning fs-5"></i>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="editBranchTargetsModalLabel">Configure Branch Sales Targets</h5>
+                        <small class="text-white-50">Set base monthly quotas. Targets scale automatically across timeframes.</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <!-- Quick Adjust Toolbar -->
+                <div class="card border-0 shadow-sm p-3 mb-3 bg-white">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <span class="small fw-bold text-espresso d-block">Quick Target Actions</span>
+                            <span class="small text-muted">Apply rapid batch percentage adjustments across all operational branches</span>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary fw-semibold" onclick="adjustAllTargets(1.05)">+5% All</button>
+                            <button type="button" class="btn btn-outline-secondary fw-semibold" onclick="adjustAllTargets(1.10)">+10% All</button>
+                            <button type="button" class="btn btn-outline-secondary fw-semibold" onclick="adjustAllTargets(0.95)">-5% All</button>
+                            <button type="button" class="btn btn-outline-warning text-dark fw-bold" onclick="matchCurrentPace()">Match Current Pace</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Branch Target List Table -->
+                <div class="card border-0 shadow-sm overflow-hidden bg-white">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light small text-espresso">
+                                <tr>
+                                    <th style="min-width: 170px;">Branch Name</th>
+                                    <th style="min-width: 130px;">Actual Revenue</th>
+                                    <th style="min-width: 170px;">Base Monthly Target (₱)</th>
+                                    <th style="min-width: 160px;">Target Preview (<span id="modal-timeframe-label">This Month</span>)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="branch-targets-table-body">
+                                <!-- Populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-2 text-end">
+                    <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Scaled Target: <strong>Week</strong> = Base ÷ 4, <strong>Month</strong> = Base × 1, <strong>7 Months</strong> = Base × 7.</small>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top-0 py-3">
+                <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="btn-save-targets" class="btn btn-warning text-dark fw-bold px-4 shadow-sm" onclick="saveBranchTargets()">
+                    <i class="bi bi-check-circle me-1"></i> Save Target Adjustments
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -321,6 +394,10 @@
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = response.data;
+
+            // Cache current branch performance and expose globally
+            window.currentBranchPerformance = data.branch_performance || [];
+            window.fetchDashboardData = renderEnterpriseCharts;
 
             // Populate branch dropdown if needed
             populateBranchSelector(data.branches, data.selected_branch_id);
@@ -484,16 +561,32 @@
         container.innerHTML = branches.map((b, idx) => {
             const width = maxVal > 0 ? (b.actual / maxVal) * 100 : 0;
             const badgeClass = b.status === 'On Target' ? 'bg-success bg-opacity-25 text-success' : 'bg-danger bg-opacity-25 text-danger';
+            const branchId = b.branch_id || (idx + 1);
+            const branchName = b.branch_name || b.branch;
+            const targetVal = b.target_sales !== undefined ? b.target_sales : b.target;
+            const achievePct = b.achievement_pct !== undefined ? b.achievement_pct : (targetVal > 0 ? ((b.actual / targetVal) * 100).toFixed(1) : 0);
             return `
             <div class="mb-3">
                 <div class="d-flex justify-content-between align-items-end mb-1">
-                    <span class="fw-bold theme-text"><span class="badge rounded-circle bg-light text-muted me-2" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;">${idx + 1}</span> ${b.branch}</span>
-                    <div class="text-end">
-                        <span class="badge ${badgeClass} rounded-pill me-2">${b.status}</span>
-                        <span class="fw-bold tabular-nums">₱${(b.actual/1000).toFixed(1)}k</span>
+                    <span class="fw-bold theme-text">
+                        <span class="badge rounded-circle bg-light text-muted me-2" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;">${idx + 1}</span> 
+                        ${branchName}
+                    </span>
+                    <div class="text-end d-flex align-items-center gap-1 justify-content-end">
+                        <span class="badge ${badgeClass} rounded-pill cursor-pointer" role="button" onclick="openEditTargetsModal(${branchId})" title="Click to adjust target (${achievePct}% accomplished)">
+                            ${b.status} (${achievePct}%)
+                        </span>
+                        <span class="fw-bold tabular-nums ms-1">₱${(b.actual/1000).toFixed(1)}k</span>
+                        <button type="button" class="btn btn-sm btn-link text-muted-warm p-0 ms-1 text-decoration-none" onclick="openEditTargetsModal(${branchId})" title="Edit target (Current: ₱${Number(targetVal).toLocaleString()})">
+                            <i class="bi bi-pencil-square small"></i>
+                        </button>
                     </div>
                 </div>
                 <div class="sb-progress-track"><div class="sb-progress-fill" style="width: ${width}%"></div></div>
+                <div class="d-flex justify-content-between align-items-center small text-muted mt-1 px-1">
+                    <span class="cursor-pointer text-muted-warm" role="button" onclick="openEditTargetsModal(${branchId})" title="Click to edit target">Target: ₱${Number(targetVal).toLocaleString()}</span>
+                    <span>Gap: ${b.actual >= targetVal ? '+₱' + (b.actual - targetVal).toLocaleString(undefined, {maximumFractionDigits:0}) : '-₱' + (targetVal - b.actual).toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+                </div>
             </div>`;
         }).join('');
     }
@@ -530,6 +623,193 @@
     }
 
     // RESTORED JS FUNCTIONS
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    window.openEditTargetsModal = function(focusBranchId) {
+        const perfData = window.currentBranchPerformance || [];
+        if (!perfData.length) {
+            alert("Branch data is still loading. Please wait a moment.");
+            return;
+        }
+
+        const tfLabel = currentFilter === 'this_week' ? 'This Week (÷4)' : currentFilter === 'last_7_months' ? 'Last 7 Months (×7)' : 'This Month (×1)';
+        const lblEl = document.getElementById('modal-timeframe-label');
+        if (lblEl) lblEl.innerText = tfLabel;
+
+        const tbody = document.getElementById('branch-targets-table-body');
+        if (!tbody) return;
+
+        const scale = currentFilter === 'this_week' ? 0.25 : currentFilter === 'last_7_months' ? 7.0 : 1.0;
+
+        tbody.innerHTML = perfData.map(b => {
+            const bId = b.branch_id || b.id;
+            const bName = b.branch_name || b.branch;
+            const actualVal = b.actual_sales !== undefined ? b.actual_sales : b.actual;
+            const baseTarget = b.base_monthly_target !== undefined ? b.base_monthly_target : (b.target / scale);
+            const scaledTarget = Math.round(baseTarget * scale);
+            const isAchieved = actualVal >= scaledTarget;
+            const badgeClass = isAchieved ? 'bg-success' : 'bg-danger';
+
+            return `
+            <tr id="target-row-${bId}">
+                <td>
+                    <span class="fw-bold text-espresso">${bName}</span>
+                </td>
+                <td class="tabular-nums">
+                    ₱${Number(actualVal).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white">₱</span>
+                        <input type="number" 
+                               step="500" 
+                               min="1000" 
+                               class="form-control form-control-sm branch-monthly-target-input text-end fw-bold" 
+                               id="target-input-${bId}" 
+                               data-branch-id="${bId}" 
+                               data-branch-name="${bName}"
+                               data-actual="${actualVal}" 
+                               value="${Math.round(baseTarget)}" 
+                               oninput="updateTargetRowPreview(${bId})">
+                    </div>
+                </td>
+                <td id="preview-col-${bId}">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="fw-bold tabular-nums">₱${Number(scaledTarget).toLocaleString()}</span>
+                        <span class="badge ${badgeClass} rounded-pill small">${isAchieved ? 'On Pace' : 'Behind'}</span>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        const modalEl = document.getElementById('editBranchTargetsModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        if (focusBranchId) {
+            setTimeout(() => {
+                const el = document.getElementById('target-input-' + focusBranchId);
+                if (el) {
+                    el.focus();
+                    el.select();
+                    const row = document.getElementById('target-row-' + focusBranchId);
+                    if (row) row.classList.add('table-warning');
+                }
+            }, 300);
+        }
+    };
+
+    window.updateTargetRowPreview = function(branchId) {
+        const inp = document.getElementById('target-input-' + branchId);
+        const prevCol = document.getElementById('preview-col-' + branchId);
+        if (!inp || !prevCol) return;
+
+        const baseVal = parseFloat(inp.value) || 0;
+        const actualVal = parseFloat(inp.dataset.actual) || 0;
+        const scale = currentFilter === 'this_week' ? 0.25 : currentFilter === 'last_7_months' ? 7.0 : 1.0;
+        const scaledTarget = Math.round(baseVal * scale);
+        const isAchieved = actualVal >= scaledTarget;
+        const badgeClass = isAchieved ? 'bg-success' : 'bg-danger';
+
+        prevCol.innerHTML = `
+            <div class="d-flex align-items-center justify-content-between">
+                <span class="fw-bold tabular-nums">₱${Number(scaledTarget).toLocaleString()}</span>
+                <span class="badge ${badgeClass} rounded-pill small">${isAchieved ? 'On Pace' : 'Behind'}</span>
+            </div>
+        `;
+    };
+
+    window.adjustAllTargets = function(multiplier) {
+        const inputs = document.querySelectorAll('.branch-monthly-target-input');
+        inputs.forEach(inp => {
+            let val = parseFloat(inp.value) || 1000;
+            val = Math.max(1000, Math.round((val * multiplier) / 100) * 100);
+            inp.value = val;
+            updateTargetRowPreview(inp.dataset.branchId);
+        });
+    };
+
+    window.matchCurrentPace = function() {
+        const inputs = document.querySelectorAll('.branch-monthly-target-input');
+        inputs.forEach(inp => {
+            const actual = parseFloat(inp.dataset.actual) || 0;
+            let monthlyEstimate = actual;
+            if (currentFilter === 'this_week') monthlyEstimate = actual * 4;
+            else if (currentFilter === 'last_7_months') monthlyEstimate = actual / 7;
+            let newTarget = Math.max(1000, Math.round((monthlyEstimate * 1.10) / 100) * 100);
+            inp.value = newTarget;
+            updateTargetRowPreview(inp.dataset.branchId);
+        });
+    };
+
+    window.saveBranchTargets = async function() {
+        const btn = document.getElementById('btn-save-targets');
+        const origHtml = btn ? btn.innerHTML : '';
+        const inputs = document.querySelectorAll('.branch-monthly-target-input');
+        const targets = [];
+
+        for (const inp of inputs) {
+            const bId = parseInt(inp.dataset.branchId);
+            const val = parseFloat(inp.value);
+            if (isNaN(val) || val < 1000) {
+                alert(`Please enter a valid monthly sales target of at least ₱1,000 for ${inp.dataset.branchName || 'Branch ' + bId}.`);
+                inp.focus();
+                return;
+            }
+            targets.push({ branch_id: bId, monthly_target: val });
+        }
+
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving Targets...';
+            btn.disabled = true;
+        }
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const res = await fetch('/api/analytics/branch-targets/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'X-CSRFToken': getCookie('csrftoken') || ''
+                },
+                body: JSON.stringify({ targets: targets })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                const modalEl = document.getElementById('editBranchTargetsModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) modalInstance.hide();
+                alert(data.message || "Branch targets successfully updated!");
+                await renderEnterpriseCharts(true);
+            } else {
+                alert(data.error || "Failed to update branch sales targets.");
+            }
+        } catch (err) {
+            console.error("Error saving targets:", err);
+            alert("A network error occurred while updating branch targets.");
+        } finally {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+        }
+    };
+
     async function loadEvents() {
         const token = localStorage.getItem('access_token');
         try {
