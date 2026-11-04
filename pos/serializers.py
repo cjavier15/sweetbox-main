@@ -33,14 +33,25 @@ class ProductSerializer(serializers.ModelSerializer):
         # Case A: Pre-Made Cake or Pastry at ANY branch
         if is_cp:
             if 'product_stock_map' in self.context:
-                return self.context['product_stock_map'].get(obj.product_ID, 0)
+                return max(0, self.context['product_stock_map'].get(obj.product_ID, 0))
             stock = ProductStock.objects.filter(branch=branch, product=obj).first()
-            return int(stock.quantity_available) if stock else 0
+            return max(0, int(stock.quantity_available)) if stock else 0
 
-        # Case B: Made-to-Order Meal or Drink (at Ibaan Main Hub OR at an assigned Satellite Branch)
+        # Case B: Made-to-Order Meal or Drink (Daily kitchen prep cap AND BOM Ingredient bottleneck)
+        # 1. Check branch's ProductStock row (daily prep/portion limit)
+        if 'product_stock_map' in self.context:
+            prep_stock_qty = self.context['product_stock_map'].get(obj.product_ID, None)
+        else:
+            ps_rec = ProductStock.objects.filter(branch=branch, product=obj).first()
+            prep_stock_qty = int(ps_rec.quantity_available) if ps_rec else None
+
+        if prep_stock_qty is None or prep_stock_qty <= 0:
+            return 0
+
+        # 2. Check BOM IngredientStock bottleneck
         recipes = list(obj.bom_ingredients.all())
         if not recipes:
-            return 0
+            return prep_stock_qty
 
         min_servings = float('inf')
         now = timezone.now()
@@ -69,7 +80,8 @@ class ProductSerializer(serializers.ModelSerializer):
             if servings < min_servings:
                 min_servings = servings
 
-        return int(min_servings) if min_servings != float('inf') else 0
+        bom_servings = int(min_servings) if min_servings != float('inf') else 0
+        return max(0, min(prep_stock_qty, bom_servings))
 
 class TransactionItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.product_name', read_only=True)

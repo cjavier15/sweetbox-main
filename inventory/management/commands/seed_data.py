@@ -24,14 +24,14 @@ from inventory.menu_loader import MASTER_INGREDIENTS, make_recipe, parse_excel_m
 User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Seeds database with realistic Sweet Box Business Analytics telemetry, Hub-and-Spoke inventory, and BOMs.'
+    help = 'Seeds database with realistic small enterprise Sweet Box telemetry, Hub-and-Spoke inventory, and BOMs.'
 
     @transaction.atomic
     def handle(self, *args, **kwargs):
-        self.stdout.write("Starting Sweet Box enterprise database seeding...")
+        self.stdout.write("Starting Sweet Box small-enterprise database seeding...")
 
         # -----------------------------------------------------------------
-        # 0. Clean Existing Operational Tables
+        # 0. Clean Existing Operational & Catalog Tables
         # -----------------------------------------------------------------
         PaymentRecord.objects.all().delete()
         TransactionItem.objects.all().delete()
@@ -56,7 +56,7 @@ class Command(BaseCommand):
         today = now.date()
 
         # -----------------------------------------------------------------
-        # 1. Establish Branches & Accounts
+        # 1. Establish Branches & Accounts (Preserve 7 Branches & Credentials)
         # -----------------------------------------------------------------
         branch_configs = [
             ('Ibaan (Main Hub)', True, 'Ibaan, Batangas'),
@@ -151,9 +151,9 @@ class Command(BaseCommand):
         self.stdout.write("RBAC user accounts and branch network established.")
 
         # -----------------------------------------------------------------
-        # 2. Seed Master Ingredients & Official Menu
+        # 2. Seed Master Ingredients & Official Menu (Full Master Catalog)
         # -----------------------------------------------------------------
-        self.stdout.write("Seeding master ingredients and commercial recipes...")
+        self.stdout.write("Seeding master ingredients and official catalog...")
         ingredients = {}
         for ing_name, (unit, cost_val, cat_name) in MASTER_INGREDIENTS.items():
             cat_obj, _ = ProductCategory.objects.get_or_create(category_name=cat_name)
@@ -204,47 +204,107 @@ class Command(BaseCommand):
             bom_cost_map[prod_obj.product_ID] = prod_bom_cost
 
         BillOfMaterial.objects.bulk_create(bom_objects, batch_size=1000)
-        self.stdout.write(f"Seeded {len(bom_objects)} Bill of Material deductions across {len(product_list)} products.")
+        self.stdout.write(f"Seeded {len(bom_objects)} Bill of Material deductions across {len(product_list)} master products.")
 
         # -----------------------------------------------------------------
-        # 3. Hub-and-Spoke Inventory Valuation & 3-Tier Stock Health
+        # 3. Small-Enterprise Branch Catalogs & Lean Stock Seeding
         # -----------------------------------------------------------------
-        self.stdout.write("Calibrating Hub-and-Spoke inventory valuation & 3-tier stock health...")
+        def is_cake_or_pastry(p):
+            cat = (p.category.category_name if p.category else '').strip().lower()
+            return any(k in cat for k in ['cake', 'pastry', 'pastries'])
 
-        # Step 3.1: Raw Material Stock Exclusively at Ibaan (Main Hub)
-        critical_ing_names = ['Unsalted Butter', 'Cream Cheese', 'Tapioca Pearls / Boba']
-        low_ing_names = ['All-Purpose Flour', 'Refined Sugar', 'Fresh Eggs', 'Chocolate Ganache', 'Whipping Cream']
-        expiring_ing_names = ['Fresh Milk', 'Whipping Cream', 'Fresh Strawberries', 'Yeast', 'Matcha Powder', 'Cream Cheese', 'Evaporated Milk']
+        cake_pastry_products = [p for p in product_list if is_cake_or_pastry(p)]
+        mto_products = [p for p in product_list if not is_cake_or_pastry(p)]
 
+        # 3.1 Curate 36 Core Cakes & Pastries (shared across all 7 branches)
+        core_keywords = [
+            'Bento', 'Minimalist Daisy', 'Choco Floral', 'Choco Almond Dream', 'Belgian Choco Drip',
+            'Pink Pipe', 'Minimalist Pink', 'Assorted Pastries', 'Ube Md', 'Red Velvet',
+            'Daisy Ganache', 'Black Forest', 'Biscoff', 'Belgian Mousse', 'Carrot',
+            'Mocha', 'Rainbow', 'Strawberry', 'Mango', 'Sans Rival',
+            'Brownie', 'Revel', 'Butterscotch', 'Cookie', 'Cheese',
+            'Cinnamon', 'Cream Puff', 'Eclair', 'Macaron', 'Ensaymada',
+            'Banana', 'Cheesecake', 'Cupcake', 'Drip', 'Dedication', 'Floral'
+        ]
+        core_36 = []
+        for kw in core_keywords:
+            matches = [p for p in cake_pastry_products if kw.lower() in p.product_name.lower() and p not in core_36]
+            if matches:
+                core_36.append(matches[0])
+            if len(core_36) >= 36:
+                break
+        for p in cake_pastry_products:
+            if len(core_36) >= 36:
+                break
+            if p not in core_36:
+                core_36.append(p)
+
+        remaining_cp = [p for p in cake_pastry_products if p not in core_36]
+
+        # 3.2 Curate Meals & Drinks for Ibaan (28) and Padre Garcia (24)
+        curated_mto_keywords = [
+            'Bobba Milk', 'Okinawa', 'Wintermelon', 'Taro', 'Matcha Milk Tea', 'Thai Milk Tea',
+            'Dark Chocolate Milk Tea', 'Cookies & Cream Milk Tea',
+            'Americano', 'Cafe Latte', 'Caramel Macchiato', 'Spanish Latte', 'Cappuccino',
+            'Mocha Latte', 'Vanilla Latte', 'Hazelnut Latte',
+            'Matcha Latte', 'Chocolate Drink', 'Strawberry Milk',
+            'Beef Tapa', 'Pork Sisig', 'Chicken Teriyaki', 'Crispy Chicken', 'Pork Tonkatsu', 'Burger Steak',
+            'Carbonara', 'Creamy Pesto', 'Spaghetti Bolognese', 'Tuna Pesto',
+            'Classic Beef Burger', 'Cheeseburger', 'Clubhouse Sandwich', 'Chicken Sandwich',
+            'French Fries', 'Nachos Supreme', 'Mozzarella Sticks'
+        ]
+        curated_mto_pool = []
+        for kw in curated_mto_keywords:
+            matches = [p for p in mto_products if kw.lower() in p.product_name.lower() and p not in curated_mto_pool]
+            if matches:
+                curated_mto_pool.append(matches[0])
+        for p in mto_products:
+            if len(curated_mto_pool) >= 35:
+                break
+            if p not in curated_mto_pool:
+                curated_mto_pool.append(p)
+
+        ibaan_mto = curated_mto_pool[:28]
+        pg_mto = curated_mto_pool[:24]
+
+        # Identify ingredients required for Padre Garcia's 24 MTO items
+        pg_mto_ids = [p.product_ID for p in pg_mto]
+        pg_ing_ids = set(BillOfMaterial.objects.filter(product_id__in=pg_mto_ids).values_list('ingredient_id', flat=True))
+        pg_ingredients = [ing for ing in ingredients.values() if ing.ingredient_ID in pg_ing_ids]
+
+        # 3.3 Seed Raw Materials (IngredientStock & ConstraintParameter)
+        # Ibaan has all 58 ingredients: 2 out of stock (0.00), 4 critical (1.00-2.00), 6 low (3.00-5.00), rest healthy (6.00-16.00)
+        # Padre Garcia has ~22-33 ingredients: 2 out of stock (0.00), 3 critical (0.50-1.00), 4 low (2.00-3.00), rest healthy (4.00-10.00)
+        # Satellites have 0 ingredient stock.
         ing_stocks_to_create = []
         constraint_params_to_create = []
 
-        for ing_name, ing_obj in ingredients.items():
-            threshold = Decimal('10.00')
-            if ing_name in critical_ing_names:
-                qty = Decimal('4.00') # <= threshold * 0.5 (Critical)
-                expiry = now + timedelta(days=random.choice([15, 20]))
-            elif ing_name in low_ing_names:
-                qty = Decimal('7.50') # threshold * 0.5 < qty <= threshold (Low Stock)
-                expiry = now + timedelta(days=random.choice([25, 30]))
+        all_ings_list = list(ingredients.values())
+        for idx, ing_obj in enumerate(all_ings_list):
+            thresh = Decimal('4.00')
+            if idx in [0, 1]:
+                qty = Decimal('0.00')
+                exp = now + timedelta(days=20)
+            elif idx in [2, 3, 4, 5]:
+                qty = Decimal(str(random.choice([1.00, 1.50, 2.00])))
+                exp = now + timedelta(days=random.choice([15, 25]))
+            elif idx in [6, 7, 8, 9, 10, 11]:
+                qty = Decimal(str(random.choice([3.00, 3.50, 4.00, 5.00])))
+                exp = now + timedelta(days=random.choice([25, 35]))
             else:
-                qty = Decimal(str(random.randint(14, 22))) # Healthy buffer
-                expiry = now + timedelta(days=random.choice([45, 60, 90, 180]))
-
-            if ing_name in expiring_ing_names:
-                expiry = now + timedelta(days=random.choice([3, 4, 5]))
+                qty = Decimal(str(random.randint(6, 16)))
+                exp = now + timedelta(days=random.choice([45, 60, 90, 180]))
 
             cost_total = round(qty * ing_obj.cost_per_unit, 2)
             ing_stocks_to_create.append(IngredientStock(
                 branch=main_hub,
                 ingredient=ing_obj,
                 quantity_available=qty,
-                reorder_threshold=threshold,
+                reorder_threshold=thresh,
                 total_cost=cost_total,
-                expiry_date=expiry,
-                batch_number=f"BATCH-1-{random.randint(100, 999)}"
+                expiry_date=exp,
+                batch_number=f"IB-ING-{100 + idx}"
             ))
-
             constraint_params_to_create.append(ConstraintParameter(
                 branch=main_hub,
                 ingredient=ing_obj,
@@ -255,109 +315,130 @@ class Command(BaseCommand):
                 capacity_limit=Decimal('200.00')
             ))
 
-        IngredientStock.objects.bulk_create(ing_stocks_to_create, batch_size=1000)
-        ConstraintParameter.objects.bulk_create(constraint_params_to_create, batch_size=1000)
-
-        # Step 3.2: ProductStock Assignment
-        def is_cake_or_pastry(p):
-            cat = (p.category.category_name if p.category else '').strip().lower()
-            return any(k in cat for k in ['cake', 'pastry', 'pastries'])
-
-        cake_pastry_products = [p for p in product_list if is_cake_or_pastry(p)]
-
-        # Specific flagship items requested in Section 3.6.6
-        exact_flagship_names = [
-            'Minimalist Daisy (9x4)',
-            'Choco Floral (9x4)',
-            'Choco Almond Dream (10")',
-            'Belgian Choco Drip (10x2)',
-            'Pink Pipe (9x4)',
-            'Minimalist Pink (10x2)',
-            'Bento',
-            'Assorted Pastries Box',
-            'Ube Md (6x2)',
-            'Bobba Milk Milk Tea (16oz)',
-            'Okinawa Milk Tea (16oz)',
-            'Red Velvet (8x2)',
-            'Daisy Ganache (8x2)',
-        ]
-        flagship_prods = []
-        for fn in exact_flagship_names:
-            matched = [p for p in product_list if fn.lower() == p.product_name.lower() or fn.lower() in p.product_name.lower()]
-            if matched and matched[0] not in flagship_prods:
-                flagship_prods.append(matched[0])
-
-        flagship_set = set(flagship_prods)
-        non_flagship = [p for p in product_list if p not in flagship_set]
-        core_prods = non_flagship[:45]
-        core_set = set(core_prods)
-        niche_prods = non_flagship[45:]
-
-        prod_stocks_to_create = []
-
-        # At Ibaan Main Hub: Finished Cakes & Pastries
-        for idx, p in enumerate(cake_pastry_products):
-            unit_c = bom_cost_map.get(p.product_ID, p.price * Decimal('0.35'))
-            thresh = Decimal('5.00')
+        # Padre Garcia Ingredients
+        for idx, ing_obj in enumerate(pg_ingredients):
+            thresh = Decimal('3.00')
             if idx in [0, 1]:
-                qty = Decimal('2.00') # Critical
-                exp = now + timedelta(days=15)
-            elif idx in [2, 3, 4]:
-                qty = Decimal('4.00') # Low Stock
+                qty = Decimal('0.00')
                 exp = now + timedelta(days=20)
+            elif idx in [2, 3, 4]:
+                qty = Decimal(str(random.choice([0.50, 1.00])))
+                exp = now + timedelta(days=random.choice([15, 25]))
+            elif idx in [5, 6, 7, 8]:
+                qty = Decimal(str(random.choice([2.00, 2.50, 3.00])))
+                exp = now + timedelta(days=random.choice([25, 35]))
             else:
-                qty = Decimal(str(random.randint(6, 10))) # Healthy buffer
-                exp = now + timedelta(days=random.choice([30, 45, 60]))
+                qty = Decimal(str(random.randint(4, 10)))
+                exp = now + timedelta(days=random.choice([40, 60, 90]))
 
-            if idx in [5, 6]:
-                exp = now + timedelta(days=4) # Expiring soon
-
-            tot_cost = round(qty * unit_c, 2)
-            prod_stocks_to_create.append(ProductStock(
-                branch=main_hub,
-                product=p,
+            cost_total = round(qty * ing_obj.cost_per_unit, 2)
+            ing_stocks_to_create.append(IngredientStock(
+                branch=branches['Padre Garcia'],
+                ingredient=ing_obj,
                 quantity_available=qty,
                 reorder_threshold=thresh,
-                total_cost=tot_cost
+                total_cost=cost_total,
+                expiry_date=exp,
+                batch_number=f"PG-ING-{200 + idx}"
+            ))
+            constraint_params_to_create.append(ConstraintParameter(
+                branch=branches['Padre Garcia'],
+                ingredient=ing_obj,
+                lead_time_days=2,
+                min_order_quantity=Decimal('2.00'),
+                max_order_quantity=Decimal('20.00'),
+                production_limit=Decimal('20.00'),
+                capacity_limit=Decimal('80.00')
             ))
 
-        # At 6 Satellite Branches: Finished Cakes & Pastries (+ Bobba/Okinawa at Sampaguita & San Jose)
-        satellite_branches = [b for b in branches.values() if not b.main_hub]
-        for sat_branch in satellite_branches:
-            sat_catalog = list(cake_pastry_products)
-            # Assign flagship beverages to Sampaguita and San Jose for realistic retail volume
-            if sat_branch.name in ['Sampaguita', 'San Jose']:
-                bev_flagships = [p for p in flagship_prods if not is_cake_or_pastry(p)]
-                sat_catalog.extend(bev_flagships)
+        IngredientStock.objects.bulk_create(ing_stocks_to_create, batch_size=1000)
+        ConstraintParameter.objects.bulk_create(constraint_params_to_create, batch_size=1000)
+        self.stdout.write(f"Seeded {len(ing_stocks_to_create)} IngredientStock records ({len(all_ings_list)} at Ibaan, {len(pg_ingredients)} at Padre Garcia, 0 at satellites).")
 
-            for idx, p in enumerate(sat_catalog):
+        # 3.4 Seed ProductStock Across All 7 Branches
+        prod_stocks_to_create = []
+        branch_assigned_catalogs = {}
+
+        for b_name, b_obj in branches.items():
+            # 60 Cakes & Pastries: 36 core + 24 rotated
+            rng = random.Random(100 + b_obj.branch_ID)
+            rotated_24 = rng.sample(remaining_cp, 24)
+            b_cp = list(core_36) + rotated_24
+            rng.shuffle(b_cp)
+
+            b_catalog = list(b_cp)
+            if b_obj.main_hub:
+                b_catalog.extend(ibaan_mto) # 60 + 28 = 88
+            elif b_name == 'Padre Garcia':
+                b_catalog.extend(pg_mto)    # 60 + 24 = 84
+            # All other satellites remain strictly at 60
+
+            branch_assigned_catalogs[b_obj.branch_ID] = b_catalog
+
+            # Seed 60 Cakes & Pastries:
+            # 15 items (25%) out-of-stock (0.00)
+            # 12 items (20%) low/critical (1.00-2.00)
+            # 33 items (55%) in-stock (3.00-6.00)
+            for idx, p in enumerate(b_cp):
                 unit_c = bom_cost_map.get(p.product_ID, p.price * Decimal('0.35'))
-                thresh = Decimal('5.00')
-                if idx in [0, 1]:
-                    qty = Decimal('2.00') # Critical
-                elif idx in [2, 3, 4]:
-                    qty = Decimal('4.00') # Low Stock
+                thresh = Decimal('2.00')
+                if idx < 15:
+                    qty = Decimal('0.00')
+                    exp = now + timedelta(days=20)
+                elif idx < 27:
+                    qty = Decimal(str(random.choice([1.00, 2.00])))
+                    exp = now + timedelta(days=random.choice([10, 15]))
                 else:
-                    qty = Decimal(str(random.randint(2, 5))) # Lean display buffer
+                    qty = Decimal(str(random.randint(3, 6)))
+                    exp = now + timedelta(days=random.choice([25, 30, 45]))
 
                 tot_cost = round(qty * unit_c, 2)
                 prod_stocks_to_create.append(ProductStock(
-                    branch=sat_branch,
+                    branch=b_obj,
                     product=p,
                     quantity_available=qty,
                     reorder_threshold=thresh,
-                    total_cost=tot_cost
+                    total_cost=tot_cost,
+                    expiry_date=exp,
+                    batch_number=f"PRD-{b_obj.branch_ID}-{idx+1}"
+                ))
+
+            # Seed Meals & Beverages if Ibaan or Padre Garcia:
+            # 25% out of stock (0.00), 25% low (1.00-2.00), 50% in stock (3.00-8.00)
+            b_mto = ibaan_mto if b_obj.main_hub else (pg_mto if b_name == 'Padre Garcia' else [])
+            mto_count = len(b_mto)
+            oos_count = mto_count // 4
+            low_count = mto_count // 4
+
+            for idx, p in enumerate(b_mto):
+                unit_c = bom_cost_map.get(p.product_ID, p.price * Decimal('0.35'))
+                thresh = Decimal('3.00')
+                if idx < oos_count:
+                    qty = Decimal('0.00')
+                elif idx < (oos_count + low_count):
+                    qty = Decimal(str(random.choice([1.00, 2.00])))
+                else:
+                    qty = Decimal(str(random.randint(3, 8)))
+
+                tot_cost = round(qty * unit_c, 2)
+                prod_stocks_to_create.append(ProductStock(
+                    branch=b_obj,
+                    product=p,
+                    quantity_available=qty,
+                    reorder_threshold=thresh,
+                    total_cost=tot_cost,
+                    expiry_date=now + timedelta(days=30),
+                    batch_number=f"MTO-{b_obj.branch_ID}-{idx+1}"
                 ))
 
         ProductStock.objects.bulk_create(prod_stocks_to_create, batch_size=1000)
-        self.stdout.write("ProductStock calibrated with lean, mathematically realistic buffer levels.")
+        self.stdout.write(f"Seeded {len(prod_stocks_to_create)} ProductStock records across 7 branches (88 at Ibaan, 84 at Padre Garcia, 60 at each of 5 satellites).")
 
         # -----------------------------------------------------------------
-        # 4. 180-Day Rolling Sales Telemetry with Pareto Velocity
+        # 4. 180-Day Sales Telemetry Strictly Within Branch Catalogs
         # -----------------------------------------------------------------
-        self.stdout.write("Generating 180 days of realistic sales telemetry and payment records...")
+        self.stdout.write("Generating 180 days of realistic sales telemetry strictly from branch catalogs...")
 
-        # Foot traffic distribution
         branch_traffic_weights = [
             (branches['Ibaan (Main Hub)'], 0.22),
             (branches['San Jose'], 0.18),
@@ -371,17 +452,21 @@ class Command(BaseCommand):
         b_weights = [bw[1] for bw in branch_traffic_weights]
         staff_by_branch = {b.branch_ID: User.objects.filter(branch=b, role='Staff').first() for b in b_list}
 
-        # 30-Day Quota Targets to guarantee Chapter 3 / Pareto Classification:
-        # Flagship (Best-Selling Q >= 50): 55 to 88 units each
-        # Core (Standard 11 <= Q <= 49): 14 to 40 units each
-        # Niche (Slow-Moving Q <= 10): 1 to 8 units each
-        quota_30d = {}
-        for p in flagship_prods:
-            quota_30d[p.product_ID] = random.randint(56, 84)
-        for p in core_prods:
-            quota_30d[p.product_ID] = random.randint(15, 38)
-        for p in niche_prods[:60]:
-            quota_30d[p.product_ID] = random.randint(1, 8)
+        # Select 12 Flagship Products (present in core_36 + 2 top beverages)
+        flagship_names = [
+            'Bento', 'Minimalist Daisy', 'Choco Floral', 'Choco Almond Dream', 'Belgian Choco Drip',
+            'Pink Pipe', 'Minimalist Pink', 'Assorted Pastries', 'Ube Md', 'Red Velvet',
+            'Bobba Milk', 'Okinawa'
+        ]
+        flagship_prods = []
+        for fn in flagship_names:
+            matched = [p for p in product_list if fn.lower() in p.product_name.lower()]
+            if matched and matched[0] not in flagship_prods:
+                flagship_prods.append(matched[0])
+
+        flagship_set = set(flagship_prods)
+        # Quota for last 30 days to guarantee Best-Selling Q >= 50
+        quota_30d = {p.product_ID: random.randint(55, 75) for p in flagship_prods}
 
         txns_to_create = []
         txn_meta = []
@@ -391,15 +476,13 @@ class Command(BaseCommand):
             target_dt = now - timedelta(days=day_offset, hours=random.randint(1, 10), minutes=random.randint(0, 59))
             d_date = target_dt.date()
 
-            # Calibrated daily transaction counts
+            # Small-enterprise daily transactions (~7 to 10 per day across the 7 branches)
             if day_offset <= 30:
-                base_count = random.randint(10, 12)
-                if day_offset <= 7:
-                    base_count = int(base_count * 1.15)
+                base_count = random.randint(8, 11)
             elif day_offset <= 60:
-                base_count = random.randint(8, 10)
+                base_count = random.randint(7, 9)
             else:
-                base_count = random.randint(5, 7)
+                base_count = random.randint(5, 8)
 
             # Payday multiplier (14th-16th and 29th-1st)
             if d_date.day in [14, 15, 16, 29, 30, 31, 1]:
@@ -413,66 +496,36 @@ class Command(BaseCommand):
 
             for target_b in selected_branches:
                 staff_user = staff_by_branch.get(target_b.branch_ID) or owner
-                is_hub = target_b.main_hub
+                assigned_catalog = branch_assigned_catalogs[target_b.branch_ID]
 
-                # Candidate pool
-                if is_hub:
-                    b_flagships = flagship_prods
-                    b_cores = core_prods
-                    b_niches = niche_prods
-                else:
-                    b_flagships = [p for p in flagship_prods if is_cake_or_pastry(p) or target_b.name in ['Sampaguita', 'San Jose']]
-                    b_cores = [p for p in core_prods if is_cake_or_pastry(p)]
-                    b_niches = [p for p in niche_prods if is_cake_or_pastry(p)]
+                b_flagships = [p for p in flagship_prods if p in assigned_catalog]
+                b_others = [p for p in assigned_catalog if p not in flagship_set]
 
                 num_items = random.randint(1, 3)
                 chosen_items = []
 
                 if day_offset <= 30:
-                    # In last 30 days, prioritize quota fulfilment
                     available_flagships = [p for p in b_flagships if quota_30d.get(p.product_ID, 0) > 0]
-                    available_cores = [p for p in b_cores if quota_30d.get(p.product_ID, 0) > 0]
-                    available_niches = [p for p in b_niches if quota_30d.get(p.product_ID, 0) > 0]
-
                     for _ in range(num_items):
-                        roll = random.random()
-                        if roll < 0.65 and available_flagships:
+                        if available_flagships and random.random() < 0.65:
                             prod_chosen = random.choice(available_flagships)
                             rem = quota_30d.get(prod_chosen.product_ID, 1)
                             qty = min(rem, random.randint(1, 2))
                             quota_30d[prod_chosen.product_ID] -= qty
-                        elif roll < 0.90 and available_cores:
-                            prod_chosen = random.choice(available_cores)
-                            rem = quota_30d.get(prod_chosen.product_ID, 1)
-                            qty = min(rem, 1)
-                            quota_30d[prod_chosen.product_ID] -= qty
-                        elif available_niches:
-                            prod_chosen = random.choice(available_niches)
-                            rem = quota_30d.get(prod_chosen.product_ID, 1)
-                            qty = min(rem, 1)
-                            quota_30d[prod_chosen.product_ID] -= qty
+                            if quota_30d[prod_chosen.product_ID] <= 0:
+                                available_flagships.remove(prod_chosen)
                         else:
-                            prod_chosen = random.choice(b_flagships or product_list)
+                            prod_chosen = random.choice(b_others or assigned_catalog)
                             qty = 1
-
                         chosen_items.append((prod_chosen, qty, prod_chosen.price))
                 else:
-                    # Days 31 to 180: Standard velocity sampling
                     for _ in range(num_items):
-                        roll = random.random()
-                        if roll < 0.60 and b_flagships:
+                        if b_flagships and random.random() < 0.55:
                             prod_chosen = random.choice(b_flagships)
                             qty = random.randint(1, 2)
-                        elif roll < 0.88 and b_cores:
-                            prod_chosen = random.choice(b_cores)
-                            qty = 1
-                        elif b_niches:
-                            prod_chosen = random.choice(b_niches)
-                            qty = 1
                         else:
-                            prod_chosen = random.choice(b_flagships or product_list)
+                            prod_chosen = random.choice(b_others or assigned_catalog)
                             qty = 1
-
                         chosen_items.append((prod_chosen, qty, prod_chosen.price))
 
                 subtotal = sum(p_price * p_qty for _, p_qty, p_price in chosen_items)
@@ -562,7 +615,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Successfully generated {len(created_txns)} transactions and {len(items_to_create)} line items.")
 
         # -----------------------------------------------------------------
-        # 5. Seed External Variables (Local Events & Calendar)
+        # 5. Seed External Variables (Local Events & Seasonality)
         # -----------------------------------------------------------------
         external_vars_data = [
             ('Payday Cycle', 'Mid-Month & End-Month Payday Cycle', today - timedelta(days=15), today + timedelta(days=15), 'High', 'Bi-monthly wage disbursement driving surge in confectionery and beverage volume.', True),
@@ -620,86 +673,107 @@ class Command(BaseCommand):
         # -----------------------------------------------------------------
         # 7. Seed Prescriptive Outputs (Pending & 20 Historical Reviewed)
         # -----------------------------------------------------------------
-        # Pending review at Ibaan
+        # 4 Pending Prescriptions:
+        # 1. Ibaan (Restock)
         butter_ing = ingredients.get("Unsalted Butter")
         if butter_ing:
             PrescriptiveOutput.objects.create(
                 branch=main_hub,
                 ingredient=butter_ing,
                 output_type='Restock Prescription',
-                recommendation="Procure 50.0 kg of Unsalted Butter (12.0 days operational buffer)",
-                justification="(Auto-bounded to satisfy constraints) Based on historical daily burn rate, a 50kg order is optimal replenishment before the weekend rush.",
-                recommended_quantity=Decimal('50.00'),
-                estimated_cost=Decimal('18000.00'),
+                recommendation="Procure 25.0 kg of Unsalted Butter (6.0 days operational buffer)",
+                justification="Based on historical daily consumption, a 25kg replenishment covers upcoming cake commissary schedules.",
+                recommended_quantity=Decimal('25.00'),
+                estimated_cost=Decimal('9000.00'),
                 status='Pending Review'
             )
-
-        sample_cake = cake_pastry_products[0] if cake_pastry_products else product_list[0]
+        # 2. Ibaan (Production Target)
+        sample_cake = core_36[0]
         PrescriptiveOutput.objects.create(
             branch=main_hub,
             product=sample_cake,
             output_type='Production Target',
-            recommendation=f"Produce 20 units of {sample_cake.product_name} at Ibaan Commissary",
+            recommendation=f"Produce 15 units of {sample_cake.product_name} at Ibaan Commissary",
             justification="Forecasted weekend celebration demand exceeds current finished hub buffer stock.",
-            recommended_quantity=Decimal('20.00'),
-            estimated_cost=Decimal('6400.00'),
-            status='Pending Review'
-        )
-
-        # Pending review at satellites (Dispatch Transfers)
-        pg_branch = branches['Padre Garcia']
-        sj_branch = branches['San Jose']
-        PrescriptiveOutput.objects.create(
-            branch=pg_branch,
-            product=sample_cake,
-            output_type='Dispatch Transfer Prescription',
-            recommendation=f"Transfer 15 units of {sample_cake.product_name} from Ibaan (Main Hub)",
-            justification="Satellite display buffer is low. Transferring finished units prevents stockouts.",
             recommended_quantity=Decimal('15.00'),
-            estimated_cost=round(Decimal('15.00') * sample_cake.price, 2),
+            estimated_cost=Decimal('4800.00'),
             status='Pending Review'
         )
+        # 3. Padre Garcia (Restock)
+        boba_ing = ingredients.get("Tapioca Pearls / Boba")
+        if boba_ing:
+            PrescriptiveOutput.objects.create(
+                branch=branches['Padre Garcia'],
+                ingredient=boba_ing,
+                output_type='Restock Prescription',
+                recommendation="Procure 10.0 kg of Tapioca Pearls / Boba",
+                justification="Active stock at Padre Garcia branch is near critical threshold ahead of weekend beverage demand.",
+                recommended_quantity=Decimal('10.00'),
+                estimated_cost=Decimal('1200.00'),
+                status='Pending Review'
+            )
+        # 4. Satellite San Jose (Dispatch Transfer)
+        sj_cake = core_36[1]
         PrescriptiveOutput.objects.create(
-            branch=sj_branch,
-            product=sample_cake,
+            branch=branches['San Jose'],
+            product=sj_cake,
             output_type='Dispatch Transfer Prescription',
-            recommendation=f"Transfer 10 units of {sample_cake.product_name} from Ibaan (Main Hub)",
-            justification="Pre-weekend replenishment dispatch transfer from central hub.",
-            recommended_quantity=Decimal('10.00'),
-            estimated_cost=round(Decimal('10.00') * sample_cake.price, 2),
+            recommendation=f"Transfer 8 units of {sj_cake.product_name} from Ibaan (Main Hub)",
+            justification="Pre-weekend replenishment dispatch transfer from central hub to satisfy store display minimum.",
+            recommended_quantity=Decimal('8.00'),
+            estimated_cost=round(Decimal('8.00') * sj_cake.price, 2),
             status='Pending Review'
         )
 
-        # 20 Historical Reviewed Prescriptions (17 Approved, 3 Overridden -> 85% MAR, 100% CCR, ~6.4% MAPE)
+        # 20 Historical Reviewed Prescriptions (17 Approved, 3 Overridden -> 85% MAR, 100% CCR)
         reviewed_prescriptions = []
         ing_keys = list(ingredients.keys())
 
         # 17 Approved Prescriptions
         for i in range(17):
-            ing_key = ing_keys[i % len(ing_keys)]
-            ing_target = ingredients[ing_key]
             p_dt = now - timedelta(days=28 - i, hours=random.randint(1, 12))
-            rec_q = Decimal(str(random.choice([20, 25, 30, 40, 50])))
-            c_est = round(rec_q * ing_target.cost_per_unit, 2)
-            po = PrescriptiveOutput(
-                branch=main_hub,
-                ingredient=ing_target,
-                output_type='Restock Prescription',
-                recommendation=f"Procure {rec_q} {ing_target.measurement_unit} of {ing_target.ingredient_name}",
-                justification=f"Approved restock directive matching verified lead-time replenishment burn rate of {ing_target.ingredient_name}.",
-                recommended_quantity=rec_q,
-                estimated_cost=c_est,
-                status='Approved',
-                is_overridden=False,
-                generated_at=p_dt
-            )
+            if i % 3 == 0:
+                # Dispatch transfer to a satellite
+                sat_b = b_list[(i % 5) + 2]
+                c_item = core_36[i % len(core_36)]
+                rec_q = Decimal(str(random.choice([6, 8, 10, 12])))
+                c_est = round(rec_q * (c_item.price * Decimal('0.35')), 2)
+                po = PrescriptiveOutput(
+                    branch=sat_b,
+                    product=c_item,
+                    output_type='Dispatch Transfer Prescription',
+                    recommendation=f"Transfer {rec_q} units of {c_item.product_name} from Ibaan (Main Hub)",
+                    justification=f"Approved dispatch transfer replenishing satellite display buffer for {sat_b.name}.",
+                    recommended_quantity=rec_q,
+                    estimated_cost=c_est,
+                    status='Approved',
+                    is_overridden=False,
+                    generated_at=p_dt
+                )
+            else:
+                ing_key = ing_keys[i % len(ing_keys)]
+                ing_target = ingredients[ing_key]
+                rec_q = Decimal(str(random.choice([10, 15, 20, 25])))
+                c_est = round(rec_q * ing_target.cost_per_unit, 2)
+                po = PrescriptiveOutput(
+                    branch=main_hub,
+                    ingredient=ing_target,
+                    output_type='Restock Prescription',
+                    recommendation=f"Procure {rec_q} {ing_target.measurement_unit} of {ing_target.ingredient_name}",
+                    justification=f"Approved restock directive matching verified lead-time replenishment burn rate of {ing_target.ingredient_name}.",
+                    recommended_quantity=rec_q,
+                    estimated_cost=c_est,
+                    status='Approved',
+                    is_overridden=False,
+                    generated_at=p_dt
+                )
             reviewed_prescriptions.append((po, p_dt))
 
         # 3 Overridden Prescriptions
         overrides = [
-            (ingredients.get('Unsalted Butter', ingredients[ing_keys[0]]), Decimal('50.00'), "Adjusted order quantity (+10kg) to match supplier delivery truck bundle packaging.", now - timedelta(days=18)),
-            (sample_cake, Decimal('20.00'), "Scaled down production target (-5 units) due to forecasted heavy rainfall.", now - timedelta(days=12)),
-            (ingredients.get('All-Purpose Flour', ingredients[ing_keys[1]]), Decimal('40.00'), "Adjusted batch order to align with supplier minimum pallet packaging.", now - timedelta(days=6)),
+            (ingredients.get('Unsalted Butter', ingredients[ing_keys[0]]), Decimal('30.00'), "Adjusted order quantity (+10kg) to match supplier delivery carton packaging.", now - timedelta(days=18)),
+            (sample_cake, Decimal('12.00'), "Scaled down commissary production (-3 units) due to forecasted heavy rainfall.", now - timedelta(days=12)),
+            (ingredients.get('All-Purpose Flour', ingredients[ing_keys[1]]), Decimal('25.00'), "Adjusted batch order to align with supplier minimum bag packaging.", now - timedelta(days=6)),
         ]
         for item_target, rec_q, o_reason, p_dt in overrides:
             if isinstance(item_target, Ingredient):
@@ -777,24 +851,28 @@ class Command(BaseCommand):
 
                 b_gross_margin = b_rev - b_cogs
 
-                # Inventory valuation
+                # Inventory valuation & stockouts
                 if not b.main_hub:
                     b_inv_val = ProductStock.objects.filter(branch=b).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
                     if b_inv_val == 0:
                         b_inv_val = Decimal(str(random.randint(5500, 7500)))
-                    stockouts = ProductStock.objects.filter(branch=b, quantity_available__lte=0).count()
+                    p_oos = ProductStock.objects.filter(branch=b, quantity_available__lte=0).count()
+                    i_oos = IngredientStock.objects.filter(branch=b, quantity_available__lte=0).count()
+                    stockouts = p_oos + i_oos
                 else:
                     ing_cost = IngredientStock.objects.filter(branch=b).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
                     prod_cost = ProductStock.objects.filter(branch=b).aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0.00')
                     b_inv_val = (ing_cost + prod_cost) if (ing_cost + prod_cost) > 0 else Decimal('35000.00')
-                    stockouts = IngredientStock.objects.filter(branch=b, quantity_available__lte=0).count()
+                    p_oos = ProductStock.objects.filter(branch=b, quantity_available__lte=0).count()
+                    i_oos = IngredientStock.objects.filter(branch=b, quantity_available__lte=0).count()
+                    stockouts = p_oos + i_oos
 
                 raw_turnover = round(b_cogs / b_inv_val, 2) if b_inv_val > 0 else Decimal('1.80')
                 raw_gmroi = round(b_gross_margin / b_inv_val, 2) if b_inv_val > 0 else Decimal('3.10')
 
-                # Ensure benchmark range: Turnover [1.40, 2.50], GMROI [2.10, 3.50]
-                turnover_calibrated = min(Decimal('2.50'), max(Decimal('1.40'), raw_turnover))
-                gmroi_calibrated = min(Decimal('3.50'), max(Decimal('2.10'), raw_gmroi))
+                # Ensure benchmark range: Turnover [1.50, 2.80], GMROI [2.10, 3.40]
+                turnover_calibrated = min(Decimal('2.80'), max(Decimal('1.50'), raw_turnover))
+                gmroi_calibrated = min(Decimal('3.40'), max(Decimal('2.10'), raw_gmroi))
 
                 kpi_records_to_create.append(KPIRecord(
                     branch=b,
@@ -808,7 +886,7 @@ class Command(BaseCommand):
                 ))
 
         KPIRecord.objects.bulk_create(kpi_records_to_create, batch_size=1000)
-        self.stdout.write(f"Seeded {len(kpi_records_to_create)} historical KPIRecords with turnover 1.4x-2.6x and GMROI 2.10-3.50.")
+        self.stdout.write(f"Seeded {len(kpi_records_to_create)} historical KPIRecords with turnover 1.5x-2.8x and GMROI 2.10-3.40.")
 
         # -----------------------------------------------------------------
         # 9. Seed Cold Storage Data Archives (> 180 Days)
@@ -844,7 +922,7 @@ class Command(BaseCommand):
                     'item': ing_sample,
                     'adjustment_type': 'Stock-in',
                     'quantity_change': f"{random.choice([10, 20, 25, 50])}.00",
-                    'reason': 'Standard commissary raw restock consignment delivery.'
+                    'reason': 'Standard commissary raw restock delivery.'
                 })
             ))
 

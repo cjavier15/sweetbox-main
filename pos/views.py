@@ -27,18 +27,12 @@ class ProductListView(generics.ListAPIView):
 
         branch = user.branch
         if branch:
-            is_hub = is_hub_branch(branch)
-            if is_hub:
-                # Ibaan (Main Hub): return ALL active products with prefetch
-                return Product.objects.filter(
-                    is_active=True
-                ).select_related('category').prefetch_related('bom_ingredients__ingredient').order_by('product_name')
-            else:
-                # Satellite Branch: return only products assigned in this satellite branch's ProductStock
-                return Product.objects.filter(
-                    is_active=True,
-                    stocks__branch=branch
-                ).select_related('category').prefetch_related('bom_ingredients__ingredient').distinct().order_by('product_name')
+            # POS terminal ONLY returns products that have a ProductStock record at that branch
+            assigned_product_ids = ProductStock.objects.filter(branch=branch).values_list('product_id', flat=True)
+            return Product.objects.filter(
+                is_active=True,
+                product_ID__in=assigned_product_ids
+            ).select_related('category').prefetch_related('bom_ingredients__ingredient').order_by('product_name')
 
         return Product.objects.filter(is_active=True).select_related('category').prefetch_related('bom_ingredients__ingredient').order_by('product_name')
 
@@ -182,6 +176,19 @@ class TransactionRefundView(APIView):
                         reason=f"POS Refund TXN-{txn.transaction_ID}"
                     )
                 else:
+                    # Restore ProductStock portion count if a ProductStock record exists for this Made-to-Order item
+                    prod_stock = ProductStock.objects.select_for_update().filter(branch=txn.branch, product=product).first()
+                    if prod_stock:
+                        prod_stock.quantity_available += Decimal(str(item.quantity))
+                        prod_stock.save()
+                        StockAdjustment.objects.create(
+                            user=request.user,
+                            product_inventory=prod_stock,
+                            adjustment_type='Stock-in',
+                            quantity_change=Decimal(str(item.quantity)),
+                            reason=f"POS Refund TXN-{txn.transaction_ID}"
+                        )
+
                     # Restore raw ingredients to IngredientStock at branch
                     boms = list(product.bom_ingredients.select_related('ingredient').all())
                     for bom in boms:

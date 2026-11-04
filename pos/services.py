@@ -86,7 +86,25 @@ def process_pos_transaction(branch, user, items_data, payment_data, subtotal, di
                 reason=f"POS Sale TXN-{txn.transaction_ID}"
             )
         else:
-            # Made-to-Order Meal or Drink: accumulate BOM raw ingredient deductions
+            # Made-to-Order Meal or Drink:
+            # If a ProductStock row exists for that Meal/Beverage at that branch (daily kitchen prep limit),
+            # verify and decrement it by quantity_sold
+            stock_record = ProductStock.objects.select_for_update().filter(branch=branch, product=product).first()
+            if stock_record:
+                if stock_record.quantity_available < quantity_sold:
+                    avail = int(stock_record.quantity_available)
+                    raise ValueError(f"Insufficient daily kitchen preparation for {product.product_name}. Only {avail} serving(s) available today.")
+                stock_record.quantity_available -= Decimal(str(quantity_sold))
+                stock_record.save()
+                StockAdjustment.objects.create(
+                    user=user,
+                    product_inventory=stock_record,
+                    adjustment_type='Stock-out',
+                    quantity_change=Decimal(str(quantity_sold)),
+                    reason=f"POS Sale TXN-{txn.transaction_ID}"
+                )
+
+            # Accumulate BOM raw ingredient deductions
             bom_recipes = list(product.bom_ingredients.select_related('ingredient').all())
             if not bom_recipes:
                 raise ValueError(f"No recipe (BOM) configured for made-to-order item '{product.product_name}'. Cannot prepare.")
