@@ -283,17 +283,20 @@ class Command(BaseCommand):
         for idx, ing_obj in enumerate(all_ings_list):
             thresh = Decimal('4.00')
             if idx in [0, 1]:
-                qty = Decimal('0.00')
-                exp = now + timedelta(days=20)
+                qty = Decimal('0.00') # Out of Stock
+                exp = now + timedelta(days=random.choice([30, 45, 60]))
             elif idx in [2, 3, 4, 5]:
-                qty = Decimal(str(random.choice([1.00, 1.50, 2.00])))
-                exp = now + timedelta(days=random.choice([15, 25]))
+                qty = Decimal(str(random.choice([1.00, 1.50, 2.00]))) # Critical (<= thresh * 0.5)
+                exp = now + timedelta(days=random.choice([30, 45, 60]))
             elif idx in [6, 7, 8, 9, 10, 11]:
-                qty = Decimal(str(random.choice([3.00, 3.50, 4.00, 5.00])))
-                exp = now + timedelta(days=random.choice([25, 35]))
+                qty = Decimal(str(random.choice([2.50, 3.00, 3.50, 4.00]))) # Low Stock (thresh * 0.5 < qty <= thresh)
+                exp = now + timedelta(days=random.choice([30, 45, 60]))
+            elif idx in [12, 13, 14, 15]:
+                qty = Decimal(str(random.randint(6, 14))) # Expiring Soon (qty > thresh, expiry <= 7 days)
+                exp = now + timedelta(days=random.choice([2, 3, 4, 5, 6]))
             else:
-                qty = Decimal(str(random.randint(6, 16)))
-                exp = now + timedelta(days=random.choice([45, 60, 90, 180]))
+                qty = Decimal(str(random.randint(6, 16))) # In Stock (qty > thresh, normal expiry)
+                exp = now + timedelta(days=random.choice([30, 45, 60, 90, 180]))
 
             cost_total = round(qty * ing_obj.cost_per_unit, 2)
             ing_stocks_to_create.append(IngredientStock(
@@ -319,17 +322,20 @@ class Command(BaseCommand):
         for idx, ing_obj in enumerate(pg_ingredients):
             thresh = Decimal('3.00')
             if idx in [0, 1]:
-                qty = Decimal('0.00')
-                exp = now + timedelta(days=20)
+                qty = Decimal('0.00') # Out of Stock
+                exp = now + timedelta(days=random.choice([30, 45, 60]))
             elif idx in [2, 3, 4]:
-                qty = Decimal(str(random.choice([0.50, 1.00])))
-                exp = now + timedelta(days=random.choice([15, 25]))
+                qty = Decimal(str(random.choice([0.50, 1.00, 1.50]))) # Critical (<= thresh * 0.5)
+                exp = now + timedelta(days=random.choice([30, 45, 60]))
             elif idx in [5, 6, 7, 8]:
-                qty = Decimal(str(random.choice([2.00, 2.50, 3.00])))
-                exp = now + timedelta(days=random.choice([25, 35]))
+                qty = Decimal(str(random.choice([2.00, 2.50, 3.00]))) # Low Stock
+                exp = now + timedelta(days=random.choice([30, 45, 60]))
+            elif idx in [9, 10]:
+                qty = Decimal(str(random.randint(5, 8))) # Expiring Soon
+                exp = now + timedelta(days=random.choice([2, 3, 4, 5, 6]))
             else:
-                qty = Decimal(str(random.randint(4, 10)))
-                exp = now + timedelta(days=random.choice([40, 60, 90]))
+                qty = Decimal(str(random.randint(5, 10))) # In Stock
+                exp = now + timedelta(days=random.choice([30, 45, 60, 90]))
 
             cost_total = round(qty * ing_obj.cost_per_unit, 2)
             ing_stocks_to_create.append(IngredientStock(
