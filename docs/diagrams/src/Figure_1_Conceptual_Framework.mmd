@@ -14,7 +14,7 @@ flowchart TD
 
     subgraph PROCESS["PROCESS: Business Analytics & Decision Engine"]
         direction TB
-        ETL["<b>Data Integration & ETL Pipeline:</b><br/>Data Validation • Axios Polling • Batch Aggregation • Automated Data Archiving"]
+        ETL["<b>Data Integration & ETL Pipeline:</b><br/>OpenPyXL 3.1.5 & Django ORM Aggregation • Axios Polling • Batch Validation • Automated Data Archiving"]
         
         subgraph ENGINES["Processing Subsystems"]
             direction LR
@@ -34,7 +34,7 @@ flowchart TD
         O_PROD["<b>Production Directives:</b><br/>• Batch Production Targets<br/>• Hub Raw Ingredient Planning<br/>• Kitchen Deduction Logs"]
         O_RESTOCK["<b>Prescriptive Restock:</b><br/>• Feasibility-Bounded Reorders<br/>• Urgency & Order Deadlines<br/>• Estimated Procurement Cost"]
         O_DASH["<b>Enterprise Dashboards:</b><br/>• Cross-Branch Revenue & Trends<br/>• Inventory Turnover & GMROI<br/>• Branch Target Accomplishment"]
-        O_MGMT["<b>Decision Support & Control:</b><br/>• Managerial Approval / Override<br/>• Conversational Chatbot Guidance<br/>• Digital Receipts & KPI CSV Exports"]
+        O_MGMT["<b>Decision Support & Control:</b><br/>• Managerial Approval / Override<br/>• Conversational Chatbot Guidance<br/>• Digital Receipts & KPI Reports (OpenPyXL 3.1.5 / CSV)"]
     end
 
     INPUT --> PROCESS

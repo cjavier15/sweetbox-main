@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="Electron" modified="2026-11-08T00:00:00.000Z" agent="Mozilla/5.0" version="24.0.0" type="device">
+  <diagram id="sb_diagram" name="Figure 6: System Architecture">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="980" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cell_2" value="Figure 6: 4-Tier System Architecture Diagram" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=18;fontStyle=1;fontColor=#2C1810;" vertex="1" parent="1">
+  <mxGeometry x="40" y="20" width="1100" height="40" as="geometry" />
+</mxCell>
+        <mxCell id="tier_1" value="1. PRESENTATION LAYER (Client Tier)" style="swimlane;startSize=28;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="40" y="60" width="1200" height="160" as="geometry" />
+</mxCell>
+        <mxCell id="ui_pos" value="&lt;b&gt;POS Cashier Terminal&lt;/b&gt;&lt;br/&gt;Product selection, Cart,&lt;br/&gt;Split tenders, Digital receipt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="60" y="100" width="210" height="85" as="geometry" />
+</mxCell>
+        <mxCell id="ui_ent" value="&lt;b&gt;Enterprise Dashboard&lt;/b&gt;&lt;br/&gt;KPI scorecards, Timeframes,&lt;br/&gt;Chart.js, Prescriptions, Events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="290" y="100" width="210" height="85" as="geometry" />
+</mxCell>
+        <mxCell id="ui_scm" value="&lt;b&gt;Inventory &amp; SCM Hub&lt;/b&gt;&lt;br/&gt;Stock Tracker, Product Watch,&lt;br/&gt;BOM Config, Kitchen Production" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="520" y="100" width="220" height="85" as="geometry" />
+</mxCell>
+        <mxCell id="ui_adm" value="&lt;b&gt;Admin Panel&lt;/b&gt;&lt;br/&gt;User &amp; Branch Management,&lt;br/&gt;Audit Logs, Data Archive Console" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="760" y="100" width="220" height="85" as="geometry" />
+</mxCell>
+        <mxCell id="ui_mob" value="&lt;b&gt;Mobile Responsive Web&lt;/b&gt;&lt;br/&gt;Bootstrap offcanvas, dynamic cards,&lt;br/&gt;Touch-friendly modal interfaces" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="1000" y="100" width="220" height="85" as="geometry" />
+</mxCell>
+        <mxCell id="tier_2" value="2. SECURITY &amp; API LAYER (Gateway Tier)" style="swimlane;startSize=28;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="40" y="250" width="1200" height="140" as="geometry" />
+</mxCell>
+        <mxCell id="sec_tls" value="&lt;b&gt;HTTPS / TLS Encryption&lt;/b&gt;&lt;br/&gt;Let&apos;s Encrypt certificates&lt;br/&gt;Encrypted transit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="60" y="290" width="210" height="75" as="geometry" />
+</mxCell>
+        <mxCell id="sec_jwt" value="&lt;b&gt;SimpleJWT Auth&lt;/b&gt;&lt;br/&gt;Token refresh &amp; blacklist,&lt;br/&gt;7-Day Trusted Device Bypass" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="290" y="290" width="210" height="75" as="geometry" />
+</mxCell>
+        <mxCell id="sec_2fa" value="&lt;b&gt;Two-Factor Auth (2FA)&lt;/b&gt;&lt;br/&gt;SMTP Email OTP delivery,&lt;br/&gt;5-minute expiration window" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="520" y="290" width="220" height="75" as="geometry" />
+</mxCell>
+        <mxCell id="sec_rbac" value="&lt;b&gt;Role-Based Access (RBAC)&lt;/b&gt;&lt;br/&gt;Enforced via DRF permissions&lt;br/&gt;4 distinct privilege tiers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="760" y="290" width="220" height="75" as="geometry" />
+</mxCell>
+        <mxCell id="sec_rout" value="&lt;b&gt;URL Routing &amp; Dispatch&lt;/b&gt;&lt;br/&gt;/api/pos/, /api/inventory/,&lt;br/&gt;/api/analytics/, /api/accounts/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="1000" y="290" width="220" height="75" as="geometry" />
+</mxCell>
+        <mxCell id="tier_3" value="3. CORE APPLICATION &amp; LOGIC LAYER (Django Service Tier)" style="swimlane;startSize=28;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="40" y="420" width="1200" height="240" as="geometry" />
+</mxCell>
+        <mxCell id="c_mods" value="Core Functional Django Modules" style="swimlane;startSize=28;fillColor=#FFFFFF;strokeColor=#4A2E1B;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="60" y="460" width="530" height="180" as="geometry" />
+</mxCell>
+        <mxCell id="mod_pos" value="&lt;b&gt;POS Module:&lt;/b&gt;&lt;br/&gt;• TransactionCreateView&lt;br/&gt;• Finished goods stock deduction&lt;br/&gt;• TransactionRefundView" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=left;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="75" y="500" width="155" height="120" as="geometry" />
+</mxCell>
+        <mxCell id="mod_inv" value="&lt;b&gt;Inventory Module:&lt;/b&gt;&lt;br/&gt;• ProduceProductView (BOM)&lt;br/&gt;• ProductTransferView&lt;br/&gt;• RestockRequest Workflow&lt;br/&gt;• Stock Adjustments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=left;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="245" y="500" width="165" height="120" as="geometry" />
+</mxCell>
+        <mxCell id="mod_ana" value="&lt;b&gt;Analytics &amp; ETL Module:&lt;/b&gt;&lt;br/&gt;• EnterpriseDashboardDataView&lt;br/&gt;• RunETLPipelineView (KPIs)&lt;br/&gt;• Product Classification Matrix&lt;br/&gt;• ExportKPIReportView (OpenPyXL/CSV)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=left;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="425" y="500" width="155" height="120" as="geometry" />
+</mxCell>
+        <mxCell id="c_aipipe" value="AI &amp; Prescriptive Decision Pipeline" style="swimlane;startSize=28;fillColor=#FFFFFF;strokeColor=#4A2E1B;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="610" y="460" width="610" height="180" as="geometry" />
+</mxCell>
+        <mxCell id="ai_ext" value="&lt;b&gt;Data Extraction &amp; Prep:&lt;/b&gt;&lt;br/&gt;OpenPyXL 3.1.5 &amp; Django ORM&lt;br/&gt;Aggregation of 180-day sales&lt;br/&gt;&amp; active ExternalVariables" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=left;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="625" y="500" width="135" height="120" as="geometry" />
+</mxCell>
+        <mxCell id="ai_sdk" value="&lt;b&gt;Google GenAI SDK:&lt;/b&gt;&lt;br/&gt;google-genai SDK invoking&lt;br/&gt;gemini-flash-lite-latest &amp;&lt;br/&gt;gemini-flash-latest models" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=left;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="775" y="500" width="135" height="120" as="geometry" />
+</mxCell>
+        <mxCell id="ai_bound" value="&lt;b&gt;Feasibility Bounding:&lt;/b&gt;&lt;br/&gt;Mathematical clamping against&lt;br/&gt;physical storage capacity &amp;&lt;br/&gt;supplier MOQ rules" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=left;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="925" y="500" width="135" height="120" as="geometry" />
+</mxCell>
+        <mxCell id="ai_fall" value="&lt;b&gt;Deterministic Fallback:&lt;/b&gt;&lt;br/&gt;Automated rule-based stock&lt;br/&gt;replenishment during API&lt;br/&gt;or network outages" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=left;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="1075" y="500" width="135" height="120" as="geometry" />
+</mxCell>
+        <mxCell id="tier_4" value="4. DATA STORAGE LAYER (Persistence Tier)" style="swimlane;startSize=28;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="40" y="690" width="1200" height="200" as="geometry" />
+</mxCell>
+        <mxCell id="c_activedb" value="Active Relational Database (MySQL 8.0)" style="swimlane;startSize=28;fillColor=#FFFFFF;strokeColor=#4A2E1B;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="60" y="730" width="800" height="140" as="geometry" />
+</mxCell>
+        <mxCell id="t_auth" value="&lt;b&gt;Accounts:&lt;/b&gt;&lt;br/&gt;User • Branch&lt;br/&gt;OTPRecord • AuditLog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="75" y="770" width="170" height="80" as="geometry" />
+</mxCell>
+        <mxCell id="t_pos" value="&lt;b&gt;POS:&lt;/b&gt;&lt;br/&gt;ProductCategory • Product&lt;br/&gt;Transaction • TransactionItem&lt;br/&gt;PaymentRecord" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="260" y="770" width="180" height="80" as="geometry" />
+</mxCell>
+        <mxCell id="t_inv" value="&lt;b&gt;Inventory:&lt;/b&gt;&lt;br/&gt;Ingredient • IngredientStock&lt;br/&gt;ProductStock • BillOfMaterial&lt;br/&gt;StockAdjustment • RestockRequest&lt;br/&gt;ProductTransfer • ConstraintParameter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=8;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="455" y="770" width="200" height="80" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana" value="&lt;b&gt;Analytics:&lt;/b&gt;&lt;br/&gt;PrescriptiveOutput • ChatbotLog&lt;br/&gt;ProductClassification&lt;br/&gt;ExternalVariable • KPIRecord" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=8;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="670" y="770" width="175" height="80" as="geometry" />
+</mxCell>
+        <mxCell id="c_colddb" value="Cold Archive Storage" style="swimlane;startSize=28;fillColor=#FFFFFF;strokeColor=#4A2E1B;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="880" y="730" width="340" height="140" as="geometry" />
+</mxCell>
+        <mxCell id="t_arch" value="&lt;b&gt;ArchiveStorage:&lt;/b&gt;&lt;br/&gt;Serialized JSON records of transactions &amp;amp;&lt;br/&gt;audit logs older than 180-day threshold" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="900" y="775" width="300" height="70" as="geometry" />
+</mxCell>
+        <mxCell id="e_t1_t2" value="REST / JSON API Requests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=11;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="tier_1" target="tier_2">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_t2_t3" value="Dispatched API Views &amp; Controller Calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=11;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="tier_2" target="tier_3">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_t3_t4" value="Django ORM Queries &amp; Atomic Transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=11;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="tier_3" target="tier_4">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_etl_arch" value="ETL Batch Archival" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#4A2E1B;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="c_activedb" target="c_colddb">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

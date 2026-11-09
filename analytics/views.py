@@ -649,8 +649,10 @@ class EnterpriseDashboardDataView(APIView):
 
         pbv_mape_pct = round(sum(mape_vals) / len(mape_vals), 1) if mape_vals else 6.4
 
-        reviewed_history_qs = all_prescriptions.filter(status__in=['Approved', 'Overridden']).select_related('branch', 'product', 'ingredient').order_by('-generated_at')[:20]
-        reviewed_history = []
+        reviewed_history_qs = all_prescriptions.filter(
+            Q(status__in=['Approved', 'Overridden']) | Q(is_overridden=True)
+        ).select_related('branch', 'product', 'ingredient').order_by('-generated_at')[:25]
+        prescription_history = []
         for p in reviewed_history_qs:
             ai_q = float(p.recommended_quantity or 0)
             final_q = ai_q
@@ -668,19 +670,24 @@ class EnterpriseDashboardDataView(APIView):
                 cost_val = round(final_q * unit_c, 2)
 
             item_name = p.product.product_name if p.product else (p.ingredient.ingredient_name if p.ingredient else p.output_type)
-            reviewed_history.append({
+            prescription_history.append({
                 'id': p.prescriptive_output_ID,
                 'branch_name': p.branch.name if p.branch else "Headquarters",
                 'item_name': item_name,
+                'output_type': p.output_type,
                 'directive': p.output_type,
                 'recommendation': p.recommendation,
+                'ai_prescribed_qty': ai_q,
                 'ai_qty': ai_q,
+                'final_approved_qty': final_q,
                 'final_qty': final_q,
                 'rec_date': rec_date,
+                'estimated_cost': cost_val,
                 'est_cost': cost_val,
                 'status': p.status,
                 'is_overridden': p.is_overridden,
-                'override_reason': p.override_reason or ''
+                'override_reason': p.override_reason or '',
+                'generated_at': p.generated_at.strftime('%Y-%m-%d %H:%M') if p.generated_at else ''
             })
 
         ai_eval_metrics = {
@@ -692,7 +699,7 @@ class EnterpriseDashboardDataView(APIView):
             'approved_count': approved_cnt,
             'overridden_count': overridden_cnt,
             'pending_count': pending_cnt,
-            'reviewed_history': reviewed_history
+            'reviewed_history': prescription_history
         }
 
         branches_data = [{
@@ -709,6 +716,7 @@ class EnterpriseDashboardDataView(APIView):
             'top_products': top_products,
             'product_classifications_summary': class_summary,
             'top_prescriptions': top_prescriptions,
+            'prescription_history': prescription_history,
             'ai_eval_metrics': ai_eval_metrics,
             'branches': branches_data,
             'selected_branch': target_branch.name if target_branch else 'All Branches',

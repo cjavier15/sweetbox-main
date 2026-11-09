@@ -43,7 +43,7 @@ flowchart TD
 
     subgraph PROCESS["PROCESS: Business Analytics & Decision Engine"]
         direction TB
-        ETL["<b>Data Integration & ETL Pipeline:</b><br/>Data Validation • Axios Polling • Batch Aggregation • Automated Data Archiving"]
+        ETL["<b>Data Integration & ETL Pipeline:</b><br/>OpenPyXL 3.1.5 & Django ORM Aggregation • Axios Polling • Batch Validation • Automated Data Archiving"]
         
         subgraph ENGINES["Processing Subsystems"]
             direction LR
@@ -63,7 +63,7 @@ flowchart TD
         O_PROD["<b>Production Directives:</b><br/>• Batch Production Targets<br/>• Hub Raw Ingredient Planning<br/>• Kitchen Deduction Logs"]
         O_RESTOCK["<b>Prescriptive Restock:</b><br/>• Feasibility-Bounded Reorders<br/>• Urgency & Order Deadlines<br/>• Estimated Procurement Cost"]
         O_DASH["<b>Enterprise Dashboards:</b><br/>• Cross-Branch Revenue & Trends<br/>• Inventory Turnover & GMROI<br/>• Branch Target Accomplishment"]
-        O_MGMT["<b>Decision Support & Control:</b><br/>• Managerial Approval / Override<br/>• Conversational Chatbot Guidance<br/>• Digital Receipts & KPI CSV Exports"]
+        O_MGMT["<b>Decision Support & Control:</b><br/>• Managerial Approval / Override<br/>• Conversational Chatbot Guidance<br/>• Digital Receipts & KPI Reports (OpenPyXL 3.1.5 / CSV)"]
     end
 
     INPUT --> PROCESS
@@ -90,25 +90,38 @@ flowchart LR
 **Description:** Details the baseline operational process of Sweet Box under Loyverse POS, highlighting manual ingredient physical counts, reactive restock orders via telephone, and delayed end-of-day reconciliation.
 
 ```mermaid
-flowchart TD
-    START([Start of Day]) --> COUNT[Manual Ingredient Count at Branches]
-    COUNT --> SUFF{Sufficient Stock?}
-    SUFF -- No --> MANUAL_RESTOCK[Restock Reactively via Phone Calls]
-    MANUAL_RESTOCK --> COUNT
-    SUFF -- Yes --> EST_PROD[Estimate Production Targets Subjectively]
-    EST_PROD --> BATCH[Batch Kitchen Production]
-    BATCH --> DISPATCH{For Dispatch to Satellites?}
-    DISPATCH -- Yes --> PACK[Pack & Dispatch to Other Branches]
-    DISPATCH -- No --> STORE_HUB[Stock at Ibaan Main Hub]
-    PACK --> POS_SALE[Record Sales via Loyverse POS]
+flowchart LR
+    subgraph P1["Phase 1: Morning Stock & Procurement"]
+        direction TB
+        START([Start of Day]) --> COUNT[Manual Ingredient Count at Branches]
+        COUNT --> SUFF{Sufficient<br/>Stock?}
+        SUFF -- No --> MANUAL_RESTOCK[Restock Reactively<br/>via Phone Calls]
+        MANUAL_RESTOCK --> COUNT
+        SUFF -- Yes --> EST_PROD[Estimate Production<br/>Targets Subjectively]
+    end
+
+    subgraph P2["Phase 2: Hub Production & Dispatch"]
+        direction TB
+        BATCH[Batch Kitchen Production<br/>at Ibaan Hub] --> DISPATCH{Dispatch to<br/>Satellites?}
+        DISPATCH -- Yes --> PACK[Pack & Transport<br/>to Other Branches]
+        DISPATCH -- No --> STORE_HUB[Stock at<br/>Main Hub Display]
+    end
+
+    subgraph P3["Phase 3: Sales & EOD Reconciliation"]
+        direction TB
+        POS_SALE[Record Sales via<br/>Loyverse POS] --> EXTRACTION[Manual Sales Data<br/>Extraction from POS]
+        EXTRACTION --> MANUAL_DEDUCT[Manual Ingredient<br/>Consumption Deduction]
+        MANUAL_DEDUCT --> EOD_COUNT[End-of-Day Physical<br/>Inventory Count]
+        EOD_COUNT --> RECONCILE[Manual Cross-Referencing<br/>& Discrepancy Reconciliation]
+        RECONCILE --> NEXT_DAY{Restock for<br/>Next Day?}
+        NEXT_DAY -- Yes --> RESTOCK_NOTE[Queue Reactive Phone<br/>Restock Call]
+        NEXT_DAY -- No --> FINISH([End of Daily Operation])
+        RESTOCK_NOTE --> FINISH
+    end
+
+    EST_PROD --> BATCH
+    PACK --> POS_SALE
     STORE_HUB --> POS_SALE
-    POS_SALE --> EXTRACTION[Manual Sales Data Extraction]
-    EXTRACTION --> MANUAL_DEDUCT[Manual Ingredient Consumption Deduction]
-    MANUAL_DEDUCT --> EOD_COUNT[End-of-Day Physical Inventory Count]
-    EOD_COUNT --> RECONCILE[Manual Cross-Referencing & Discrepancy Reconciliation]
-    RECONCILE --> NEXT_DAY{Restock Needed for Next Day?}
-    NEXT_DAY -- Yes --> MANUAL_RESTOCK
-    NEXT_DAY -- No --> FINISH([End of Daily Operation])
 ```
 
 ---
@@ -117,35 +130,44 @@ flowchart TD
 **Description:** Illustrates the optimized operational workflow incorporating automated two-phase inventory tracking: Batch Kitchen BOM deductions convert raw materials into finished goods, and POS terminal sales deduct finished goods directly with automatic feasibility-bounded restock recommendations.
 
 ```mermaid
-flowchart TD
-    START([Start of Operational Day]) --> ETL_CHECK[System Checks Real-Time Inventory & Constraints]
-    ETL_CHECK --> AI_PROD[Gemini AI Generates Feasible Production Targets]
-    AI_PROD --> MGR_APP{Branch Manager Approves?}
-    MGR_APP -- Override --> MGR_EDIT[Manager Overrides Target & Logs Reason]
-    MGR_APP -- Approve --> PROD_EXEC[Execute Kitchen Production via System]
-    MGR_EDIT --> PROD_EXEC
-    
-    PROD_EXEC --> BOM_DEDUCT["<b>Phase 1: Automated BOM Deduction</b><br/>(Deducts Raw Ingredients from Kitchen/Hub Stock)"]
-    BOM_DEDUCT --> PROD_INC["Increment Available Finished ProductStock"]
-    
-    PROD_INC --> DISPATCH_CHECK{Transfer Finished Goods to Satellites?}
-    DISPATCH_CHECK -- Yes --> TRANS_EXEC["Execute Inter-Branch Product Transfer<br/>(select_for_update concurrency lock)"]
-    DISPATCH_CHECK -- No --> READY_SALE[Ready for Point-of-Sale Service]
-    TRANS_EXEC --> READY_SALE
-    
-    READY_SALE --> POS_TXN["Front Staff Processes Sale at Cashier Terminal"]
-    POS_TXN --> FG_DEDUCT["<b>Phase 2: Finished Goods Deduction</b><br/>(Deducts directly from Branch ProductStock)"]
-    FG_DEDUCT --> RECORD_TXN["Save Transaction, Items, & Tender to MySQL"]
-    
-    RECORD_TXN --> THRESHOLD{Stock Quantity <= Reorder Threshold?}
-    THRESHOLD -- Yes --> AI_RESTOCK["Trigger Gemini AI Prescriptive Restock Directive<br/>(Feasibility-Bounded via Storage & MOQ Limits)"]
-    THRESHOLD -- No --> CONTINUOUS[Continuous Operation / Live Dashboard Update]
-    AI_RESTOCK --> OWNER_REV{Business Owner Approves Restock?}
-    OWNER_REV -- Yes --> AUTO_TRANSFER[Execute Inter-Branch Restock Transfer]
-    OWNER_REV -- Reject --> LOG_OVERRIDE[Log Override Reason to Database]
-    AUTO_TRANSFER --> CONTINUOUS
-    LOG_OVERRIDE --> CONTINUOUS
-    CONTINUOUS --> EOD([End of Day Automated Batch ETL & Archiving])
+flowchart LR
+    subgraph P1["Phase 1: Operational Planning & AI Targets"]
+        direction TB
+        START([Start of Day]) --> ETL_CHECK[Real-Time Inventory &<br/>Constraint Verification]
+        ETL_CHECK --> AI_PROD[Gemini AI Computes<br/>Production Targets]
+        AI_PROD --> MGR_APP{Branch Manager<br/>Approves?}
+        MGR_APP -- Override --> MGR_EDIT[Manager Overrides Target<br/>& Logs Justification]
+        MGR_APP -- Approve --> PROD_EXEC[Confirm Production Target]
+        MGR_EDIT --> PROD_EXEC
+    end
+
+    subgraph P2["Phase 2: BOM Deduction & Branch Dispatch"]
+        direction TB
+        EXEC_START[Execute Kitchen Production] --> BOM_DEDUCT[<b>Phase 1: Automated BOM Deduction</b><br/>Deducts Raw Ingredients from Hub]
+        BOM_DEDUCT --> PROD_INC[Increment Available Finished<br/>ProductStock in Database]
+        PROD_INC --> DISPATCH_CHECK{Transfer to<br/>Satellites?}
+        DISPATCH_CHECK -- Yes --> TRANS_EXEC[Execute Inter-Branch Transfer<br/><i>(select_for_update lock)</i>]
+        DISPATCH_CHECK -- No --> READY_SALE[Ready for Point-of-Sale]
+        TRANS_EXEC --> READY_SALE
+    end
+
+    subgraph P3["Phase 3: POS Sales & Bounded Restocking"]
+        direction TB
+        POS_TXN[Front Staff Processes Sale<br/>at POS Terminal] --> FG_DEDUCT[<b>Phase 2: Finished Goods Deduction</b><br/>Immediate ProductStock decrement]
+        FG_DEDUCT --> RECORD_TXN[Persist Transaction, Items<br/>& Split Tender Records]
+        RECORD_TXN --> THRESHOLD{Stock <= Reorder<br/>Threshold?}
+        THRESHOLD -- Yes --> AI_RESTOCK[Gemini AI Prescriptive Restock<br/><i>(Bounded by Storage & MOQ)</i>]
+        THRESHOLD -- No --> CONTINUOUS[Live Dashboard Update]
+        AI_RESTOCK --> OWNER_REV{Owner Approves<br/>Restock?}
+        OWNER_REV -- Yes --> AUTO_TRANSFER[Execute Inter-Branch Transfer]
+        OWNER_REV -- Reject --> LOG_OVERRIDE[Log Override Reason]
+        AUTO_TRANSFER --> CONTINUOUS
+        LOG_OVERRIDE --> CONTINUOUS
+        CONTINUOUS --> EOD([End of Day Automated ETL & Archival])
+    end
+
+    PROD_EXEC --> EXEC_START
+    READY_SALE --> POS_TXN
 ```
 
 ---
@@ -201,6 +223,7 @@ flowchart LR
 
     subgraph AI_CASES["Prescriptive Analytics & Decision Support"]
         UC_DASH(["View Enterprise KPI Dashboard"])
+        UC_TARGET(["Edit Branch Sales Targets"])
         UC_PRESC_VIEW(["View Prescriptive Action Cards"])
         UC_PRESC_DEC(["Approve / Override AI Recommendations"])
         UC_CHAT(["Consult AI Sales Analyst Chatbot"])
@@ -221,7 +244,7 @@ flowchart LR
     classDef usecaseNode fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
 
     class FS,BM,BO,SA actorNode;
-    class UC_TXN,UC_PAY,UC_DISC,UC_HIST,UC_REFUND,UC_RCPT,UC_LIVE,UC_ADJ,UC_PROD,UC_TRANS,UC_REQ_SUB,UC_REQ_APP,UC_BOM_MGT,UC_ING_ADD,UC_DASH,UC_PRESC_VIEW,UC_PRESC_DEC,UC_CHAT,UC_EXT_VAR,UC_ETL,UC_CSV,UC_USER,UC_AUDIT,UC_2FA usecaseNode;
+    class UC_TXN,UC_PAY,UC_DISC,UC_HIST,UC_REFUND,UC_RCPT,UC_LIVE,UC_ADJ,UC_PROD,UC_TRANS,UC_REQ_SUB,UC_REQ_APP,UC_BOM_MGT,UC_ING_ADD,UC_DASH,UC_TARGET,UC_PRESC_VIEW,UC_PRESC_DEC,UC_CHAT,UC_EXT_VAR,UC_ETL,UC_CSV,UC_USER,UC_AUDIT,UC_2FA usecaseNode;
 
     style ACTORS fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
     style POS_CASES fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
@@ -250,6 +273,7 @@ flowchart LR
 
     %% Business Owner Associations (Executive oversight, restock approvals, BOM recipes, full analytics, chatbot)
     BO --> UC_DASH
+    BO --> UC_TARGET
     BO --> UC_LIVE
     BO --> UC_REQ_APP
     BO --> UC_PROD
@@ -342,6 +366,7 @@ flowchart TD
         UI_POS["<b>POS Cashier Terminal</b><br/>Product selection, Cart,<br/>Split tenders, Digital receipt"]
         UI_ENT["<b>Enterprise Dashboard</b><br/>KPI scorecards, Timeframes,<br/>Chart.js, Prescriptions, Events"]
         UI_SCM["<b>Inventory & SCM Hub</b><br/>Stock Tracker, Product Watch,<br/>BOM Config, Kitchen Production"]
+        UI_ADM["<b>Admin Panel</b><br/>User Management, Branch Config,<br/>Audit Logs, Data Archive Console"]
         UI_MOB["<b>Mobile Responsive Web</b><br/>Bootstrap offcanvas, dynamic cards,<br/>Touch-friendly modal interfaces"]
     end
 
@@ -351,7 +376,7 @@ flowchart TD
         SEC_JWT["<b>SimpleJWT Authentication</b><br/>7-Day Trusted Device Bypass"]
         SEC_2FA["<b>Two-Factor Auth (2FA)</b><br/>SMTP Email OTP delivery"]
         SEC_RBAC["<b>Role-Based Access Control</b><br/>Enforced via DRF Permissions"]
-        API_ROUT["<b>URL Routing & Dispatch</b><br/>`/api/pos/`, `/api/inventory/`, `/api/analytics/`"]
+        API_ROUT["<b>URL Routing & Dispatch</b><br/>`/api/pos/`, `/api/inventory/`, `/api/analytics/`, `/api/accounts/`"]
     end
 
     subgraph L3["3. CORE APPLICATION & LOGIC LAYER (Django Service Tier)"]
@@ -360,13 +385,13 @@ flowchart TD
             direction LR
             M_POS["<b>POS Module:</b><br/>• TransactionCreateView<br/>• Finished goods deduction<br/>• TransactionRefundView"]
             M_INV["<b>Inventory Module:</b><br/>• ProduceProductView (BOM)<br/>• ProductTransferView<br/>• RestockRequest Workflow<br/>• Manual Stock Adjustments"]
-            M_ANA["<b>Analytics & ETL Module:</b><br/>• EnterpriseDashboardDataView<br/>• RunETLPipelineView (KPIs)<br/>• Product Classification Matrix<br/>• ExportKPIReportView (CSV)"]
+            M_ANA["<b>Analytics & ETL Module:</b><br/>• EnterpriseDashboardDataView<br/>• RunETLPipelineView (KPIs)<br/>• Product Classification Matrix<br/>• ExportKPIReportView (OpenPyXL / CSV)"]
         end
         
         subgraph AI_PIPELINE["AI & Prescriptive Pipeline"]
             direction LR
-            P_EXTRACT["<b>Data Extraction & Prep:</b><br/>Pandas aggregation of 180-day sales & active ExternalVariables"]
-            P_GEMINI["<b>Google GenAI SDK:</b><br/>`google-genai` client invoking `gemini-2.5-flash`"]
+            P_EXTRACT["<b>Data Extraction & Prep:</b><br/>OpenPyXL 3.1.5 & Django ORM Aggregation of 180-day sales & active ExternalVariables"]
+            P_GEMINI["<b>Google GenAI SDK:</b><br/>`google-genai` SDK (`gemini-flash-lite-latest` / `gemini-flash-latest`)"]
             P_BOUND["<b>Feasibility Bounding:</b><br/>Mathematical clamping against warehouse capacity & supplier MOQ"]
             P_FALLBACK["<b>Deterministic Fallback:</b><br/>Rule-based replenishment on API/network outage"]
         end
@@ -405,89 +430,110 @@ flowchart TD
   'theme': 'base',
   'themeVariables': {
     'primaryColor': '#FFFFFF',
-    'primaryTextColor': '#000000',
-    'primaryBorderColor': '#000000',
-    'lineColor': '#000000',
-    'secondaryColor': '#FFFFFF',
-    'tertiaryColor': '#FFFFFF',
+    'primaryTextColor': '#2C1810',
+    'primaryBorderColor': '#2C1810',
+    'lineColor': '#2C1810',
+    'secondaryColor': '#FAF7F2',
+    'tertiaryColor': '#FAF7F2',
     'mainBkg': '#FFFFFF',
-    'nodeBorder': '#000000',
+    'nodeBorder': '#2C1810',
     'clusterBkg': '#FFFFFF',
-    'clusterBorder': '#000000',
+    'clusterBorder': '#2C1810',
     'edgeLabelBackground': '#FFFFFF',
-    'textColor': '#000000'
+    'textColor': '#2C1810'
   }
 }}%%
 flowchart TD
     %% 4 Official External Entities
-    E_STAFF["<b>Front Staff</b>"]
-    E_MGR["<b>Branch Manager</b>"]
-    E_OWNER["<b>Business Owner</b>"]
-    E_ADMIN["<b>System Administrator</b>"]
+    E_STAFF["<b>Front Staff</b><br/><small>(Cashier / Point of Sale)</small>"]
+    E_MGR["<b>Branch Manager</b><br/><small>(Store & Inventory Custodian)</small>"]
+    E_OWNER["<b>Business Owner</b><br/><small>(Executive & Strategic Governance)</small>"]
+    E_ADMIN["<b>System Administrator</b><br/><small>(Technical & Security Auditor)</small>"]
 
-    %% Data Stores
-    D1[("D1: User Accounts & Branches")]
-    D2[("D2: Inventory Stock Levels<br/>(IngredientStock & ProductStock)")]
-    D3[("D3: Branch Sales Records<br/>(Transactions & Items)")]
-    D4[("D4: Prescriptive Analytics & KPI Records")]
-    D6[("D6: Cold Archive Storage")]
+    %% 5 Data Stores (Cylinders)
+    D1[("<b>D1: User Accounts & Branches</b><br/><small>(Profiles, OTP & Sessions)</small>")]
+    D2[("<b>D2: Inventory Stock Levels</b><br/><small>(IngredientStock & ProductStock)</small>")]
+    D3[("<b>D3: Branch Sales Records</b><br/><small>(Transactions & Items)</small>")]
+    D4[("<b>D4: Prescriptive Analytics & KPI Records</b><br/><small>(Prescriptions, Targets & KPIs)</small>")]
+    D5[("<b>D5: Cold Archive Storage</b><br/><small>(JSON Archives > 180 Days)</small>")]
 
-    %% Processes (1.0 - 7.0)
-    P1["<b>1.0</b><br/>Manage Accounts & Branches"]
-    P2["<b>2.0</b><br/>User Authentication & 2FA"]
-    P3["<b>3.0</b><br/>Process Inventory & BOM Events"]
-    P4["<b>4.0</b><br/>Process Point-of-Sale Transactions"]
-    P5["<b>5.0</b><br/>Gemini AI Prescriptive Engine"]
-    P6["<b>6.0</b><br/>Generate Analytics Dashboards"]
-    P7["<b>7.0</b><br/>Execute ETL & Cold Archiving"]
+    %% 7 Processes (1.0 - 7.0)
+    P1["<b>1.0</b><br/><b>Manage Accounts & Branches</b>"]
+    P2["<b>2.0</b><br/><b>User Authentication & 2FA</b>"]
+    P3["<b>3.0</b><br/><b>Process Inventory & BOM Events</b>"]
+    P4["<b>4.0</b><br/><b>Process Point-of-Sale Transactions</b>"]
+    P5["<b>5.0</b><br/><b>Gemini AI Prescriptive Engine</b>"]
+    P6["<b>6.0</b><br/><b>Generate Analytics Dashboards</b>"]
+    P7["<b>7.0</b><br/><b>Execute ETL & Cold Archiving</b>"]
 
-    %% Explicit Black and White Styling
-    classDef default fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
-    classDef entityNode fill:#FFFFFF,stroke:#000000,stroke-width:2px,color:#000000;
-    classDef processNode fill:#FFFFFF,stroke:#000000,stroke-width:2px,color:#000000;
-    classDef storeNode fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
+    %% Explicit Styling
+    classDef default fill:#FFFFFF,stroke:#2C1810,stroke-width:1.5px,color:#2C1810;
+    classDef entityNode fill:#FAF7F2,stroke:#2C1810,stroke-width:2.5px,color:#2C1810;
+    classDef processNode fill:#FFFFFF,stroke:#2C1810,stroke-width:2px,color:#2C1810;
+    classDef storeNode fill:#FFFFFF,stroke:#2C1810,stroke-width:1.8px,color:#2C1810;
 
     class E_STAFF,E_MGR,E_OWNER,E_ADMIN entityNode;
     class P1,P2,P3,P4,P5,P6,P7 processNode;
-    class D1,D2,D3,D4,D6 storeNode;
+    class D1,D2,D3,D4,D5 storeNode;
 
     %% 1.0 Accounts & Branches Management
     E_ADMIN -->|"Account credentials & branch assignments"| P1
     P1 <-->|"Read / Write user profiles & branch data"| D1
 
-    %% 2.0 User Authentication & 2FA Verification
-    E_STAFF & E_MGR & E_OWNER & E_ADMIN -->|"Login credentials"| P2
+    %% 2.0 User Authentication & 2FA Verification (Explicit paths for all 4 roles)
+    E_STAFF -->|"Login credentials"| P2
+    P2 -->|"JWT access token & 7-day trusted device bypass"| E_STAFF
+
+    E_MGR -->|"Login credentials"| P2
+    P2 -->|"JWT access token & 7-day trusted device bypass"| E_MGR
+
+    E_ADMIN -->|"Login credentials"| P2
+    P2 -->|"JWT access token & 7-day trusted device bypass"| E_ADMIN
+
+    E_OWNER -->|"Login credentials"| P2
+    P2 -->|"JWT access token & 7-day trusted device bypass"| E_OWNER
+
     P2 <-->|"Validate credentials & issue 6-digit OTP"| D1
-    P2 -->|"JWT access token & 7-day trusted device bypass"| E_STAFF & E_MGR & E_OWNER & E_ADMIN
 
     %% 4.0 Point-of-Sale Transactions
     E_STAFF -->|"Submit customer orders & payment tender"| P4
+    P4 -->|"Digital receipts & shift sales history"| E_STAFF
     P4 -->|"Deduct sold finished goods (ProductStock)"| D2
     P4 -->|"Persist completed transactions & line items"| D3
-    P4 -->|"Digital receipts & shift sales history"| E_STAFF
 
-    %% 3.0 Inventory & Kitchen Production (BOM) Management
+    %% 3.0 Inventory & Kitchen Production (BOM) Events
     E_MGR -->|"Stock adjustments (stock-in/spoilage), kitchen production, transfers, restock requests"| P3
-    E_OWNER -->|"Restock approvals/rejections, recipe BOM configurations, master ingredients"| P3
-    P3 <-->|"Update IngredientStock, ProductStock, BOM, & Transfers"| D2
-    P3 -->|"Inventory alerts & stock levels"| E_MGR & E_OWNER
+    P3 -->|"Inventory alerts & stock levels"| E_MGR
 
-    %% 5.0 Gemini AI Prescriptive Analytics Engine
-    D2 & D3 & D4 -->|"Low stock triggers, 180-day sales, constraints, events"| P5
+    E_OWNER -->|"Restock approvals/rejections, recipe BOM configurations, master ingredients"| P3
+    P3 -->|"Inventory alerts & stock levels"| E_OWNER
+
+    P3 <-->|"Update IngredientStock, ProductStock, BOM, & Transfers"| D2
+
+    %% 5.0 Gemini AI Prescriptive Engine
+    D2 -->|"Low stock triggers, 180-day sales, constraints, events"| P5
+    D3 -->|"Low stock triggers, 180-day sales, constraints, events"| P5
     P5 -->|"Persist bounded restock directives & production targets"| D4
-    P5 -->|"Prescriptive recommendations & chatbot replies"| E_OWNER & E_MGR
+
+    P5 -->|"Prescriptive recommendations & chatbot replies"| E_MGR
+    P5 -->|"Prescriptive recommendations & chatbot replies"| E_OWNER
     E_OWNER -->|"Submit AI overrides with reasons & conversational queries"| P5
 
     %% 6.0 Enterprise Analytics & Dashboard Generation
-    D2 & D3 & D4 -->|"Aggregate sales, stock costs, & KPI metrics"| P6
+    D2 -->|"Aggregate sales, stock costs, & KPI metrics"| P6
+    D3 -->|"Aggregate sales, stock costs, & KPI metrics"| P6
+    D4 -->|"Aggregate sales, stock costs, & KPI metrics"| P6
+
     P6 -->|"Enterprise dashboards, comparative rankings, & CSV reports"| E_OWNER
     P6 -->|"Branch operational history & stock levels"| E_MGR
 
     %% 7.0 ETL Maintenance & Cold Archiving
-    E_OWNER & E_ADMIN -->|"Trigger ETL maintenance execution"| P7
+    E_OWNER -->|"Trigger ETL maintenance execution"| P7
+    E_ADMIN -->|"Trigger ETL maintenance execution"| P7
+
     P7 -->|"Compute & record daily KPIs & product classifications"| D4
     D3 -->|"Extract historical transactions older than 180 days"| P7
-    P7 -->|"Persist compressed JSON archive records"| D6
+    P7 -->|"Persist compressed JSON archive records"| D5
 ```
 
 ---

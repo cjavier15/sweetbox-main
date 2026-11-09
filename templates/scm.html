@@ -117,14 +117,13 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div>
-        <h3 class="fw-bold mb-1 text-title d-flex align-items-center gap-2">
+        <h3 class="fw-bold mb-0 text-title d-flex align-items-center gap-2">
             <span class="sb-brand-logo" style="width:32px;height:32px;font-size:0.9rem;"><i class="fas fa-boxes-stacked"></i></span>
             Inventory Monitor & SCM
         </h3>
-        <small class="text-muted">Real-time multi-branch stock levels, recipe BOM & prescriptive AI</small>
     </div>
-    <div class="d-flex gap-2 align-items-center flex-wrap w-100 w-md-auto">
-        <select id="branch-filter" class="form-select bg-white d-none shadow-sm flex-grow-1 flex-md-grow-0" style="min-width: 170px;" onchange="loadSCMData()">
+    <div class="d-flex flex-wrap align-items-center justify-content-lg-end gap-2">
+        <select id="branch-filter" class="form-select bg-white d-none shadow-sm" style="width: auto; min-width: 210px;" onchange="loadSCMData()">
             <option value="all">All Branches</option>
             <option value="1">Ibaan (Main Hub)</option>
             <option value="2">Padre Garcia</option>
@@ -134,13 +133,10 @@
             <option value="6">San Antonio Quezon</option>
             <option value="7">Cuenca</option>
         </select>
-        <button id="btn-branch-assignment" class="btn btn-outline-dark fw-bold px-3 d-none align-items-center gap-2 shadow-sm flex-fill flex-md-grow-0" onclick="openBranchAssignmentModal()">
+        <button id="btn-branch-assignment" class="btn btn-outline-dark fw-bold px-3 d-none align-items-center gap-2 shadow-sm" onclick="openBranchAssignmentModal()">
             <i class="fas fa-store text-gold"></i> <span class="d-none d-sm-inline">Branch Catalog Assignment</span><span class="d-sm-none">Catalog</span>
         </button>
-        <button id="btn-add-ingredient-header" class="btn btn-sb-gold fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-2 shadow-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
-            <i class="fas fa-plus"></i> <span class="d-none d-sm-inline">Add Ingredient</span><span class="d-sm-none">Add Ing.</span>
-        </button>
-        <button class="btn btn-sb-espresso fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-2 shadow-sm flex-fill flex-md-grow-0" onclick="loadSCMData()">
+        <button class="btn btn-sb-espresso fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-2 shadow-sm" onclick="loadSCMData()">
             <i class="fas fa-sync-alt"></i> Refresh
         </button>
     </div>
@@ -183,8 +179,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="kpi-in" style="color: var(--sb-success);">0</h2>
-                            <span class="text-muted small kpi-subtext">optimal level</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-in" style="color: var(--sb-success);">0</h2>
                         </div>
                     </div>
                 </div>
@@ -199,8 +194,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="kpi-low" style="color: var(--sb-warning);">0</h2>
-                            <span class="text-muted small kpi-subtext">near reorder threshold</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-low" style="color: var(--sb-warning);">0</h2>
                         </div>
                     </div>
                 </div>
@@ -215,8 +209,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="kpi-crit" style="color: var(--sb-danger);">0</h2>
-                            <span class="text-muted small kpi-subtext">urgent restocking required</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-crit" style="color: var(--sb-danger);">0</h2>
                         </div>
                     </div>
                 </div>
@@ -231,8 +224,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="kpi-exp" style="color: #EA580C;">0</h2>
-                            <span class="text-muted small kpi-subtext">needs immediate rotation</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-exp" style="color: #EA580C;">0</h2>
                         </div>
                     </div>
                 </div>
@@ -263,7 +255,10 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-12 col-md-3 text-md-end">
+                <div class="col-12 col-md-3 text-md-end d-flex align-items-center justify-content-md-end gap-2">
+                    <button id="btn-add-ingredient-header" class="btn btn-sb-gold btn-sm fw-bold px-3 d-inline-flex align-items-center justify-content-center gap-2 shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addIngredientModal">
+                        <i class="fas fa-plus"></i> <span class="d-none d-sm-inline">Add Ingredient</span><span class="d-sm-none">Add</span>
+                    </button>
                     <span id="inv-count-badge" class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.8rem; padding: 6px 12px;">
                         Showing 0 items
                     </span>
@@ -320,10 +315,9 @@
         <div class="card sb-card border-0 mb-4 overflow-hidden" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1px solid rgba(212,154,61,0.25);">
             <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h5 class="fw-bold mb-1 d-flex align-items-center gap-2 text-white">
+                    <h5 class="fw-bold mb-0 d-flex align-items-center gap-2 text-white">
                         <i class="fas fa-boxes-stacked text-gold"></i> Product Availability
                     </h5>
-                    <small style="color: var(--sb-text-subtle);">Monitor live product availability and stock levels across catalog items</small>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <button id="btn-request-product" class="btn btn-sb-gold px-3 py-2 fw-bold text-dark fs-6 text-nowrap d-none align-items-center gap-2 shadow" onclick="openRequestProductModal()">
@@ -351,8 +345,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-in" style="color: var(--sb-success);">0</h2>
-                            <span class="text-muted small kpi-subtext">above threshold</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-in" style="color: var(--sb-success);">0</h2>
                         </div>
                     </div>
                 </div>
@@ -367,8 +360,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-low" style="color: var(--sb-warning);">0</h2>
-                            <span class="text-muted small kpi-subtext">near threshold</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-low" style="color: var(--sb-warning);">0</h2>
                         </div>
                     </div>
                 </div>
@@ -383,8 +375,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-crit" style="color: var(--sb-danger);">0</h2>
-                            <span class="text-muted small kpi-subtext">urgent restocking required</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-crit" style="color: var(--sb-danger);">0</h2>
                         </div>
                     </div>
                 </div>
@@ -399,8 +390,7 @@
                             </div>
                         </div>
                         <div>
-                            <h2 class="stat-value tabular-nums mb-1" id="pw-kpi-total" style="color: var(--sb-gold);">0</h2>
-                            <span class="text-muted small kpi-subtext">total available units</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-total" style="color: var(--sb-gold);">0</h2>
                         </div>
                     </div>
                 </div>
@@ -500,10 +490,9 @@
         <div class="card sb-card border-0 mb-4 overflow-hidden" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); color: #FAF7F2; border: 1px solid rgba(212,154,61,0.25);">
             <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h5 class="fw-bold mb-1 d-flex align-items-center gap-2 text-white">
+                    <h5 class="fw-bold mb-0 d-flex align-items-center gap-2 text-white">
                         <i class="fas fa-receipt text-gold"></i> Bill-of-Materials Configuration
                     </h5>
-                    <small style="color: var(--sb-text-subtle);">Configure automated multi-ingredient deductions whenever a menu item is sold or produced</small>
                 </div>
                 <button class="btn btn-sb-gold px-4 py-2 fw-bold text-dark fs-6 text-nowrap d-inline-flex align-items-center gap-2 shadow" onclick="openCreateBOMModal()">
                     <i class="fas fa-plus"></i> Add Product
@@ -555,8 +544,7 @@
                                 <i class="fas fa-radiation"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="kpi-pa-crit" style="color: var(--sb-danger);">0</h2>
-                        <span class="text-muted small">immediate intervention</span>
+                        <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-crit" style="color: var(--sb-danger);">0</h2>
                     </div>
                 </div>
             </div>
@@ -569,8 +557,7 @@
                                 <i class="fas fa-triangle-exclamation"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="kpi-pa-high" style="color: var(--sb-warning);">0</h2>
-                        <span class="text-muted small">action recommended today</span>
+                        <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-high" style="color: var(--sb-warning);">0</h2>
                     </div>
                 </div>
             </div>
@@ -583,8 +570,7 @@
                                 <i class="fas fa-shield-heart"></i>
                             </div>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-1" id="kpi-pa-loss" style="color: var(--sb-success);">₱0</h2>
-                        <span class="text-muted small">if prescriptive actions are executed</span>
+                        <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-loss" style="color: var(--sb-success);">₱0</h2>
                     </div>
                 </div>
             </div>
@@ -608,95 +594,6 @@
         </h6>
         <div class="card sb-card border-0 shadow-sm overflow-hidden mb-4">
             <div class="card-body p-0" id="restock-queue-container">
-            </div>
-        </div>
-
-        <!-- AI Prescriptive Evaluation & Override Audit Card -->
-        <div class="card sb-card border-0 shadow-sm overflow-hidden mb-4 mt-4" style="background: linear-gradient(135deg, #FFFFFF 0%, #FAF7F2 100%); border-left: 4px solid var(--sb-gold) !important;">
-            <div class="card-body p-4">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <div>
-                        <h5 class="fw-bold text-espresso mb-1 d-flex align-items-center gap-2">
-                            <i class="fas fa-chart-line text-warning"></i> AI Prescriptive Evaluation & Override Audit
-                        </h5>
-                        <small class="text-muted-warm">Sections 3.8.4 - 3.8.6: Live mathematical fidelity benchmarks and managerial override calibration log</small>
-                    </div>
-                </div>
-
-                <!-- Live Evaluation Score Badges -->
-                <div class="row g-3 mb-4">
-                    <div class="col-12 col-md-4">
-                        <div class="p-3 bg-white rounded-3 border shadow-xs d-flex align-items-center gap-3">
-                            <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: var(--sb-success-bg); color: var(--sb-success);">
-                                <i class="fas fa-shield-check fs-4"></i>
-                            </div>
-                            <div>
-                                <span class="small text-muted fw-bold d-block text-uppercase">Constraint Compliance Rate (CCR)</span>
-                                <div class="d-flex align-items-baseline gap-2">
-                                    <h4 class="fw-bold mb-0 text-success tabular-nums" id="scm-ai-metric-ccr">100.0%</h4>
-                                    <span class="badge bg-success bg-opacity-25 text-success small">Zero Violations</span>
-                                </div>
-                                <small class="text-muted" style="font-size: 0.75rem;">100% adherence to capacity, order, & lead-time bounds</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="p-3 bg-white rounded-3 border shadow-xs d-flex align-items-center gap-3">
-                            <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: var(--sb-warning-bg); color: var(--sb-warning);">
-                                <i class="fas fa-user-check fs-4"></i>
-                            </div>
-                            <div>
-                                <span class="small text-muted fw-bold d-block text-uppercase">Management Acceptance Rate (MAR)</span>
-                                <div class="d-flex align-items-baseline gap-2">
-                                    <h4 class="fw-bold mb-0 text-espresso tabular-nums" id="scm-ai-metric-mar">85.0%</h4>
-                                    <span class="badge bg-warning text-dark small" id="scm-ai-reviewed-count">20 Reviewed</span>
-                                </div>
-                                <small class="text-muted" style="font-size: 0.75rem;">Approved recommendations vs overrides</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="p-3 bg-white rounded-3 border shadow-xs d-flex align-items-center gap-3">
-                            <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background-color: rgba(62, 36, 25, 0.08); color: var(--sb-espresso);">
-                                <i class="fas fa-chart-simple fs-4"></i>
-                            </div>
-                            <div>
-                                <span class="small text-muted fw-bold d-block text-uppercase">Prescription Baseline Variance (PBV/MAPE)</span>
-                                <div class="d-flex align-items-baseline gap-2">
-                                    <h4 class="fw-bold mb-0 text-espresso tabular-nums" id="scm-ai-metric-mape">6.4%</h4>
-                                    <span class="badge bg-info bg-opacity-25 text-primary small">High Model Fidelity</span>
-                                </div>
-                                <small class="text-muted" style="font-size: 0.75rem;">Mean absolute error between AI baseline & final approvals</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reviewed & Overridden Prescriptions Table -->
-                <div class="card border-0 shadow-sm bg-white overflow-hidden">
-                    <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
-                        <span class="fw-bold text-espresso small"><i class="fas fa-history me-1 text-gold"></i> Reviewed & Overridden Prescription History</span>
-                        <span class="badge bg-light text-dark border" id="scm-ai-history-badge">0 Records</span>
-                    </div>
-                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
-                        <table class="table table-hover align-middle small mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Branch</th>
-                                    <th>Item / Directive</th>
-                                    <th class="text-end">AI Prescribed Qty</th>
-                                    <th class="text-end">Final Approved Qty</th>
-                                    <th class="text-end">Est. Cost</th>
-                                    <th class="text-center">Status</th>
-                                    <th>Audit Override Rationale / Details</th>
-                                </tr>
-                            </thead>
-                            <tbody id="scm-ai-history-tbody">
-                                <tr><td colspan="7" class="text-center py-4 text-muted">No historical prescription audit records found.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

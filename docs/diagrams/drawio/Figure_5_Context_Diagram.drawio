@@ -1,0 +1,65 @@
+<mxfile host="65bd71144e">
+    <diagram id="sb_diagram" name="Figure 5: System Context Diagram">
+        <mxGraphModel dx="1071" dy="809" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="900" background="#FFFFFF" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="proc_0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fontStyle=1;align=center;spacing=4;" value="&lt;b&gt;0.0&lt;/b&gt;&lt;br&gt;&lt;b&gt;Sweet Box Multi-Branch Enterprise System&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;(Centralized POS, Inventory Management,&lt;br&gt;and AI-Driven Prescriptive Analytics)" vertex="1">
+                    <mxGeometry height="160" width="320" x="440" y="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="ent_sa" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontStyle=1;align=center;spacing=4;" value="&lt;b&gt;System Administrator&lt;/b&gt;&lt;br/&gt;(Technical &amp; Security Auditor)" vertex="1">
+                    <mxGeometry height="80" width="280" x="460" y="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ent_fs" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontStyle=1;align=center;spacing=4;" value="&lt;b&gt;Front Staff&lt;/b&gt;&lt;br/&gt;(Cashier / Point of Sale)" vertex="1">
+                    <mxGeometry height="80" width="240" x="40" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="ent_bm" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontStyle=1;align=center;spacing=4;" value="&lt;b&gt;Branch Manager&lt;/b&gt;&lt;br/&gt;(Store &amp; Inventory Custodian)" vertex="1">
+                    <mxGeometry height="80" width="240" x="920" y="400" as="geometry"/>
+                </mxCell>
+                <mxCell id="ent_bo" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontStyle=1;align=center;spacing=4;" value="&lt;b&gt;Business Owner&lt;/b&gt;&lt;br/&gt;(Executive &amp; Strategic Governance)" vertex="1">
+                    <mxGeometry height="80" width="280" x="460" y="720" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_sa_in" edge="1" parent="1" source="ent_sa" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=0.35;entryY=0;entryDx=0;entryDy=0;exitX=0.329;exitY=0.994;exitDx=0;exitDy=0;exitPerimeter=0;" target="proc_0" value="User accounts, branches, credentials">
+                    <mxGeometry relative="1" x="-0.469" y="-28" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_sa_out" edge="1" parent="1" source="proc_0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=0.67;entryY=0.985;entryDx=0;entryDy=0;exitX=0.65;exitY=0;exitDx=0;exitDy=0;entryPerimeter=0;" target="ent_sa" value="Audit logs, active sessions, archive reports">
+                    <mxGeometry relative="1" x="-0.4585" y="-22" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_fs_in" edge="1" parent="1" source="ent_fs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=0;entryY=0.35;entryDx=0;entryDy=0;exitX=0.997;exitY=0.195;exitDx=0;exitDy=0;exitPerimeter=0;" target="proc_0" value="Transaction line items, tenders, refunds">
+                    <mxGeometry relative="1" x="0.007" y="16" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_fs_out" edge="1" parent="1" source="proc_0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=0.993;entryY=0.808;entryDx=0;entryDy=0;exitX=0;exitY=0.65;exitDx=0;exitDy=0;entryPerimeter=0;" target="ent_fs" value="Digital receipts, active catalog, shift summary">
+                    <mxGeometry relative="1" x="-0.0065" y="25" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bm_in" edge="1" parent="1" source="ent_bm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=1;entryY=0.35;entryDx=0;entryDy=0;exitX=-0.003;exitY=0.189;exitDx=0;exitDy=0;exitPerimeter=0;" target="proc_0" value="Stock adjustments, batch production, restock requests">
+                    <mxGeometry relative="1" x="0.0011" y="-28" as="geometry">
+                        <mxPoint x="10" y="2" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bm_out" edge="1" parent="1" source="proc_0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=-0.005;entryY=0.808;entryDx=0;entryDy=0;exitX=1;exitY=0.65;exitDx=0;exitDy=0;entryPerimeter=0;" target="ent_bm" value="Live branch stocks, critical threshold alerts">
+                    <mxGeometry relative="1" x="0.2624" y="-25" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bo_in" edge="1" parent="1" source="ent_bo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=0.35;entryY=1;entryDx=0;entryDy=0;exitX=0.328;exitY=-0.021;exitDx=0;exitDy=0;exitPerimeter=0;" target="proc_0" value="Restock decisions, BOM recipes, sales targets, AI overrides">
+                    <mxGeometry relative="1" x="0.2948" y="42" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bo_out" edge="1" parent="1" source="proc_0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;entryX=0.674;entryY=-0.014;entryDx=0;entryDy=0;exitX=0.65;exitY=1;exitDx=0;exitDy=0;entryPerimeter=0;" target="ent_bo" value="Enterprise KPI dashboards, prescriptive action cards, chatbot insights, reports">
+                    <mxGeometry relative="1" x="0.5146" y="38" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

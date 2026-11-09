@@ -1,0 +1,68 @@
+<mxfile host="65bd71144e">
+    <diagram id="sb_diagram" name="Figure 1: Conceptual Framework">
+        <mxGraphModel dx="1071" dy="809" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1260" pageHeight="820" background="#FFFFFF" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="c_input" parent="1" style="swimlane;startSize=28;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" value="INPUT: User Roles &amp; Multi-Branch Enterprise Data" vertex="1">
+                    <mxGeometry height="680" width="350" x="40" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="in_roles" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=11;fontStyle=0;align=center;spacing=4;" value="&lt;b&gt;User Roles (4 Official Roles):&lt;/b&gt;&lt;br/&gt;Business Owner • Branch Manager&lt;br/&gt;Front Staff • System Administrator" vertex="1">
+                    <mxGeometry height="60" width="310" x="60" y="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="in_d1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;User &amp; Transaction Data:&lt;/b&gt;&lt;br/&gt;• Transaction Line Items &amp; Quantities&lt;br/&gt;• Split Payment Tenders (Cash/E-Wallet)&lt;br/&gt;• Cashier Identity &amp; Timestamp&lt;br/&gt;• Branch Store Assignment" vertex="1">
+                    <mxGeometry height="100" width="310" x="60" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="in_d2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Inventory &amp; Operations Data:&lt;/b&gt;&lt;br/&gt;• Ingredient &amp; Finished Product Stocks&lt;br/&gt;• Manual Stock Adjustments (Stock-in/Spoilage)&lt;br/&gt;• Inter-Branch Restock Requests&lt;br/&gt;• Bill of Materials (BOM Recipes)" vertex="1">
+                    <mxGeometry height="100" width="310" x="60" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="in_d3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Analytics &amp; Contextual Data:&lt;/b&gt;&lt;br/&gt;• 180-Day Sales Velocity Records&lt;br/&gt;• External Variables (Holidays, Paydays, Weather)&lt;br/&gt;• Operational Constraints (MOQ, Storage Capacity)&lt;br/&gt;• Immutable Audit Trail Logs" vertex="1">
+                    <mxGeometry height="100" width="310" x="60" y="430" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_process" parent="1" style="swimlane;startSize=28;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" value="PROCESS: Business Analytics &amp; Decision Engine" vertex="1">
+                    <mxGeometry height="680" width="380" x="440" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="pr_etl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" value="&lt;b&gt;Data Integration &amp; ETL Pipeline:&lt;/b&gt;&lt;br/&gt;OpenPyXL 3.1.5 &amp; Django ORM Aggregation • Axios Polling&lt;br/&gt;Batch Schema Validation • Automated Data Archiving" vertex="1">
+                    <mxGeometry height="65" width="340" x="460" y="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="pr_det" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Deterministic Monitoring:&lt;/b&gt;&lt;br/&gt;• Real-Time Stock Status Tracking&lt;br/&gt;• 3-Tier Health Alerting (Normal/Low/Critical)&lt;br/&gt;• Automated Real-Time COGS Computation&lt;br/&gt;• KPI Math Formulas (Turnover, GMROI)" vertex="1">
+                    <mxGeometry height="95" width="340" x="460" y="195" as="geometry"/>
+                </mxCell>
+                <mxCell id="pr_ai" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Gemini AI Prescriptive Engine:&lt;/b&gt;&lt;br/&gt;• Google GenAI SDK (gemini-flash-lite/flash)&lt;br/&gt;• Feasible Restock Quantities &amp; Deadlines&lt;br/&gt;• Batch Production Target Recommendations&lt;br/&gt;• Executive Sales Analyst Chatbot Context" vertex="1">
+                    <mxGeometry height="100" width="340" x="460" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="pr_bound" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Constraint Bounding &amp; Fallback:&lt;/b&gt;&lt;br/&gt;• Physical Storage Capacity Clamping&lt;br/&gt;• Supplier Minimum Order Quantity (MOQ)&lt;br/&gt;• Rule-Based Deterministic Replenishment Fallback" vertex="1">
+                    <mxGeometry height="90" width="340" x="460" y="430" as="geometry"/>
+                </mxCell>
+                <mxCell id="pr_db" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=14;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;" value="&lt;b&gt;Centralized MySQL 8.0 Database&lt;/b&gt;&lt;br/&gt;Master Data • Transactions • Inventory Stocks&lt;br/&gt;Constraints • Prescriptions • Cold Archives" vertex="1">
+                    <mxGeometry height="85" width="300" x="480" y="545" as="geometry"/>
+                </mxCell>
+                <mxCell id="c_output" parent="1" style="swimlane;startSize=28;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" value="OUTPUT: Operational Intelligence &amp; Decision Support" vertex="1">
+                    <mxGeometry height="680" width="350" x="870" y="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="out_prod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Production Directives:&lt;/b&gt;&lt;br/&gt;• Daily Kitchen Batch Production Targets&lt;br/&gt;• Hub Raw Ingredient Planning Allocation&lt;br/&gt;• Automated Phase 1 Kitchen Deduction Logs" vertex="1">
+                    <mxGeometry height="85" width="310" x="890" y="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="out_restock" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Prescriptive Restock Directives:&lt;/b&gt;&lt;br/&gt;• Feasibility-Bounded Purchase/Transfer Reorders&lt;br/&gt;• Urgency Classifications &amp; Order Deadlines&lt;br/&gt;• Estimated Procurement Cost Calculations" vertex="1">
+                    <mxGeometry height="85" width="310" x="890" y="215" as="geometry"/>
+                </mxCell>
+                <mxCell id="out_dash" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Enterprise Dashboards:&lt;/b&gt;&lt;br/&gt;• Consolidated Cross-Branch Revenue &amp; Trends&lt;br/&gt;• Inventory Turnover, Gross Margin &amp; GMROI&lt;br/&gt;• Branch Target Accomplishment Progress" vertex="1">
+                    <mxGeometry height="85" width="310" x="890" y="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="out_ctrl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Decision Support &amp; Governance:&lt;/b&gt;&lt;br/&gt;• Managerial Approval / Override with Reason Logs&lt;br/&gt;• Conversational Chatbot Natural Language Advice&lt;br/&gt;• Digital Receipts &amp; OpenPyXL Excel / CSV Reports" vertex="1">
+                    <mxGeometry height="85" width="310" x="890" y="425" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_ipo1" edge="1" parent="1" source="c_input" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=11;dashed=0;endArrow=classic;endFill=1;" target="c_process" value="Raw Data Flows">
+                    <mxGeometry relative="1" y="-13" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_ipo2" edge="1" parent="1" source="c_process" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=11;dashed=0;endArrow=classic;endFill=1;" target="c_output" value="Prescriptive Insights">
+                    <mxGeometry relative="1" y="-18" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

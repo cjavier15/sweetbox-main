@@ -45,6 +45,7 @@ flowchart LR
 
     subgraph AI_CASES["Prescriptive Analytics & Decision Support"]
         UC_DASH(["View Enterprise KPI Dashboard"])
+        UC_TARGET(["Edit Branch Sales Targets"])
         UC_PRESC_VIEW(["View Prescriptive Action Cards"])
         UC_PRESC_DEC(["Approve / Override AI Recommendations"])
         UC_CHAT(["Consult AI Sales Analyst Chatbot"])
@@ -65,7 +66,7 @@ flowchart LR
     classDef usecaseNode fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
 
     class FS,BM,BO,SA actorNode;
-    class UC_TXN,UC_PAY,UC_DISC,UC_HIST,UC_REFUND,UC_RCPT,UC_LIVE,UC_ADJ,UC_PROD,UC_TRANS,UC_REQ_SUB,UC_REQ_APP,UC_BOM_MGT,UC_ING_ADD,UC_DASH,UC_PRESC_VIEW,UC_PRESC_DEC,UC_CHAT,UC_EXT_VAR,UC_ETL,UC_CSV,UC_USER,UC_AUDIT,UC_2FA usecaseNode;
+    class UC_TXN,UC_PAY,UC_DISC,UC_HIST,UC_REFUND,UC_RCPT,UC_LIVE,UC_ADJ,UC_PROD,UC_TRANS,UC_REQ_SUB,UC_REQ_APP,UC_BOM_MGT,UC_ING_ADD,UC_DASH,UC_TARGET,UC_PRESC_VIEW,UC_PRESC_DEC,UC_CHAT,UC_EXT_VAR,UC_ETL,UC_CSV,UC_USER,UC_AUDIT,UC_2FA usecaseNode;
 
     style ACTORS fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
     style POS_CASES fill:#FFFFFF,stroke:#000000,stroke-width:1.5px,color:#000000;
@@ -94,6 +95,7 @@ flowchart LR
 
     %% Business Owner Associations (Executive oversight, restock approvals, BOM recipes, full analytics, chatbot)
     BO --> UC_DASH
+    BO --> UC_TARGET
     BO --> UC_LIVE
     BO --> UC_REQ_APP
     BO --> UC_PROD

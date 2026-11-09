@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="Electron" modified="2026-11-08T00:00:00.000Z" agent="Mozilla/5.0" version="24.0.0" type="device">
+  <diagram id="sb_diagram" name="Figure 10: Analytics ERD">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1380" pageHeight="980" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cell_2" value="Figure 10: Prescriptive Analytics &amp; Decision Support Database ERD" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=18;fontStyle=1;fontColor=#2C1810;" vertex="1" parent="1">
+  <mxGeometry x="40" y="20" width="1100" height="40" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_out" value="&lt;b&gt;PRESCRIPTIVE_OUTPUTS&lt;/b&gt;" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontSize=12;align=center;" vertex="1" parent="1">
+  <mxGeometry x="40" y="80" width="310" height="380" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_out_body" value="PK  prescriptive_output_ID : int&lt;br/&gt;FK  branch_ID : int&lt;br/&gt;FK  product_ID : int&lt;br/&gt;FK  ingredient_ID : int&lt;br/&gt;FK  constraint_ID : int&lt;br/&gt;    output_type : string&lt;br/&gt;    recommendation : text&lt;br/&gt;    justification : text&lt;br/&gt;    recommended_quantity : decimal&lt;br/&gt;    recommended_date : date&lt;br/&gt;    estimated_cost : decimal&lt;br/&gt;    status : string&lt;br/&gt;    is_overridden : bool&lt;br/&gt;    override_reason : text&lt;br/&gt;    generated_at : datetime&lt;br/&gt;    expired_at : datetime" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;overflow=hidden;rotatable=0;html=1;fontColor=#000000;fontSize=11;fontFamily=Consolas,monospace;" vertex="1" parent="t_ana_out">
+  <mxGeometry y="28" width="310" height="352" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_chat" value="&lt;b&gt;CHATBOT_LOGS&lt;/b&gt;" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontSize=12;align=center;" vertex="1" parent="1">
+  <mxGeometry x="420" y="80" width="290" height="190" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_chat_body" value="PK  chatbot_log_ID : int&lt;br/&gt;FK  branch_ID : int&lt;br/&gt;FK  prescriptive_output_ID : int&lt;br/&gt;FK  user_ID : int&lt;br/&gt;    query_text : text&lt;br/&gt;    response_text : text&lt;br/&gt;    created_time : datetime" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;overflow=hidden;rotatable=0;html=1;fontColor=#000000;fontSize=11;fontFamily=Consolas,monospace;" vertex="1" parent="t_ana_chat">
+  <mxGeometry y="28" width="290" height="162" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_class" value="&lt;b&gt;PRODUCT_CLASSIFICATION&lt;/b&gt;" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontSize=12;align=center;" vertex="1" parent="1">
+  <mxGeometry x="780" y="80" width="270" height="150" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_class_body" value="PK  classification_ID : int&lt;br/&gt;FK  product_ID : int&lt;br/&gt;    classification : string&lt;br/&gt;    recommended_action : text&lt;br/&gt;    classified_time : datetime" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;overflow=hidden;rotatable=0;html=1;fontColor=#000000;fontSize=11;fontFamily=Consolas,monospace;" vertex="1" parent="t_ana_class">
+  <mxGeometry y="28" width="270" height="122" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_ext" value="&lt;b&gt;EXTERNAL_VARIABLES&lt;/b&gt;" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontSize=12;align=center;" vertex="1" parent="1">
+  <mxGeometry x="420" y="360" width="270" height="230" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_ext_body" value="PK  variable_ID : int&lt;br/&gt;FK  branch_ID : int&lt;br/&gt;    variable_type : string&lt;br/&gt;    name : string&lt;br/&gt;    start_date : date&lt;br/&gt;    end_date : date&lt;br/&gt;    impact_level : string&lt;br/&gt;    description : text&lt;br/&gt;    is_active : bool" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;overflow=hidden;rotatable=0;html=1;fontColor=#000000;fontSize=11;fontFamily=Consolas,monospace;" vertex="1" parent="t_ana_ext">
+  <mxGeometry y="28" width="270" height="202" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_kpi" value="&lt;b&gt;KPI_RECORDS&lt;/b&gt;" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontSize=12;align=center;" vertex="1" parent="1">
+  <mxGeometry x="760" y="320" width="270" height="250" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_kpi_body" value="PK  kpi_ID : int&lt;br/&gt;FK  branch_ID : int&lt;br/&gt;    inventory_turnover : decimal&lt;br/&gt;    gmroi : decimal&lt;br/&gt;    gross_margin : decimal&lt;br/&gt;    total_revenue : decimal&lt;br/&gt;    dead_stock_value : decimal&lt;br/&gt;    stockout_count : int&lt;br/&gt;    period_date : date&lt;br/&gt;    computed_time : datetime" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;overflow=hidden;rotatable=0;html=1;fontColor=#000000;fontSize=11;fontFamily=Consolas,monospace;" vertex="1" parent="t_ana_kpi">
+  <mxGeometry y="28" width="270" height="222" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_arch" value="&lt;b&gt;ARCHIVE_STORAGE&lt;/b&gt;" style="swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontSize=12;align=center;" vertex="1" parent="1">
+  <mxGeometry x="1080" y="320" width="250" height="150" as="geometry" />
+</mxCell>
+        <mxCell id="t_ana_arch_body" value="PK  archive_ID : int&lt;br/&gt;    module_table : string&lt;br/&gt;    record_ID : int&lt;br/&gt;    archived_data : text&lt;br/&gt;    archived_time : datetime" style="text;strokeColor=none;fillColor=#FFFFFF;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;overflow=hidden;rotatable=0;html=1;fontColor=#000000;fontSize=11;fontFamily=Consolas,monospace;" vertex="1" parent="t_ana_arch">
+  <mxGeometry y="28" width="250" height="122" as="geometry" />
+</mxCell>
+        <mxCell id="e_ana_1" value="1 : N (contextualizes)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="t_ana_out" target="t_ana_chat">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_ana_2" value="1 : N (categorizes)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="t_ana_out" target="t_ana_class">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_ana_3" value="1 : N (influences)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="t_ana_ext" target="t_ana_out">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_ana_4" value="1 : N (evaluates)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="t_ana_kpi" target="t_ana_out">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

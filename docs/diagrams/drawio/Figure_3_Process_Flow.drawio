@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="Electron" modified="2026-11-08T00:00:00.000Z" agent="Mozilla/5.0" version="24.0.0" type="device">
+  <diagram id="sb_diagram" name="Figure 3: Operational Process Flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1280" pageHeight="900" background="#FFFFFF" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cell_2" value="Figure 3: Integrated Operational Process Flow (Proposed Two-Phase System)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Helvetica;fontSize=18;fontStyle=1;fontColor=#2C1810;" vertex="1" parent="1">
+  <mxGeometry x="40" y="20" width="1100" height="40" as="geometry" />
+</mxCell>
+        <mxCell id="p1_box" value="Phase 1: Operational Planning &amp; AI Production Targets" style="swimlane;startSize=28;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="40" y="70" width="360" height="780" as="geometry" />
+</mxCell>
+        <mxCell id="step_start" value="&lt;b&gt;Start of Operational Day&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontFamily=Helvetica;fontSize=11;fontStyle=1;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="120" y="110" width="200" height="45" as="geometry" />
+</mxCell>
+        <mxCell id="step_etl" value="&lt;b&gt;Real-Time Verification:&lt;/b&gt;&lt;br/&gt;System checks live inventory stocks,&lt;br/&gt;lead times, and capacity constraints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="80" y="185" width="280" height="55" as="geometry" />
+</mxCell>
+        <mxCell id="step_aiprod" value="&lt;b&gt;Gemini AI Computation:&lt;/b&gt;&lt;br/&gt;Computes recommended production&lt;br/&gt;targets based on 180-day sales velocity" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="80" y="270" width="280" height="55" as="geometry" />
+</mxCell>
+        <mxCell id="step_mgrapp" value="&lt;b&gt;Branch Manager&lt;br/&gt;Approves?&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+  <mxGeometry x="150" y="355" width="140" height="70" as="geometry" />
+</mxCell>
+        <mxCell id="step_mgrover" value="&lt;b&gt;Manager Override:&lt;/b&gt;&lt;br/&gt;Adjusts target quantity &amp; logs&lt;br/&gt;mandatory business reason" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="60" y="455" width="160" height="60" as="geometry" />
+</mxCell>
+        <mxCell id="step_prodexec" value="&lt;b&gt;Confirm Batch Target:&lt;/b&gt;&lt;br/&gt;Production order confirmed&lt;br/&gt;in central system" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="150" y="550" width="140" height="50" as="geometry" />
+</mxCell>
+        <mxCell id="e_f3_1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_start" target="step_etl">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_etl" target="step_aiprod">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_aiprod" target="step_mgrapp">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_4" value="Override" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_mgrapp" target="step_mgrover">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_5" value="Approve" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_mgrapp" target="step_prodexec">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_mgrover" target="step_prodexec">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="p2_box" value="Phase 2: Automated BOM Deduction &amp; Satellite Dispatch" style="swimlane;startSize=28;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="440" y="70" width="370" height="780" as="geometry" />
+</mxCell>
+        <mxCell id="step_kitchexec" value="&lt;b&gt;Execute Kitchen Batch Production&lt;/b&gt;&lt;br/&gt;(Baking at Ibaan Main Hub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="495" y="110" width="260" height="50" as="geometry" />
+</mxCell>
+        <mxCell id="step_bomded" value="&lt;b&gt;Phase 1: Automated BOM Deduction:&lt;/b&gt;&lt;br/&gt;System queries BillOfMaterial and automatically&lt;br/&gt;deducts raw ingredients from Hub IngredientStock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="475" y="190" width="300" height="65" as="geometry" />
+</mxCell>
+        <mxCell id="step_prodinc" value="&lt;b&gt;Increment Finished ProductStock:&lt;/b&gt;&lt;br/&gt;Finished goods added to Ibaan ProductStock&lt;br/&gt;with batch number &amp; expiration date" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="475" y="285" width="300" height="60" as="geometry" />
+</mxCell>
+        <mxCell id="step_dispatch" value="&lt;b&gt;Dispatch to&lt;br/&gt;Satellites?&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+  <mxGeometry x="555" y="375" width="140" height="70" as="geometry" />
+</mxCell>
+        <mxCell id="step_transfer" value="&lt;b&gt;Inter-Branch Transfer:&lt;/b&gt;&lt;br/&gt;Dispatched to satellite branch with&lt;br/&gt;atomic &lt;i&gt;select_for_update&lt;/i&gt; lock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="460" y="480" width="170" height="65" as="geometry" />
+</mxCell>
+        <mxCell id="step_readysale" value="&lt;b&gt;Ready for Point-of-Sale:&lt;/b&gt;&lt;br/&gt;Inventory active in branch catalog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="555" y="580" width="140" height="50" as="geometry" />
+</mxCell>
+        <mxCell id="e_f3_p1_p2" value="Send Order" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_prodexec" target="step_kitchexec">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_kitchexec" target="step_bomded">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_bomded" target="step_prodinc">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_prodinc" target="step_dispatch">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_10" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_dispatch" target="step_transfer">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_11" value="No (Hub)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_dispatch" target="step_readysale">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_12" value="Arrival" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_transfer" target="step_readysale">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="p3_box" value="Phase 3: POS Sales &amp; Bounded Replenishment" style="swimlane;startSize=28;fillColor=#FAF7F2;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" vertex="1" parent="1">
+  <mxGeometry x="850" y="70" width="390" height="780" as="geometry" />
+</mxCell>
+        <mxCell id="step_possale" value="&lt;b&gt;Front Staff Processes Sale:&lt;/b&gt;&lt;br/&gt;Cashier rings up customer at POS terminal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="905" y="110" width="280" height="50" as="geometry" />
+</mxCell>
+        <mxCell id="step_fgded" value="&lt;b&gt;Phase 2: Finished Goods Deduction:&lt;/b&gt;&lt;br/&gt;Direct deduction of sold items from branch&lt;br/&gt;ProductStock inside atomic transaction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="885" y="190" width="320" height="60" as="geometry" />
+</mxCell>
+        <mxCell id="step_recordtxn" value="&lt;b&gt;Persist Transaction &amp; Tender:&lt;/b&gt;&lt;br/&gt;Saves Transaction, line items, and payment&lt;br/&gt;(Cash/GCash/Split) with receipt generation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="885" y="275" width="320" height="60" as="geometry" />
+</mxCell>
+        <mxCell id="step_thresh" value="&lt;b&gt;Stock &amp;lt;= Reorder&lt;br/&gt;Threshold?&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="1">
+  <mxGeometry x="975" y="365" width="140" height="70" as="geometry" />
+</mxCell>
+        <mxCell id="step_airestock" value="&lt;b&gt;Gemini AI Prescriptive Restock:&lt;/b&gt;&lt;br/&gt;Feasibility-bounded replenishment order&lt;br/&gt;clamped by storage &amp; MOQ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="870" y="470" width="200" height="65" as="geometry" />
+</mxCell>
+        <mxCell id="step_ownerrev" value="&lt;b&gt;Owner&lt;br/&gt;Approves?&lt;/b&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=9;fontStyle=1;align=center;" vertex="1" parent="1">
+  <mxGeometry x="920" y="565" width="100" height="60" as="geometry" />
+</mxCell>
+        <mxCell id="step_autoxfer" value="&lt;b&gt;Execute Restock:&lt;/b&gt;&lt;br/&gt;Inter-branch transfer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="860" y="655" width="110" height="45" as="geometry" />
+</mxCell>
+        <mxCell id="step_logover" value="&lt;b&gt;Log Override:&lt;/b&gt;&lt;br/&gt;Owner records reason" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="990" y="655" width="110" height="45" as="geometry" />
+</mxCell>
+        <mxCell id="step_cont" value="&lt;b&gt;Live Dashboard Telemetry:&lt;/b&gt;&lt;br/&gt;Immediate status &amp; sales update" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#000000;fontFamily=Helvetica;fontSize=9;fontStyle=0;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="1100" y="470" width="130" height="65" as="geometry" />
+</mxCell>
+        <mxCell id="step_eod" value="&lt;b&gt;End of Operational Day:&lt;/b&gt;&lt;br/&gt;Automated batch ETL &amp; cold archiving" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2C1810;strokeColor=#000000;strokeWidth=1.5;fontColor=#FFFFFF;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;spacing=4;" vertex="1" parent="1">
+  <mxGeometry x="945" y="730" width="200" height="45" as="geometry" />
+</mxCell>
+        <mxCell id="e_f3_p2_p3" value="Stock Ready" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_readysale" target="step_possale">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_possale" target="step_fgded">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_fgded" target="step_recordtxn">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_recordtxn" target="step_thresh">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_16" value="Yes (Critical)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_thresh" target="step_airestock">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_17" value="No (Normal)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_thresh" target="step_cont">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_18" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;" edge="1" parent="1" source="step_airestock" target="step_ownerrev">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_19" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_ownerrev" target="step_autoxfer">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_20" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_ownerrev" target="step_logover">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_21" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_autoxfer" target="step_eod">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_22" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_logover" target="step_eod">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+        <mxCell id="e_f3_23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2C1810;strokeWidth=1.5;fontColor=#2C1810;fontFamily=Helvetica;fontSize=10;dashed=0;endArrow=classic;endFill=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="step_cont" target="step_eod">
+  <mxGeometry relative="1" as="geometry">
+    
+  </mxGeometry>
+</mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

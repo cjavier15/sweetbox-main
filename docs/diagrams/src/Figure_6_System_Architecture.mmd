@@ -4,6 +4,7 @@ flowchart TD
         UI_POS["<b>POS Cashier Terminal</b><br/>Product selection, Cart,<br/>Split tenders, Digital receipt"]
         UI_ENT["<b>Enterprise Dashboard</b><br/>KPI scorecards, Timeframes,<br/>Chart.js, Prescriptions, Events"]
         UI_SCM["<b>Inventory & SCM Hub</b><br/>Stock Tracker, Product Watch,<br/>BOM Config, Kitchen Production"]
+        UI_ADM["<b>Admin Panel</b><br/>User Management, Branch Config,<br/>Audit Logs, Data Archive Console"]
         UI_MOB["<b>Mobile Responsive Web</b><br/>Bootstrap offcanvas, dynamic cards,<br/>Touch-friendly modal interfaces"]
     end
 
@@ -13,7 +14,7 @@ flowchart TD
         SEC_JWT["<b>SimpleJWT Authentication</b><br/>7-Day Trusted Device Bypass"]
         SEC_2FA["<b>Two-Factor Auth (2FA)</b><br/>SMTP Email OTP delivery"]
         SEC_RBAC["<b>Role-Based Access Control</b><br/>Enforced via DRF Permissions"]
-        API_ROUT["<b>URL Routing & Dispatch</b><br/>`/api/pos/`, `/api/inventory/`, `/api/analytics/`"]
+        API_ROUT["<b>URL Routing & Dispatch</b><br/>`/api/pos/`, `/api/inventory/`, `/api/analytics/`, `/api/accounts/`"]
     end
 
     subgraph L3["3. CORE APPLICATION & LOGIC LAYER (Django Service Tier)"]
@@ -22,13 +23,13 @@ flowchart TD
             direction LR
             M_POS["<b>POS Module:</b><br/>• TransactionCreateView<br/>• Finished goods deduction<br/>• TransactionRefundView"]
             M_INV["<b>Inventory Module:</b><br/>• ProduceProductView (BOM)<br/>• ProductTransferView<br/>• RestockRequest Workflow<br/>• Manual Stock Adjustments"]
-            M_ANA["<b>Analytics & ETL Module:</b><br/>• EnterpriseDashboardDataView<br/>• RunETLPipelineView (KPIs)<br/>• Product Classification Matrix<br/>• ExportKPIReportView (CSV)"]
+            M_ANA["<b>Analytics & ETL Module:</b><br/>• EnterpriseDashboardDataView<br/>• RunETLPipelineView (KPIs)<br/>• Product Classification Matrix<br/>• ExportKPIReportView (OpenPyXL / CSV)"]
         end
         
         subgraph AI_PIPELINE["AI & Prescriptive Pipeline"]
             direction LR
-            P_EXTRACT["<b>Data Extraction & Prep:</b><br/>Pandas aggregation of 180-day sales & active ExternalVariables"]
-            P_GEMINI["<b>Google GenAI SDK:</b><br/>`google-genai` client invoking `gemini-2.5-flash`"]
+            P_EXTRACT["<b>Data Extraction & Prep:</b><br/>OpenPyXL 3.1.5 & Django ORM Aggregation of 180-day sales & active ExternalVariables"]
+            P_GEMINI["<b>Google GenAI SDK:</b><br/>`google-genai` SDK (`gemini-flash-lite-latest` / `gemini-flash-latest`)"]
             P_BOUND["<b>Feasibility Bounding:</b><br/>Mathematical clamping against warehouse capacity & supplier MOQ"]
             P_FALLBACK["<b>Deterministic Fallback:</b><br/>Rule-based replenishment on API/network outage"]
         end
