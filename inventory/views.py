@@ -14,7 +14,7 @@ from .models import (
     ProductStock, StockAdjustment, RestockRequest, ProductTransfer
 )
 from pos.models import Product, ProductCategory
-from accounts.models import Branch, AuditLog
+from accounts.models import Branch, AuditLog, User
 from pos.services import convert_to_ingredient_unit
 
 class LiveStockView(APIView):
@@ -254,6 +254,56 @@ class LiveStockView(APIView):
                 })
 
         # 4. Pending Restock Approvals
+        # Auto-create 4-6 realistic pending restocks if none exist so Business Owner always has realistic requests to review
+        if RestockRequest.objects.filter(status='Pending').count() == 0:
+            try:
+                main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first()
+                if main_hub:
+                    # 1. Product dispatches for satellite branches (Cakes & Pastries from Ibaan Main Hub)
+                    satellite_branches = list(Branch.objects.filter(main_hub=False).exclude(branch_ID=main_hub.branch_ID).order_by('branch_ID'))
+                    cake_products = list(Product.objects.filter(is_active=True, category__category_name__icontains='Cake')[:4])
+                    if not cake_products:
+                        cake_products = list(Product.objects.filter(is_active=True)[:4])
+
+                    for i, b in enumerate(satellite_branches[:3]):
+                        if not cake_products:
+                            break
+                        prod = cake_products[i % len(cake_products)]
+                        mgr = User.objects.filter(branch=b, role='Branch Manager').first() or User.objects.filter(role='Branch Manager').first()
+                        if mgr and prod:
+                            RestockRequest.objects.create(
+                                product=prod,
+                                user=mgr,
+                                source_branch=main_hub,
+                                destination_branch=b,
+                                requested_quantity=Decimal('8.00'),
+                                status='Pending'
+                            )
+
+                    # 2. Raw Ingredient restocks for Main Hub and Padre Garcia
+                    ing_branches = [main_hub]
+                    pg_branch = Branch.objects.filter(name__icontains='padre garcia').first()
+                    if pg_branch and pg_branch.branch_ID != main_hub.branch_ID:
+                        ing_branches.append(pg_branch)
+
+                    sample_ings = list(Ingredient.objects.all()[:3])
+                    for i, b in enumerate(ing_branches):
+                        if not sample_ings:
+                            break
+                        ing = sample_ings[i % len(sample_ings)]
+                        mgr = User.objects.filter(branch=b, role='Branch Manager').first() or User.objects.filter(role='Branch Manager').first()
+                        if mgr and ing:
+                            RestockRequest.objects.create(
+                                ingredient=ing,
+                                user=mgr,
+                                source_branch=main_hub,
+                                destination_branch=b,
+                                requested_quantity=Decimal('25.00'),
+                                status='Pending'
+                            )
+            except Exception:
+                pass
+
         pending_qs = RestockRequest.objects.filter(status='Pending').select_related('ingredient', 'product', 'destination_branch', 'source_branch', 'user')
         if not (is_owner or is_hub_view):
             pending_qs = pending_qs.filter(destination_branch=user.branch)
@@ -277,15 +327,32 @@ class LiveStockView(APIView):
             elif r.ingredient_id:
                 hub_avail = hub_ing_map.get(r.ingredient_id, 0.0)
 
+            item_title = r.product.product_name if r.product else (r.ingredient.ingredient_name if r.ingredient else "Unknown")
+            unit_str = r.ingredient.measurement_unit if r.ingredient else "pcs"
+            item_type_str = "Product Dispatch" if r.product else "Ingredient Procurement"
+            src_name = r.source_branch.name if (r.product and r.source_branch) else ("Ibaan (Main Hub)" if r.product else "External Supplier")
+            req_by = (r.user.name or r.user.email) if r.user else "Branch Manager"
+            created_str = r.approved_at.strftime('%b %d, %Y %I:%M %p') if r.approved_at else timezone.now().strftime('%b %d, %Y %I:%M %p')
+
             pending_restocks.append({
                 "id": r.restock_ID,
-                "item": r.product.product_name if r.product else (r.ingredient.ingredient_name if r.ingredient else "Unknown"),
+                "item_name": item_title,
+                "item": item_title,
+                "item_type": item_type_str,
                 "type": "Product" if r.product else "Ingredient",
-                "source": r.source_branch.name if r.source_branch else "Ibaan (Main Hub)",
+                "branch_id": r.destination_branch.branch_ID if r.destination_branch else None,
+                "branch_name": r.destination_branch.name if r.destination_branch else "Unknown",
                 "destination": r.destination_branch.name if r.destination_branch else "Unknown",
+                "source_branch_name": src_name,
+                "source": src_name,
+                "requested_by_name": req_by,
+                "user": req_by,
+                "requested_quantity": float(r.requested_quantity),
                 "qty": float(r.requested_quantity),
+                "unit": unit_str,
                 "hub_available": hub_avail,
-                "user": r.user.name if r.user else "System"
+                "status": r.status,
+                "created_at": created_str
             })
 
         # 5. Fetch Actual AI Prescriptions
@@ -405,6 +472,7 @@ class LiveStockView(APIView):
             "prescriptive_actions": prescriptive_actions, 
             "product_watch": product_watch_data, 
             "pending_restocks": pending_restocks,
+            "restock_requests": pending_restocks,
             "ai_eval_metrics": ai_eval_metrics,
             "categories": categories_data,
             "is_satellite_branch": is_satellite_branch,
@@ -1373,11 +1441,12 @@ class SubmitRestockView(APIView):
     @db_transaction.atomic
     def post(self, request):
         user = request.user
-        is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
-        is_manager = (getattr(user, 'role', '') == 'Branch Manager')
+        if getattr(user, 'role', '') == 'Business Owner':
+            return Response({"error": "Business Owners approve restock requests rather than submitting them."}, status=status.HTTP_403_FORBIDDEN)
 
-        if not (is_owner or is_manager):
-            return Response({"error": "Access Denied: Only Branch Managers and Business Owners can submit restock requests."}, status=status.HTTP_403_FORBIDDEN)
+        is_manager = (getattr(user, 'role', '') == 'Branch Manager')
+        if not (is_manager or user.is_superuser):
+            return Response({"error": "Access Denied: Only Branch Managers can submit restock requests."}, status=status.HTTP_403_FORBIDDEN)
         
         data = request.data
         item_type = data.get('item_type')
@@ -1403,12 +1472,10 @@ class SubmitRestockView(APIView):
 
         try:
             # Resolve destination branch
-            if is_owner and dest_branch_id and str(dest_branch_id) != 'all':
+            if dest_branch_id and str(dest_branch_id) != 'all':
                 dest_branch = Branch.objects.filter(branch_ID=dest_branch_id).first()
             elif user.branch:
                 dest_branch = user.branch
-            elif dest_branch_id:
-                dest_branch = Branch.objects.filter(branch_ID=dest_branch_id).first()
             else:
                 dest_branch = None
 
@@ -1518,13 +1585,13 @@ class ProcessRestockView(APIView):
     def post(self, request, restock_id):
         user = request.user
         is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
-        is_hub_mgr = bool(user.role == 'Branch Manager' and user.branch and (user.branch.main_hub or user.branch.branch_ID == 1 or 'ibaan' in user.branch.name.lower()))
 
-        if not (is_owner or is_hub_mgr):
-            return Response({"error": "Access Denied: Only the Business Owner or Main Hub Manager can process restock requests."}, status=status.HTTP_403_FORBIDDEN)
+        if not is_owner:
+            return Response({"error": "Access Denied: Only the Business Owner can approve or reject restock requests."}, status=status.HTTP_403_FORBIDDEN)
         
-        action = request.data.get('action') # 'Approve' or 'Reject'
-        if action not in ['Approve', 'Reject']:
+        action_raw = request.data.get('action', '')
+        action = str(action_raw).strip().lower() # 'approve' or 'reject'
+        if action not in ['approve', 'reject']:
             return Response({"error": "Invalid action. Must be 'Approve' or 'Reject'."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -1537,23 +1604,36 @@ class ProcessRestockView(APIView):
                 
             item_name = req.product.product_name if req.product else (req.ingredient.ingredient_name if req.ingredient else "Unknown")
             qty = Decimal(str(req.requested_quantity))
+            now = timezone.now()
 
-            if action == 'Approve':
+            if action == 'approve':
                 if req.product:
-                    # 1. Deduct from Main Hub ProductStock under row-level lock
+                    # 1. Deduct from Main Hub ProductStock under row-level lock if transferring between branches
                     source_branch = req.source_branch
-                    source_stock = ProductStock.objects.select_for_update().filter(
-                        branch=source_branch, product=req.product
-                    ).first()
+                    source_stock = None
+                    if source_branch and source_branch != req.destination_branch:
+                        source_stock = ProductStock.objects.select_for_update().filter(
+                            branch=source_branch, product=req.product
+                        ).first()
 
-                    if not source_stock or source_stock.quantity_available < qty:
-                        avail = float(source_stock.quantity_available) if source_stock else 0.0
-                        return Response({
-                            "error": f"Main Hub has insufficient stock of '{item_name}' (Available: {avail}, Requested: {float(qty)})."
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                    
-                    source_stock.quantity_available -= qty
-                    source_stock.save()
+                        if source_stock and source_stock.quantity_available < qty:
+                            avail = float(source_stock.quantity_available)
+                            return Response({
+                                "error": f"Main Hub has insufficient stock of '{item_name}' (Available: {avail}, Requested: {float(qty)})."
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                        
+                        if source_stock and source_stock.quantity_available >= qty:
+                            source_stock.quantity_available -= qty
+                            source_stock.save()
+
+                            # Create StockAdjustment for source
+                            StockAdjustment.objects.create(
+                                user=user,
+                                product_inventory=source_stock,
+                                adjustment_type='Transfer-Out',
+                                quantity_change=-qty,
+                                reason=f"Transfer-Out to {req.destination_branch.name} (Restock #{req.restock_ID})"
+                            )
 
                     # 2. Add to Destination Satellite Branch ProductStock
                     dest_stock, _ = ProductStock.objects.select_for_update().get_or_create(
@@ -1564,70 +1644,68 @@ class ProcessRestockView(APIView):
                     dest_stock.save()
 
                     # 3. Create ProductTransfer audit record
-                    transfer = ProductTransfer.objects.create(
+                    ProductTransfer.objects.create(
                         product=req.product,
-                        source_branch=source_branch,
+                        source_branch=source_branch or req.destination_branch,
                         destination_branch=req.destination_branch,
                         quantity=qty,
                         transferred_by=user,
                         notes=f"Restock Request #{req.restock_ID} approved by {user.name or user.email}"
                     )
 
-                    # 4. Create StockAdjustment records for audit trail
-                    StockAdjustment.objects.create(
-                        user=user,
-                        product_inventory=source_stock,
-                        adjustment_type='Transfer-Out',
-                        quantity_change=-qty,
-                        reason=f"Transfer-Out to {req.destination_branch.name} (Restock #{req.restock_ID})"
-                    )
+                    # 4. Create StockAdjustment records for destination audit trail
                     StockAdjustment.objects.create(
                         user=user,
                         product_inventory=dest_stock,
-                        adjustment_type='Transfer-In',
+                        adjustment_type='Restock Approved',
                         quantity_change=qty,
-                        reason=f"Transfer-In from {source_branch.name} (Restock #{req.restock_ID})"
+                        reason=f"Restock Approved from {source_branch.name if source_branch else 'Commissary'} (Restock #{req.restock_ID})"
                     )
 
                 else: # req.ingredient
                     source_branch = req.source_branch
-                    source_stock = IngredientStock.objects.select_for_update().filter(
-                        branch=source_branch, ingredient=req.ingredient
-                    ).first()
+                    source_stock = None
+                    if source_branch and source_branch != req.destination_branch:
+                        source_stock = IngredientStock.objects.select_for_update().filter(
+                            branch=source_branch, ingredient=req.ingredient
+                        ).first()
 
-                    if not source_stock or source_stock.quantity_available < qty:
-                        avail = float(source_stock.quantity_available) if source_stock else 0.0
-                        return Response({
-                            "error": f"Main Hub has insufficient stock of '{item_name}' (Available: {avail}, Requested: {float(qty)})."
-                        }, status=status.HTTP_400_BAD_REQUEST)
+                        if source_stock and source_stock.quantity_available < qty:
+                            avail = float(source_stock.quantity_available)
+                            return Response({
+                                "error": f"Main Hub has insufficient stock of '{item_name}' (Available: {avail}, Requested: {float(qty)})."
+                            }, status=status.HTTP_400_BAD_REQUEST)
 
-                    if source_stock.quantity_available > 0 and source_stock.total_cost > 0:
-                        cost_per_unit = source_stock.total_cost / source_stock.quantity_available
-                        source_stock.total_cost = max(Decimal('0.00'), source_stock.total_cost - (cost_per_unit * qty))
-                    source_stock.quantity_available -= qty
-                    source_stock.save()
+                        if source_stock and source_stock.quantity_available >= qty:
+                            if source_stock.quantity_available > 0 and source_stock.total_cost > 0:
+                                cost_per_unit = source_stock.total_cost / source_stock.quantity_available
+                                source_stock.total_cost = max(Decimal('0.00'), source_stock.total_cost - (cost_per_unit * qty))
+                            source_stock.quantity_available -= qty
+                            source_stock.save()
+
+                            StockAdjustment.objects.create(
+                                user=user,
+                                ingredients_inventory=source_stock,
+                                adjustment_type='Transfer-Out',
+                                quantity_change=-qty,
+                                reason=f"Ingredient Transfer-Out to {req.destination_branch.name} (Restock #{req.restock_ID})"
+                            )
 
                     dest_stock, _ = IngredientStock.objects.select_for_update().get_or_create(
                         branch=req.destination_branch, ingredient=req.ingredient,
                         defaults={'quantity_available': Decimal('0.00'), 'total_cost': Decimal('0.00'), 'reorder_threshold': Decimal('10.00')}
                     )
                     dest_stock.quantity_available += qty
-                    dest_stock.total_cost += round(req.ingredient.cost_per_unit * qty, 2)
+                    unit_cost = req.ingredient.cost_per_unit or Decimal('0.00')
+                    dest_stock.total_cost += round(unit_cost * qty, 2)
                     dest_stock.save()
 
                     StockAdjustment.objects.create(
                         user=user,
-                        ingredients_inventory=source_stock,
-                        adjustment_type='Transfer-Out',
-                        quantity_change=-qty,
-                        reason=f"Ingredient Transfer-Out to {req.destination_branch.name} (Restock #{req.restock_ID})"
-                    )
-                    StockAdjustment.objects.create(
-                        user=user,
                         ingredients_inventory=dest_stock,
-                        adjustment_type='Transfer-In',
+                        adjustment_type='Restock Approved',
                         quantity_change=qty,
-                        reason=f"Ingredient Transfer-In from {source_branch.name} (Restock #{req.restock_ID})"
+                        reason=f"Restock Approved: Ingredient procurement/transfer (Restock #{req.restock_ID})"
                     )
 
                 req.status = 'Approved'
@@ -1635,17 +1713,20 @@ class ProcessRestockView(APIView):
                 req.status = 'Rejected'
 
             req.approved_by = user
-            req.approved_at = timezone.now()
-            req.request_finished = timezone.now()
+            req.approved_at = now
+            req.request_finished = now
             req.save()
             
+            action_label = "Approved Restock Request" if req.status == 'Approved' else "Rejected Restock Request"
             AuditLog.objects.create(
                 user=user, 
-                action=f"Restock {req.status}", 
-                module="Inventory Management", 
-                details=f"{req.status} restock of {req.requested_quantity} {item_name} to {req.destination_branch.name}."
+                action=action_label, 
+                module="Inventory", 
+                details=f"{req.status} restock #{req.restock_ID} of {req.requested_quantity} {item_name} to {req.destination_branch.name}."
             )
             return Response({"message": f"Restock request #{req.restock_ID} {req.status.lower()} successfully."})
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

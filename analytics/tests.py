@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.test import TestCase
 from rest_framework.test import APIClient
 from accounts.models import User, Branch
-from inventory.models import Ingredient, IngredientStock, ConstraintParameter, BillOfMaterial, ProductStock
+from inventory.models import Ingredient, IngredientStock, ConstraintParameter, BillOfMaterial, ProductStock, RestockRequest
 from pos.models import Product, ProductCategory, Transaction, TransactionItem, PaymentRecord
 from analytics.models import ExternalVariable, KPIRecord, PrescriptiveOutput, ChatbotLog
 from analytics.services import _clean_json_text, _generate_rule_based_prescriptions, is_sweetbox_related_query, _get_active_events_context
@@ -348,6 +348,42 @@ class AnalyticsTests(TestCase):
         # Verify it gives prescriptive production guidance and never refuses
         self.assertNotIn('not recorded in our current sweet box database records', reply.lower())
         self.assertIn('coffee beans', reply.lower())
+
+    def test_process_prescription_creates_pending_restock_request(self):
+        """Processing prescription creates a Pending RestockRequest in the Action Queue attributed to Branch Manager."""
+        p = PrescriptiveOutput.objects.create(
+            branch=self.branch,
+            product=self.product,
+            output_type='Restock Prescription',
+            recommendation='Dispatch 10 units of Iced Coffee',
+            justification='Projected stockout within 48 hours',
+            recommended_quantity=Decimal('10.00'),
+            status='Pending Review'
+        )
+
+        # 1. Branch Manager approves
+        self.client.force_authenticate(user=self.manager)
+        res = self.client.post(f'/api/analytics/process-prescription/{p.prescriptive_output_ID}/', {'action': 'Approve'}, format='json')
+        self.assertEqual(res.status_code, 200)
+
+        # Verify RestockRequest created
+        req = RestockRequest.objects.filter(product=self.product, destination_branch=self.branch, status='Pending').first()
+        self.assertIsNotNone(req)
+        self.assertEqual(req.requested_quantity, Decimal('10.00'))
+        self.assertEqual(req.user, self.manager)
+
+        # 2. Business Owner overrides
+        self.client.force_authenticate(user=self.owner)
+        res_ov = self.client.post(
+            f'/api/analytics/process-prescription/{p.prescriptive_output_ID}/', 
+            {'action': 'Override', 'new_quantity': 15, 'override_reason': 'Anticipating holiday rush'}, 
+            format='json'
+        )
+        self.assertEqual(res_ov.status_code, 200)
+        req.refresh_from_db()
+        self.assertEqual(req.requested_quantity, Decimal('15.00'))
+        # Attributed to branch manager
+        self.assertEqual(req.user, self.manager)
 
 
 

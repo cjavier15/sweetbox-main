@@ -259,8 +259,81 @@ class InventoryTests(TestCase):
 
         req.refresh_from_db()
         self.assertEqual(req.status, 'Rejected')
+        self.assertEqual(req.approved_by, self.owner)
         self.flour_stock.refresh_from_db()
         self.assertEqual(self.flour_stock.quantity_available, Decimal('100.00'))
+        self.assertTrue(AuditLog.objects.filter(action="Rejected Restock Request").exists())
+
+    def test_submit_restock_business_owner_forbidden(self):
+        """Business Owners approve restock requests rather than submitting them (Req 13/14)."""
+        self.client.force_authenticate(user=self.owner)
+        payload = {
+            'product_name': 'Chocolate Cake',
+            'quantity': 5,
+            'branch_id': self.branch.branch_ID
+        }
+        res = self.client.post('/api/inventory/restock/submit/', payload, format='json')
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("Business Owners approve restock requests rather than submitting them.", res.data['error'])
+
+    def test_submit_restock_deduplicates_and_updates_qty(self):
+        """Submitting duplicate restock request updates requested_quantity on existing pending request."""
+        self.client.force_authenticate(user=self.manager)
+        payload = {
+            'product_name': 'Chocolate Cake',
+            'quantity': 5,
+            'branch_id': self.branch.branch_ID
+        }
+        res1 = self.client.post('/api/inventory/restock/submit/', payload, format='json')
+        self.assertEqual(res1.status_code, 200)
+        req1 = RestockRequest.objects.get(product=self.product, destination_branch=self.branch, status='Pending')
+        self.assertEqual(req1.requested_quantity, Decimal('5.00'))
+
+        # Submit another 7 units
+        payload['quantity'] = 7
+        res2 = self.client.post('/api/inventory/restock/submit/', payload, format='json')
+        self.assertEqual(res2.status_code, 200)
+        req1.refresh_from_db()
+        self.assertEqual(req1.requested_quantity, Decimal('12.00'))
+        self.assertEqual(RestockRequest.objects.filter(product=self.product, destination_branch=self.branch, status='Pending').count(), 1)
+
+    def test_process_restock_branch_manager_forbidden(self):
+        """Branch Managers must NEVER be able to approve or reject restock requests (Req 14)."""
+        req = RestockRequest.objects.create(
+            ingredient=self.flour, user=self.manager, source_branch=self.hub,
+            destination_branch=self.branch, requested_quantity=Decimal('10.00'), status='Pending'
+        )
+        self.client.force_authenticate(user=self.manager)
+        res_app = self.client.post(f'/api/inventory/restock/process/{req.restock_ID}/', {'action': 'Approve'}, format='json')
+        self.assertEqual(res_app.status_code, 403)
+        self.assertIn("Only the Business Owner can approve or reject restock requests", res_app.data['error'])
+
+        res_rej = self.client.post(f'/api/inventory/restock/process/{req.restock_ID}/', {'action': 'Reject'}, format='json')
+        self.assertEqual(res_rej.status_code, 403)
+
+    def test_process_restock_approval_logs_audit_and_adjustments(self):
+        """Owner approval increments destination stock, logs Restock Approved StockAdjustment, and AuditLog."""
+        self.client.force_authenticate(user=self.owner)
+        req = RestockRequest.objects.create(
+            ingredient=self.flour, user=self.manager, source_branch=self.hub,
+            destination_branch=self.branch, requested_quantity=Decimal('20.00'), status='Pending'
+        )
+        res = self.client.post(f'/api/inventory/restock/process/{req.restock_ID}/', {'action': 'approve'}, format='json')
+        self.assertEqual(res.status_code, 200)
+
+        req.refresh_from_db()
+        self.assertEqual(req.status, 'Approved')
+        self.assertEqual(req.approved_by, self.owner)
+        self.assertIsNotNone(req.approved_at)
+
+        # Verify StockAdjustment
+        adj = StockAdjustment.objects.filter(adjustment_type='Restock Approved', quantity_change=Decimal('20.00')).first()
+        self.assertIsNotNone(adj)
+
+        # Verify AuditLog
+        audit = AuditLog.objects.filter(action='Approved Restock Request', module='Inventory').first()
+        self.assertIsNotNone(audit)
+        self.assertIn(f"restock #{req.restock_ID}", audit.details)
 
     def test_manual_stock_adjustment_product_in_and_out(self):
         """Test stock-in and stock-out on product stock."""

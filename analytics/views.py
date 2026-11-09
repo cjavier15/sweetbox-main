@@ -12,13 +12,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from accounts.models import Branch, AuditLog
+from accounts.models import Branch, AuditLog, User
 from .services import generate_restock_directive, generate_sales_report
 from django.http import HttpResponse
 from django.utils import timezone
 from datetime import timedelta
 from django.db import transaction as db_transaction
-from inventory.models import IngredientStock, BillOfMaterial, ProductStock, ConstraintParameter
+from inventory.models import IngredientStock, BillOfMaterial, ProductStock, ConstraintParameter, RestockRequest
 from decimal import Decimal
 from django.db.models.functions import TruncDate, TruncMonth
 
@@ -71,6 +71,49 @@ class ProcessPrescriptionView(APIView):
                 )
                 
             prescription.save()
+
+            # Create/update a Pending RestockRequest in the Restock Action Queue for the Business Owner to approve
+            try:
+                req_qty = prescription.recommended_quantity
+                if req_qty and req_qty > Decimal('0.00'):
+                    # Attribution: attribute to the branch's Branch Manager
+                    if getattr(request.user, 'role', '') == 'Branch Manager':
+                        requester_user = request.user
+                    else:
+                        requester_user = User.objects.filter(branch=prescription.branch, role='Branch Manager').first() or request.user
+
+                    main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first() or prescription.branch
+
+                    filter_kwargs = {
+                        'destination_branch': prescription.branch,
+                        'status': 'Pending'
+                    }
+                    if prescription.product:
+                        filter_kwargs['product'] = prescription.product
+                    elif prescription.ingredient:
+                        filter_kwargs['ingredient'] = prescription.ingredient
+                    else:
+                        filter_kwargs = None
+
+                    if filter_kwargs:
+                        existing_req = RestockRequest.objects.filter(**filter_kwargs).first()
+                        if existing_req:
+                            existing_req.requested_quantity = req_qty
+                            existing_req.user = requester_user
+                            existing_req.save()
+                        else:
+                            RestockRequest.objects.create(
+                                product=prescription.product,
+                                ingredient=prescription.ingredient,
+                                user=requester_user,
+                                source_branch=main_hub,
+                                destination_branch=prescription.branch,
+                                requested_quantity=req_qty,
+                                status='Pending'
+                            )
+            except Exception:
+                pass
+
             return Response({"message": f"Prescription successfully {prescription.status.lower()}."})
             
         except PrescriptiveOutput.DoesNotExist:
