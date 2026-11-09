@@ -374,7 +374,7 @@ class AnalyticsTests(TestCase):
         self.assertEqual(req.requested_quantity, Decimal('10.00'))
         self.assertEqual(req.user, sat_manager)
 
-        # 2. Business Owner overrides
+        # 2. Business Owner overrides directly -> executes immediately and marks RestockRequest Approved
         self.client.force_authenticate(user=self.owner)
         res_ov = self.client.post(
             f'/api/analytics/process-prescription/{p.prescriptive_output_ID}/', 
@@ -383,9 +383,10 @@ class AnalyticsTests(TestCase):
         )
         self.assertEqual(res_ov.status_code, 200)
         req.refresh_from_db()
-        self.assertEqual(req.requested_quantity, Decimal('15.00'))
-        # Attributed to branch manager
-        self.assertEqual(req.user, sat_manager)
+        self.assertEqual(req.status, 'Approved')
+        dest_stock = ProductStock.objects.filter(branch=sat_branch, product=self.product).first()
+        self.assertIsNotNone(dest_stock)
+        self.assertEqual(dest_stock.quantity_available, Decimal('15.00'))
 
 
 

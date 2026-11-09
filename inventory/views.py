@@ -189,21 +189,8 @@ class LiveStockView(APIView):
                 "product_type": "Made-to-Order" if not is_cp else "Pre-Made"
             })
 
-            # For satellite branches, enqueue low-stock pre-made products into restock queue for Ibaan Hub dispatch
-            if is_satellite_branch and is_cp and status_flag in ["Low Stock", "Critical", "Out of Stock"]:
-                restock_queue.append({
-                    "item": p_stock.product.product_name,
-                    "branch": p_stock.branch.name,
-                    "branch_id": p_stock.branch.branch_ID,
-                    "supplier": "Ibaan (Main Hub)",
-                    "order_amount": f"{max(int(threshold * 2), 5)}",
-                    "current": qty,
-                    "min": threshold,
-                    "type": "Product"
-                })
-
-        if is_owner or is_hub_view:
-            restock_queue = []
+        # Restock queue is strictly reserved for submitted RestockRequest records
+        restock_queue = []
 
         product_kpis = {
             "in_stock": pw_in_stock,
@@ -331,6 +318,8 @@ class LiveStockView(APIView):
 
             pending_restocks.append({
                 "id": r.restock_ID,
+                "product_id": r.product_id,
+                "ingredient_id": r.ingredient_id,
                 "item_name": item_title,
                 "item": item_title,
                 "item_type": item_type_str,
@@ -358,8 +347,22 @@ class LiveStockView(APIView):
             target_branch_val = branch_filter if branch_filter != 'all' else (user.branch.branch_ID if user.branch else 1)
             db_prescriptions = PrescriptiveOutput.objects.select_related('branch', 'product', 'ingredient').filter(branch_id=target_branch_val, status__in=['Pending Review', 'Flagged - Needs Override'])
 
+        # Exclude prescriptions for items that already have an active pending RestockRequest at that branch
+        pending_product_keys = set(
+            RestockRequest.objects.filter(status='Pending', product__isnull=False)
+            .values_list('destination_branch_id', 'product_id')
+        )
+        pending_ingredient_keys = set(
+            RestockRequest.objects.filter(status='Pending', ingredient__isnull=False)
+            .values_list('destination_branch_id', 'ingredient_id')
+        )
+
         prescriptive_actions = []
         for p in db_prescriptions:
+            if p.product_id and (p.branch_id, p.product_id) in pending_product_keys:
+                continue
+            if p.ingredient_id and (p.branch_id, p.ingredient_id) in pending_ingredient_keys:
+                continue
             rec_date = p.recommended_date.strftime('%Y-%m-%d') if p.recommended_date else (p.generated_at.date() + timedelta(days=2)).strftime('%Y-%m-%d')
             if p.estimated_cost:
                 cost_val = float(p.estimated_cost)

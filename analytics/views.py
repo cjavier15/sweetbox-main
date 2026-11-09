@@ -18,7 +18,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from datetime import timedelta
 from django.db import transaction as db_transaction
-from inventory.models import IngredientStock, BillOfMaterial, ProductStock, ConstraintParameter, RestockRequest
+from inventory.models import IngredientStock, BillOfMaterial, ProductStock, ConstraintParameter, RestockRequest, ProductTransfer, StockAdjustment
 from decimal import Decimal
 from django.db.models.functions import TruncDate, TruncMonth
 
@@ -28,13 +28,14 @@ class EnterpriseDashboardView(TemplateView):
 class ProcessPrescriptionView(APIView):
     permission_classes = [IsAuthenticated]
     
+    @db_transaction.atomic
     def post(self, request, output_id):
         action = request.data.get('action') # 'Approve' or 'Override'
         reason = request.data.get('override_reason', '')
         new_quantity = request.data.get('new_quantity')
         
         try:
-            prescription = PrescriptiveOutput.objects.get(prescriptive_output_ID=output_id)
+            prescription = PrescriptiveOutput.objects.select_for_update().get(prescriptive_output_ID=output_id)
             
             if action == 'Override':
                 if not reason:
@@ -72,27 +73,105 @@ class ProcessPrescriptionView(APIView):
                 
             prescription.save()
 
-            # Create/update a Pending RestockRequest in the Restock Action Queue for the Business Owner to approve (satellite branches only)
-            try:
-                req_qty = prescription.recommended_quantity
-                dest_branch = prescription.branch
+            user = request.user
+            is_owner = (getattr(user, 'role', '') == 'Business Owner' or user.is_superuser)
+            req_qty = prescription.recommended_quantity or Decimal('0.00')
+            dest_branch = prescription.branch
+            main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first() or dest_branch
+
+            if is_owner:
+                # Business Owner directly approves/overrides: execute inventory replenishment/transfer immediately
+                if req_qty > Decimal('0.00'):
+                    if prescription.product:
+                        # 1. Deduct from Main Hub ProductStock if transferring to satellite branch
+                        if dest_branch and dest_branch != main_hub:
+                            source_stock = ProductStock.objects.select_for_update().filter(
+                                branch=main_hub, product=prescription.product
+                            ).first()
+                            if source_stock and source_stock.quantity_available >= req_qty:
+                                source_stock.quantity_available -= req_qty
+                                source_stock.save()
+                                StockAdjustment.objects.create(
+                                    user=user,
+                                    product_inventory=source_stock,
+                                    adjustment_type='Transfer-Out',
+                                    quantity_change=-req_qty,
+                                    reason=f"AI Prescription #{prescription.prescriptive_output_ID} approved by Owner (Transfer-Out to {dest_branch.name})"
+                                )
+
+                            # Create ProductTransfer audit record
+                            ProductTransfer.objects.create(
+                                product=prescription.product,
+                                source_branch=main_hub,
+                                destination_branch=dest_branch,
+                                quantity=req_qty,
+                                transferred_by=user,
+                                notes=f"AI Prescription #{prescription.prescriptive_output_ID} approved by Owner"
+                            )
+
+                        # 2. Add to destination ProductStock
+                        dest_stock, _ = ProductStock.objects.select_for_update().get_or_create(
+                            branch=dest_branch, product=prescription.product,
+                            defaults={'quantity_available': Decimal('0.00'), 'total_cost': Decimal('0.00'), 'reorder_threshold': Decimal('5.00')}
+                        )
+                        dest_stock.quantity_available += req_qty
+                        dest_stock.save()
+
+                        StockAdjustment.objects.create(
+                            user=user,
+                            product_inventory=dest_stock,
+                            adjustment_type='Restock Approved',
+                            quantity_change=req_qty,
+                            reason=f"AI Prescription #{prescription.prescriptive_output_ID} approved by Owner"
+                        )
+
+                    elif prescription.ingredient:
+                        dest_stock, _ = IngredientStock.objects.select_for_update().get_or_create(
+                            branch=dest_branch, ingredient=prescription.ingredient,
+                            defaults={'quantity_available': Decimal('0.00'), 'total_cost': Decimal('0.00'), 'reorder_threshold': Decimal('10.00')}
+                        )
+                        dest_stock.quantity_available += req_qty
+                        unit_cost = prescription.ingredient.cost_per_unit or Decimal('0.00')
+                        dest_stock.total_cost += round(unit_cost * req_qty, 2)
+                        dest_stock.save()
+
+                        StockAdjustment.objects.create(
+                            user=user,
+                            ingredients_inventory=dest_stock,
+                            adjustment_type='Restock Approved',
+                            quantity_change=req_qty,
+                            reason=f"AI Prescription #{prescription.prescriptive_output_ID} approved by Owner"
+                        )
+
+                    # Mark any matching pending RestockRequest as Approved so it doesn't linger
+                    req_filter = {'destination_branch': dest_branch, 'status': 'Pending'}
+                    if prescription.product:
+                        req_filter['product'] = prescription.product
+                    elif prescription.ingredient:
+                        req_filter['ingredient'] = prescription.ingredient
+                    RestockRequest.objects.filter(**req_filter).update(status='Approved', approved_by=user, approved_at=timezone.now())
+
+                AuditLog.objects.create(
+                    user=user,
+                    action="Stock Replenishment",
+                    module="Inventory Management",
+                    details=f"Owner executed stock replenishment of {req_qty} for {prescription.product or prescription.ingredient} via AI prescription #{output_id}."
+                )
+
+            else:
+                # Branch Manager approves/overrides: create/update Pending RestockRequest in Restock Action Queue
                 is_dest_hub = bool(dest_branch and (dest_branch.main_hub or dest_branch.branch_ID == 1 or 'ibaan' in dest_branch.name.lower()))
                 if req_qty and req_qty > Decimal('0.00') and not is_dest_hub and prescription.product:
-                    # Attribution: attribute to the satellite branch's Branch Manager
-                    if getattr(request.user, 'role', '') == 'Branch Manager' and getattr(request.user, 'branch', None) == dest_branch:
-                        requester_user = request.user
+                    if getattr(user, 'role', '') == 'Branch Manager' and getattr(user, 'branch', None) == dest_branch:
+                        requester_user = user
                     else:
-                        requester_user = User.objects.filter(branch=dest_branch, role='Branch Manager').first() or request.user
+                        requester_user = User.objects.filter(branch=dest_branch, role='Branch Manager').first() or user
 
-                    main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first() or dest_branch
-
-                    filter_kwargs = {
-                        'destination_branch': dest_branch,
-                        'product': prescription.product,
-                        'status': 'Pending'
-                    }
-
-                    existing_req = RestockRequest.objects.filter(**filter_kwargs).first()
+                    existing_req = RestockRequest.objects.filter(
+                        destination_branch=dest_branch,
+                        product=prescription.product,
+                        status='Pending'
+                    ).first()
                     if existing_req:
                         existing_req.requested_quantity = req_qty
                         existing_req.user = requester_user
@@ -106,8 +185,6 @@ class ProcessPrescriptionView(APIView):
                             requested_quantity=req_qty,
                             status='Pending'
                         )
-            except Exception:
-                pass
 
             return Response({"message": f"Prescription successfully {prescription.status.lower()}."})
             

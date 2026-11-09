@@ -7,6 +7,7 @@ from inventory.models import (
     Ingredient, IngredientStock, ProductStock, BillOfMaterial, 
     RestockRequest, ProductTransfer, StockAdjustment
 )
+from analytics.models import PrescriptiveOutput
 
 class InventoryTests(TestCase):
     def setUp(self):
@@ -731,5 +732,59 @@ class InventoryTests(TestCase):
         self.assertIn("Cocoa Powder", bom_names)
         self.assertIn("Premium Bread Flour", bom_names)
         self.assertNotIn("Sugar", bom_names) # Sugar was removed in updated recipe
+
+    def test_live_stock_view_restock_and_prescription_deduplication(self):
+        """Test LiveStockView returns product_id/ingredient_id in pending_restocks and deduplicates against AI prescriptions."""
+        self.client.force_authenticate(user=self.owner)
+
+        # Create a pending RestockRequest for Chocolate Cake at satellite branch
+        RestockRequest.objects.create(
+            product=self.product,
+            destination_branch=self.branch,
+            source_branch=self.hub,
+            requested_quantity=Decimal('8.00'),
+            user=self.manager,
+            status='Pending'
+        )
+
+        # Create an AI prescription for the same item at the same branch
+        PrescriptiveOutput.objects.create(
+            branch=self.branch,
+            product=self.product,
+            output_type='Dispatch Transfer Prescription',
+            recommendation='Dispatch 8 units of Chocolate Cake',
+            justification='Low stock detected',
+            recommended_quantity=Decimal('8.00'),
+            status='Pending Review'
+        )
+
+        # Create another AI prescription for a different item without a pending restock
+        other_prod = Product.objects.create(category=self.category, product_name="Strawberry Cake", price=600.00, is_active=True)
+        po_other = PrescriptiveOutput.objects.create(
+            branch=self.branch,
+            product=other_prod,
+            output_type='Dispatch Transfer Prescription',
+            recommendation='Dispatch 5 units of Strawberry Cake',
+            justification='Anticipating demand',
+            recommended_quantity=Decimal('5.00'),
+            status='Pending Review'
+        )
+
+        res = self.client.get(f'/api/inventory/stock/?branch={self.branch.branch_ID}')
+        self.assertEqual(res.status_code, 200)
+
+        # Verify pending_restocks contains product_id
+        pending = res.data.get('pending_restocks', [])
+        self.assertTrue(len(pending) > 0)
+        prod_ids = [p.get('product_id') for p in pending]
+        self.assertIn(self.product.product_ID, prod_ids)
+
+        # Verify prescriptive_actions excludes Chocolate Cake (already has pending request) and includes Strawberry Cake
+        prescriptions = res.data.get('prescriptive_actions', [])
+        p_ids = [p.get('id') for p in prescriptions]
+        self.assertIn(po_other.prescriptive_output_ID, p_ids)
+        # Ensure Chocolate Cake prescription was excluded due to deduplication
+        choc_prescriptions = [p for p in prescriptions if 'chocolate' in p.get('title', '').lower() or 'chocolate' in p.get('recommendation', '').lower()]
+        self.assertEqual(len(choc_prescriptions), 0)
 
 
