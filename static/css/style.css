@@ -243,7 +243,7 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     background: var(--sb-bg-surface);
     border: 1px solid var(--sb-border-subtle);
     border-radius: var(--sb-radius-lg);
-    padding: 1.25rem;
+    padding: 1.25rem 1.4rem;
     box-shadow: var(--sb-shadow-sm);
     transition: var(--sb-transition);
     position: relative;
@@ -273,13 +273,13 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 }
 
 .sb-kpi-icon, .kpi-icon-container {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--sb-radius-md);
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
+    font-size: 1.35rem;
     background: var(--sb-gold-subtle);
     color: var(--sb-gold-deep);
     box-shadow: 0 2px 6px rgba(212, 154, 61, 0.15);
@@ -287,25 +287,66 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 }
 
 .sb-kpi-value, .stat-value {
-    font-size: 1.75rem;
+    font-size: 2.25rem;
     font-weight: 800;
     color: var(--sb-text-title);
-    letter-spacing: -0.03em;
-    line-height: 1.2;
-    margin: 0.35rem 0 0.2rem 0;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin: 0;
 }
 
 .sb-kpi-label, .kpi-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--sb-text-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #6b5e53;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    margin-bottom: 0.35rem;
+    white-space: nowrap;
 }
 
 .sb-kpi-subtext {
-    font-size: 0.775rem;
-    color: var(--sb-text-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6b5e53;
+    background: rgba(62, 36, 25, 0.04);
+    border: 1px solid rgba(62, 36, 25, 0.08);
+    border-radius: 8px;
+    padding: 4px 10px;
+    display: inline-block;
+    width: fit-content;
+    max-width: 100%;
+}
+
+/* Split Layout & Status Accent Borders */
+.sb-kpi-card-split {
+    padding: 1.25rem 1.4rem !important;
+    min-height: 108px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+}
+.kpi-accent-success {
+    border-left: 4px solid #16a34a !important;
+}
+.kpi-accent-warning {
+    border-left: 4px solid #d97706 !important;
+}
+.kpi-accent-danger {
+    border-left: 4px solid #dc2626 !important;
+}
+.kpi-accent-orange {
+    border-left: 4px solid #ea580c !important;
+}
+.kpi-accent-gold {
+    border-left: 4px solid #b45309 !important;
+}
+.kpi-accent-blue {
+    border-left: 4px solid #2563eb !important;
+}
+.kpi-accent-cyan {
+    border-left: 4px solid #0891b2 !important;
 }
 
 /* Trend Badges */
@@ -715,26 +756,27 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
         padding-bottom: calc(82px + var(--sb-safe-bottom)) !important;
     }
 
-    /* Compact KPI cards on mobile (2 columns) */
+    /* Responsive KPI cards on tablet & mobile */
     .sb-kpi-card {
-        padding: 0.85rem !important;
+        padding: 1rem 1.15rem !important;
     }
     .sb-kpi-card .sb-kpi-value,
     .sb-kpi-card .stat-value {
-        font-size: 1.35rem !important;
+        font-size: 1.85rem !important;
+        line-height: 1.1 !important;
     }
     .sb-kpi-card .sb-kpi-label,
     .sb-kpi-card .kpi-label {
-        font-size: 0.75rem !important;
+        font-size: 0.74rem !important;
     }
     .sb-kpi-card .sb-kpi-subtext {
-        font-size: 0.7rem !important;
+        font-size: 0.74rem !important;
     }
     .sb-kpi-icon,
     .kpi-icon-container {
-        width: 32px !important;
-        height: 32px !important;
-        font-size: 0.85rem !important;
+        width: 46px !important;
+        height: 46px !important;
+        font-size: 1.2rem !important;
     }
 
     /* Modal adjustments for small screens */
@@ -1279,22 +1321,38 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 
 /* Responsive KPI Card Typography (< 576px) */
 @media (max-width: 576px) {
-    .sb-kpi-card {
-        padding: 0.75rem !important;
+    .sb-kpi-card,
+    .sb-kpi-card-split {
+        padding: 0.85rem 1rem !important;
+        min-height: 90px !important;
     }
     .sb-kpi-card .sb-kpi-value,
     .sb-kpi-card .stat-value,
     .stat-value,
     .sb-kpi-value {
-        font-size: clamp(1.2rem, 4.5vw, 1.85rem) !important;
-        line-height: 1.2;
-        word-break: break-all;
+        font-size: 1.75rem !important;
+        line-height: 1.1 !important;
+        margin: 0 !important;
     }
-    .sb-kpi-label, .kpi-label {
+    .sb-kpi-label, .kpi-label,
+    .sb-kpi-card .sb-kpi-label,
+    .sb-kpi-card .kpi-label {
         font-size: 0.72rem !important;
+        white-space: normal !important;
+    }
+    .sb-kpi-icon,
+    .kpi-icon-container,
+    .sb-kpi-card .sb-kpi-icon,
+    .sb-kpi-card .kpi-icon-container {
+        width: 44px !important;
+        height: 44px !important;
+        font-size: 1.15rem !important;
+        border-radius: 12px !important;
+        margin-left: 0.5rem !important;
     }
     .sb-kpi-subtext {
-        font-size: 0.68rem !important;
+        font-size: 0.72rem !important;
+        padding: 3px 6px !important;
     }
 }
 

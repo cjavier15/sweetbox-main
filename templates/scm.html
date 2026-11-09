@@ -170,61 +170,53 @@
         <!-- KPIs -->
         <div class="row g-3 mb-4" id="kpi-container">
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-in" onclick="filterInvByStatus('In Stock')" title="Click to filter by In Stock">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">In Stock</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-success" id="kpi-card-in" onclick="filterInvByStatus('In Stock')" title="Click to filter by In Stock" style="border-left: 4px solid #16a34a !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">In Stock</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-in" style="color: var(--sb-success); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="kpi-in" style="color: var(--sb-success);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-check-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-low" onclick="filterInvByStatus('Low Stock')" title="Click to filter by Low Stock">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">Low Stock</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-warning" id="kpi-card-low" onclick="filterInvByStatus('Low Stock')" title="Click to filter by Low Stock" style="border-left: 4px solid #d97706 !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Low Stock</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-low" style="color: var(--sb-warning); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="kpi-low" style="color: var(--sb-warning);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-exclamation-triangle"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-crit" onclick="filterInvByStatus('Critical')" title="Click to filter by Critical &amp; Out of Stock">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">CRITICAL / OUT OF STOCK</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
-                                <i class="fas fa-times-circle"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-danger" id="kpi-card-crit" onclick="filterInvByStatus('Critical')" title="Click to filter by Critical &amp; Out of Stock" style="border-left: 4px solid #dc2626 !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">CRITICAL / OUT OF STOCK</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-crit" style="color: var(--sb-danger); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="kpi-crit" style="color: var(--sb-danger);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-times-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="kpi-card-exp" onclick="filterInvByStatus('Expiring Soon')" title="Click to filter by Expiring Soon">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">Expiring Soon</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: #FFEDD5; color: #EA580C;">
-                                <i class="fas fa-clock"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-orange" id="kpi-card-exp" onclick="filterInvByStatus('Expiring Soon')" title="Click to filter by Expiring Soon" style="border-left: 4px solid #ea580c !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Expiring Soon</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-exp" style="color: #EA580C; font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="kpi-exp" style="color: #EA580C;">0</h2>
+                        <div class="kpi-icon-container" style="background-color: #FFEDD5; color: #EA580C; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-clock"></i>
                         </div>
                     </div>
                 </div>
@@ -336,61 +328,53 @@
         <!-- Product Watch Dynamic KPIs -->
         <div class="row g-3 mb-4" id="pw-kpi-container">
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-in" onclick="setPWStatus('In Stock')" title="Click to filter by Optimal Stock">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">Optimal Stock</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-success" id="pw-kpi-card-in" onclick="setPWStatus('In Stock')" title="Click to filter by Optimal Stock" style="border-left: 4px solid #16a34a !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Optimal Stock</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-in" style="color: var(--sb-success); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-in" style="color: var(--sb-success);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-check-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-low" onclick="setPWStatus('Low Stock')" title="Click to filter by Low Stock">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">Low Stock</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-warning" id="pw-kpi-card-low" onclick="setPWStatus('Low Stock')" title="Click to filter by Low Stock" style="border-left: 4px solid #d97706 !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Low Stock</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-low" style="color: var(--sb-warning); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-low" style="color: var(--sb-warning);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-exclamation-triangle"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-crit" onclick="setPWStatus('Critical')" title="Click to filter by Critical &amp; Out of Stock">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">CRITICAL / OUT OF STOCK</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
-                                <i class="fas fa-times-circle"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-danger" id="pw-kpi-card-crit" onclick="setPWStatus('Critical')" title="Click to filter by Critical &amp; Out of Stock" style="border-left: 4px solid #dc2626 !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">CRITICAL / OUT OF STOCK</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-crit" style="color: var(--sb-danger); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-crit" style="color: var(--sb-danger);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-times-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-xl-3">
-                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100" id="pw-kpi-card-total" onclick="setPWStatus('all')" title="Click to show all products">
-                    <div class="card-body p-3 d-flex flex-column justify-content-between">
-                        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
-                            <span class="kpi-label">Total Available Units</span>
-                            <div class="kpi-icon-container flex-shrink-0" style="background-color: rgba(212,154,61,0.15); color: var(--sb-gold);">
-                                <i class="fas fa-cubes-stacked"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 kpi-card-clickable h-100 kpi-accent-gold" id="pw-kpi-card-total" onclick="setPWStatus('all')" title="Click to show all products" style="border-left: 4px solid #b45309 !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Total Available Units</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-total" style="color: var(--sb-gold); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <div>
-                            <h2 class="stat-value tabular-nums mb-0" id="pw-kpi-total" style="color: var(--sb-gold);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: rgba(212,154,61,0.15); color: var(--sb-gold); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-cubes-stacked"></i>
                         </div>
                     </div>
                 </div>
@@ -502,8 +486,8 @@
 
         <!-- BOM Filter & Search Bar -->
         <div class="card sb-card border-0 shadow-sm p-3 mb-3">
-            <div class="row g-2 align-items-center mb-2">
-                <div class="col-12 col-md-6">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-5">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
                         <input type="text" id="bom-search-input" class="form-control border-start-0 border-end-0 ps-0" placeholder="Search product recipes or ingredients (e.g., Ube, Espresso, Cream Cheese)..." oninput="filterBOMTable()">
@@ -512,19 +496,19 @@
                         </button>
                     </div>
                 </div>
-                <div class="col-12 col-md-6 text-md-end">
+                <div class="col-12 col-md-4">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label text-title small fw-bold mb-0 text-nowrap"><i class="fas fa-filter text-gold me-1"></i>Category:</label>
+                        <select id="bom-cat-filter" class="form-select form-select-sm" onchange="onBOMCatDropdownChange(this.value)">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3 text-md-end">
                     <span id="bom-count-badge" class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.8rem; padding: 6px 12px;">
-                        Showing 0 recipes
+                        Showing 0 of 0 recipes
                     </span>
                 </div>
-            </div>
-            
-            <!-- Category Pills Bar with Recipe Counts -->
-            <div class="d-flex align-items-center gap-1 overflow-x-auto sb-mobile-scroll-row pb-1 text-nowrap flex-nowrap flex-sm-wrap pt-2 border-top no-scrollbar" id="bom-category-pills" style="max-height: 120px; overflow-y: auto;">
-                <button type="button" class="filter-pill-btn active" data-cat="all" onclick="setBOMCategoryFilter('all', this)">
-                    All Categories <span class="badge-pill-count" id="bom-all-count">0</span>
-                </button>
-                <!-- Dynamic Category Pills injected via JS -->
             </div>
         </div>
 
@@ -536,41 +520,41 @@
         <!-- Prescriptive KPIs -->
         <div class="row g-3 mb-4">
             <div class="col-12 col-md-4">
-                <div class="card sb-card sb-kpi-card border-0">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="kpi-label">Critical Actions</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger);">
-                                <i class="fas fa-radiation"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 h-100 kpi-accent-danger" style="border-left: 4px solid #dc2626 !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Critical Actions</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-crit" style="color: var(--sb-danger); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-crit" style="color: var(--sb-danger);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-danger-bg); color: var(--sb-danger); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-radiation"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-md-4">
-                <div class="card sb-card sb-kpi-card border-0">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="kpi-label">High Priority Actions</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning);">
-                                <i class="fas fa-triangle-exclamation"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 h-100 kpi-accent-warning" style="border-left: 4px solid #d97706 !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">High Priority Actions</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-high" style="color: var(--sb-warning); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h2>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-high" style="color: var(--sb-warning);">0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-warning-bg); color: var(--sb-warning); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-triangle-exclamation"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-md-4">
-                <div class="card sb-card sb-kpi-card border-0">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="kpi-label">Est. Loss Prevented</span>
-                            <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success);">
-                                <i class="fas fa-shield-heart"></i>
-                            </div>
+                <div class="card sb-card sb-kpi-card border-0 h-100 kpi-accent-success" style="border-left: 4px solid #16a34a !important;">
+                    <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                        <div class="d-flex flex-column justify-content-center">
+                            <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Est. Loss Prevented</span>
+                            <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-loss" style="color: var(--sb-success); font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">₱0</h2>
                         </div>
-                        <h2 class="stat-value tabular-nums mb-0" id="kpi-pa-loss" style="color: var(--sb-success);">₱0</h2>
+                        <div class="kpi-icon-container" style="background-color: var(--sb-success-bg); color: var(--sb-success); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                            <i class="fas fa-shield-heart"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2690,8 +2674,15 @@
 
     window.setBOMCategoryFilter = function(cat, btn) {
         window.bomSelectedCat = cat;
+        const select = document.getElementById('bom-cat-filter');
+        if (select) select.value = cat;
         document.querySelectorAll('#bom-category-pills .filter-pill-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
+        filterBOMTable();
+    };
+
+    window.onBOMCatDropdownChange = function(val) {
+        window.bomSelectedCat = val || 'all';
         filterBOMTable();
     };
 
@@ -2702,11 +2693,7 @@
     };
 
     window.populateBOMCategoryPills = function(boms) {
-        const container = document.getElementById('bom-category-pills');
-        if (!container) return;
-
-        const allCount = document.getElementById('bom-all-count');
-        if (allCount) allCount.innerText = boms.length;
+        if (!boms) boms = [];
 
         // Count per category
         const catCounts = {};
@@ -2714,26 +2701,48 @@
             const cat = b.category || 'General';
             catCounts[cat] = (catCounts[cat] || 0) + 1;
         });
-
         const sortedCats = Object.keys(catCounts).sort();
-        let pillsHtml = `<button type="button" class="filter-pill-btn ${window.bomSelectedCat === 'all' ? 'active' : ''}" data-cat="all" onclick="setBOMCategoryFilter('all', this)">
-            All Categories <span class="badge-pill-count" id="bom-all-count">${boms.length}</span>
-        </button>`;
 
-        sortedCats.forEach(cat => {
-            const isActive = (window.bomSelectedCat === cat) ? 'active' : '';
-            pillsHtml += `<button type="button" class="filter-pill-btn ${isActive}" data-cat="${cat}" onclick="setBOMCategoryFilter('${cat.replace(/'/g, "\\'")}', this)">
-                ${cat} <span class="badge-pill-count">${catCounts[cat]}</span>
+        // Populate Category Dropdown Filter
+        const select = document.getElementById('bom-cat-filter');
+        if (select) {
+            const currentVal = window.bomSelectedCat || 'all';
+            let opts = `<option value="all">All Categories (${boms.length})</option>`;
+            sortedCats.forEach(cat => {
+                opts += `<option value="${cat}">${cat} (${catCounts[cat]})</option>`;
+            });
+            select.innerHTML = opts;
+            select.value = (sortedCats.includes(currentVal) || currentVal === 'all') ? currentVal : 'all';
+            window.bomSelectedCat = select.value;
+        }
+
+        // Retain support for pill container if present
+        const container = document.getElementById('bom-category-pills');
+        if (container) {
+            const allCount = document.getElementById('bom-all-count');
+            if (allCount) allCount.innerText = boms.length;
+
+            let pillsHtml = `<button type="button" class="filter-pill-btn ${window.bomSelectedCat === 'all' ? 'active' : ''}" data-cat="all" onclick="setBOMCategoryFilter('all', this)">
+                All Categories <span class="badge-pill-count" id="bom-all-count">${boms.length}</span>
             </button>`;
-        });
 
-        container.innerHTML = pillsHtml;
+            sortedCats.forEach(cat => {
+                const isActive = (window.bomSelectedCat === cat) ? 'active' : '';
+                pillsHtml += `<button type="button" class="filter-pill-btn ${isActive}" data-cat="${cat}" onclick="setBOMCategoryFilter('${cat.replace(/'/g, "\\'")}', this)">
+                    ${cat} <span class="badge-pill-count">${catCounts[cat]}</span>
+                </button>`;
+            });
+
+            container.innerHTML = pillsHtml;
+        }
     };
 
     window.filterBOMTable = function() {
         const allBoms = window.cachedBOM || [];
         const query = (document.getElementById('bom-search-input') ? document.getElementById('bom-search-input').value : '').toLowerCase().trim();
-        const selectedCat = window.bomSelectedCat || 'all';
+        const catSelect = document.getElementById('bom-cat-filter');
+        const selectedCat = (catSelect ? catSelect.value : window.bomSelectedCat) || 'all';
+        window.bomSelectedCat = selectedCat;
 
         const filtered = allBoms.filter(b => {
             // Search query

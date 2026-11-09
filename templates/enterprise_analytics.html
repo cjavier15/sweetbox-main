@@ -31,50 +31,58 @@
 <!-- Scorecards -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="sb-kpi-icon"><i class="fas fa-chart-line"></i></div>
-                <span class="kpi-trend trend-up" id="kpi-rev-trend">+0.0%</span>
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="sb-kpi-icon"><i class="fas fa-chart-line"></i></div>
+                    <span class="kpi-trend trend-up" id="kpi-rev-trend">+0.0%</span>
+                </div>
+                <div class="sb-kpi-label">Total Revenue</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-revenue" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">₱0.00</div>
             </div>
-            <div class="sb-kpi-label">Total Revenue</div>
-            <div class="sb-kpi-value tabular-nums" id="kpi-revenue">₱0.00</div>
-            <div class="sb-kpi-subtext" id="kpi-rev-prev">vs. ₱0.00 previous period · <span id="kpi-txns-sub">0 txns</span></div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-rev-prev" style="font-size: 0.8rem; font-weight: 600;">vs. ₱0.00 previous period · <span id="kpi-txns-sub">0 txns</span></div>
         </div>
     </div>
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="sb-kpi-icon"><i class="fas fa-scale-balanced"></i></div>
-                <span class="kpi-trend trend-up" id="kpi-margin-pct-badge">0.0% Margin</span>
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="sb-kpi-icon"><i class="fas fa-scale-balanced"></i></div>
+                    <span class="kpi-trend trend-up" id="kpi-margin-pct-badge">0.0% Margin</span>
+                </div>
+                <div class="sb-kpi-label">Gross Margin (BOM)</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-gross-margin" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">₱0.00</div>
             </div>
-            <div class="sb-kpi-label">Gross Margin (BOM)</div>
-            <div class="sb-kpi-value tabular-nums" id="kpi-gross-margin">₱0.00</div>
-            <div class="sb-kpi-subtext" id="kpi-cogs-subtext">BOM COGS: ₱0.00</div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-cogs-subtext" style="font-size: 0.8rem; font-weight: 600;">BOM COGS: ₱0.00</div>
             <span id="kpi-transactions" class="d-none">0</span>
             <span id="kpi-txn-trend" class="d-none">+0.0%</span>
         </div>
     </div>
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="sb-kpi-icon"><i class="fas fa-arrows-rotate"></i></div>
-                <span class="kpi-trend trend-up" id="kpi-gmroi-badge">GMROI: 0.0</span>
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="sb-kpi-icon"><i class="fas fa-arrows-rotate"></i></div>
+                    <span class="kpi-trend trend-up" id="kpi-gmroi-badge">GMROI: 0.0</span>
+                </div>
+                <div class="sb-kpi-label">Inventory Turnover</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-turnover" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">0.0x</div>
             </div>
-            <div class="sb-kpi-label">Inventory Turnover</div>
-            <div class="sb-kpi-value tabular-nums" id="kpi-turnover">0.0x</div>
-            <div class="sb-kpi-subtext" id="kpi-inv-val-subtext">Inventory Value: ₱0.00</div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-inv-val-subtext" style="font-size: 0.8rem; font-weight: 600;">Inventory Value: ₱0.00</div>
             <span id="kpi-gmroi" class="d-none">GMROI: 0.0</span>
         </div>
     </div>
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="sb-kpi-icon" style="background: rgba(44, 24, 16, 0.08); color: var(--sb-espresso);"><i class="fas fa-boxes-stacked"></i></div>
-                <span class="kpi-trend trend-up" id="kpi-offline-badge">All Active</span>
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="sb-kpi-icon" style="background: rgba(44, 24, 16, 0.08); color: var(--sb-espresso);"><i class="fas fa-boxes-stacked"></i></div>
+                    <span class="kpi-trend trend-up" id="kpi-offline-badge">All Active</span>
+                </div>
+                <div class="sb-kpi-label">Depleted & Dead Stock</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-stockouts" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">0 Depleted</div>
             </div>
-            <div class="sb-kpi-label">Depleted & Dead Stock</div>
-            <div class="sb-kpi-value tabular-nums" id="kpi-stockouts">0 Depleted</div>
-            <div class="sb-kpi-subtext" id="kpi-dead-stock-subtext">Dead Stock Risk: ₱0.00</div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-dead-stock-subtext" style="font-size: 0.8rem; font-weight: 600;">Dead Stock Risk: ₱0.00</div>
             <span id="kpi-branches" class="d-none">0 / 0</span>
         </div>
     </div>

@@ -336,43 +336,55 @@
             <!-- Archive KPIs -->
             <div class="row g-3 mb-4">
                 <div class="col-6 col-xl-3">
-                    <div class="sb-kpi-card">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Txns Archived</span>
-                            <div class="rounded p-2 bg-primary bg-opacity-10 text-primary"><i class="fas fa-receipt fs-5"></i></div>
+                    <div class="sb-kpi-card h-100 kpi-accent-blue" style="border-left: 4px solid #3b82f6 !important;">
+                        <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                            <div class="d-flex flex-column justify-content-center">
+                                <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Txns Archived</span>
+                                <h3 class="stat-value tabular-nums mb-0" id="arc-kpi-txns" style="font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h3>
+                            </div>
+                            <div class="kpi-icon-container" style="background-color: rgba(59, 130, 246, 0.1); color: #2563eb; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                                <i class="fas fa-receipt"></i>
+                            </div>
                         </div>
-                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-txns">0</h3>
-                        <small class="text-muted">Sales receipts</small>
                     </div>
                 </div>
                 <div class="col-6 col-xl-3">
-                    <div class="sb-kpi-card">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Inventory Logs</span>
-                            <div class="rounded p-2 bg-success bg-opacity-10 text-success"><i class="fas fa-boxes-packing fs-5"></i></div>
+                    <div class="sb-kpi-card h-100 kpi-accent-success" style="border-left: 4px solid #16a34a !important;">
+                        <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                            <div class="d-flex flex-column justify-content-center">
+                                <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Inventory Logs</span>
+                                <h3 class="stat-value tabular-nums mb-0" id="arc-kpi-inv" style="font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h3>
+                            </div>
+                            <div class="kpi-icon-container" style="background-color: rgba(22, 163, 74, 0.1); color: #16a34a; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                                <i class="fas fa-boxes-packing"></i>
+                            </div>
                         </div>
-                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-inv">0</h3>
-                        <small class="text-muted">Stock adjustments</small>
                     </div>
                 </div>
                 <div class="col-6 col-xl-3">
-                    <div class="sb-kpi-card">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Activity Logs</span>
-                            <div class="rounded p-2 bg-info bg-opacity-10 text-info"><i class="fas fa-clipboard-check fs-5"></i></div>
+                    <div class="sb-kpi-card h-100 kpi-accent-cyan" style="border-left: 4px solid #06b6d4 !important;">
+                        <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                            <div class="d-flex flex-column justify-content-center">
+                                <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Activity Logs</span>
+                                <h3 class="stat-value tabular-nums mb-0" id="arc-kpi-logs" style="font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h3>
+                            </div>
+                            <div class="kpi-icon-container" style="background-color: rgba(6, 182, 212, 0.1); color: #0891b2; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
                         </div>
-                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-logs">0</h3>
-                        <small class="text-muted">Audit events</small>
                     </div>
                 </div>
                 <div class="col-6 col-xl-3">
-                    <div class="sb-kpi-card">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="text-muted small fw-semibold">Total Archived</span>
-                            <div class="rounded p-2 bg-warning bg-opacity-10 text-gold"><i class="fas fa-database fs-5"></i></div>
+                    <div class="sb-kpi-card h-100 kpi-accent-gold" style="border-left: 4px solid #b45309 !important;">
+                        <div class="d-flex align-items-center justify-content-between h-100" style="padding: 1.25rem 1.4rem; min-height: 108px;">
+                            <div class="d-flex flex-column justify-content-center">
+                                <span class="kpi-label" style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5e53; margin-bottom: 0.35rem; white-space: nowrap;">Total Archived</span>
+                                <h3 class="stat-value tabular-nums mb-0" id="arc-kpi-total" style="font-size: 2.25rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0;">0</h3>
+                            </div>
+                            <div class="kpi-icon-container" style="background-color: rgba(212, 154, 61, 0.15); color: var(--sb-gold); width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; align-self: center; flex-shrink: 0; margin-left: 1rem;">
+                                <i class="fas fa-database"></i>
+                            </div>
                         </div>
-                        <h3 class="fw-bold text-title mb-0" id="arc-kpi-total">0</h3>
-                        <small class="text-gold fw-semibold">Permanent storage</small>
                     </div>
                 </div>
             </div>
