@@ -92,13 +92,6 @@ class LiveStockView(APIView):
                 "is_critical_or_oos": is_crit_or_oos,
                 "is_expiring_soon": is_exp_soon
             })
-            
-            if status_flag in ["Low Stock", "Critical", "Out of Stock"]:
-                restock_queue.append({
-                    "item": stock.ingredient.ingredient_name, "branch": stock.branch.name, "branch_id": stock.branch.branch_ID, "supplier": "Main Hub",
-                    "order_amount": f"{threshold * 2}", "current": qty, "min": threshold,
-                    "type": "Ingredient"
-                })
 
         # 2. Process Products (Product Availability)
         pw_in_stock = 0
@@ -209,6 +202,9 @@ class LiveStockView(APIView):
                     "type": "Product"
                 })
 
+        if is_owner or is_hub_view:
+            restock_queue = []
+
         product_kpis = {
             "in_stock": pw_in_stock,
             "low_stock": pw_low_stock,
@@ -254,61 +250,60 @@ class LiveStockView(APIView):
                 })
 
         # 4. Pending Restock Approvals
-        # Auto-create 4-6 realistic pending restocks if none exist so Business Owner always has realistic requests to review
-        if RestockRequest.objects.filter(status='Pending').count() == 0:
+        # Satellite branches strictly request finished product dispatches from Ibaan (Main Hub).
+        # The Main Hub never requests restocks and ingredients are never inter-branch restock items.
+        main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first()
+
+        # Clean up any invalid pending requests for ingredients or for Main Hub itself
+        if main_hub:
+            RestockRequest.objects.filter(
+                status='Pending'
+            ).filter(
+                Q(destination_branch=main_hub) | Q(destination_branch_id=main_hub.branch_ID) | Q(ingredient__isnull=False)
+            ).delete()
+
+        satellite_branches = list(Branch.objects.filter(main_hub=False).exclude(branch_ID=main_hub.branch_ID if main_hub else 1).order_by('branch_ID'))
+
+        if RestockRequest.objects.filter(status='Pending', product__isnull=False).count() == 0 and main_hub and satellite_branches:
             try:
-                main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first()
-                if main_hub:
-                    # 1. Product dispatches for satellite branches (Cakes & Pastries from Ibaan Main Hub)
-                    satellite_branches = list(Branch.objects.filter(main_hub=False).exclude(branch_ID=main_hub.branch_ID).order_by('branch_ID'))
-                    cake_products = list(Product.objects.filter(is_active=True, category__category_name__icontains='Cake')[:4])
+                cake_products = list(Product.objects.filter(is_active=True, category__category_name__icontains='Cake')[:5])
+                if not cake_products:
+                    cake_products = list(Product.objects.filter(is_active=True)[:5])
+
+                # Seed realistic satellite branch dispatch requests from Ibaan Main Hub
+                for i, b in enumerate(satellite_branches[:4]):
                     if not cake_products:
-                        cake_products = list(Product.objects.filter(is_active=True)[:4])
-
-                    for i, b in enumerate(satellite_branches[:3]):
-                        if not cake_products:
-                            break
-                        prod = cake_products[i % len(cake_products)]
-                        mgr = User.objects.filter(branch=b, role='Branch Manager').first() or User.objects.filter(role='Branch Manager').first()
-                        if mgr and prod:
-                            RestockRequest.objects.create(
-                                product=prod,
-                                user=mgr,
-                                source_branch=main_hub,
-                                destination_branch=b,
-                                requested_quantity=Decimal('8.00'),
-                                status='Pending'
-                            )
-
-                    # 2. Raw Ingredient restocks for Main Hub and Padre Garcia
-                    ing_branches = [main_hub]
-                    pg_branch = Branch.objects.filter(name__icontains='padre garcia').first()
-                    if pg_branch and pg_branch.branch_ID != main_hub.branch_ID:
-                        ing_branches.append(pg_branch)
-
-                    sample_ings = list(Ingredient.objects.all()[:3])
-                    for i, b in enumerate(ing_branches):
-                        if not sample_ings:
-                            break
-                        ing = sample_ings[i % len(sample_ings)]
-                        mgr = User.objects.filter(branch=b, role='Branch Manager').first() or User.objects.filter(role='Branch Manager').first()
-                        if mgr and ing:
-                            RestockRequest.objects.create(
-                                ingredient=ing,
-                                user=mgr,
-                                source_branch=main_hub,
-                                destination_branch=b,
-                                requested_quantity=Decimal('25.00'),
-                                status='Pending'
-                            )
+                        break
+                    prod = cake_products[i % len(cake_products)]
+                    mgr = User.objects.filter(branch=b, role='Branch Manager').first() or User.objects.filter(role='Branch Manager').first()
+                    if mgr and prod:
+                        RestockRequest.objects.create(
+                            product=prod,
+                            user=mgr,
+                            source_branch=main_hub,
+                            destination_branch=b,
+                            requested_quantity=Decimal('8.00'),
+                            status='Pending'
+                        )
             except Exception:
                 pass
 
-        pending_qs = RestockRequest.objects.filter(status='Pending').select_related('ingredient', 'product', 'destination_branch', 'source_branch', 'user')
+        pending_qs = RestockRequest.objects.filter(
+            status='Pending',
+            product__isnull=False,
+            destination_branch__main_hub=False
+        ).select_related('product', 'destination_branch', 'source_branch', 'user')
+
+        if main_hub:
+            pending_qs = pending_qs.exclude(destination_branch_id=main_hub.branch_ID)
+
         if not (is_owner or is_hub_view):
             pending_qs = pending_qs.filter(destination_branch=user.branch)
         elif branch_filter not in ['all', '1']:
             pending_qs = pending_qs.filter(destination_branch_id=branch_filter)
+        elif branch_filter == '1' and is_owner:
+            # Ibaan (Main Hub) never has incoming restock requests
+            pending_qs = pending_qs.none()
 
         hub_prod_map = {
             ps.product_id: float(ps.quantity_available)
@@ -1500,6 +1495,11 @@ class SubmitRestockView(APIView):
                     )
 
             if item_type == 'product':
+                if is_dest_hub:
+                    return Response(
+                        {"error": "Main Hub (Ibaan) produces products on-site and does not submit restock dispatch requests. Restock requests are exclusively for satellite branches."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 product = None
                 if product_id:
                     product = Product.objects.filter(product_ID=product_id).first()

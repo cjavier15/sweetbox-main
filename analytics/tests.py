@@ -350,9 +350,11 @@ class AnalyticsTests(TestCase):
         self.assertIn('coffee beans', reply.lower())
 
     def test_process_prescription_creates_pending_restock_request(self):
-        """Processing prescription creates a Pending RestockRequest in the Action Queue attributed to Branch Manager."""
+        """Processing prescription for a satellite branch creates a Pending RestockRequest in the Action Queue attributed to Branch Manager."""
+        sat_branch = Branch.objects.create(name="Padre Garcia", address="PG St", main_hub=False)
+        sat_manager = User.objects.create(name="PG Manager", email="pg_mgr_ana@sweetbox.ph", role="Branch Manager", branch=sat_branch, is_active=True)
         p = PrescriptiveOutput.objects.create(
-            branch=self.branch,
+            branch=sat_branch,
             product=self.product,
             output_type='Restock Prescription',
             recommendation='Dispatch 10 units of Iced Coffee',
@@ -361,16 +363,16 @@ class AnalyticsTests(TestCase):
             status='Pending Review'
         )
 
-        # 1. Branch Manager approves
-        self.client.force_authenticate(user=self.manager)
+        # 1. Satellite Branch Manager approves
+        self.client.force_authenticate(user=sat_manager)
         res = self.client.post(f'/api/analytics/process-prescription/{p.prescriptive_output_ID}/', {'action': 'Approve'}, format='json')
         self.assertEqual(res.status_code, 200)
 
         # Verify RestockRequest created
-        req = RestockRequest.objects.filter(product=self.product, destination_branch=self.branch, status='Pending').first()
+        req = RestockRequest.objects.filter(product=self.product, destination_branch=sat_branch, status='Pending').first()
         self.assertIsNotNone(req)
         self.assertEqual(req.requested_quantity, Decimal('10.00'))
-        self.assertEqual(req.user, self.manager)
+        self.assertEqual(req.user, sat_manager)
 
         # 2. Business Owner overrides
         self.client.force_authenticate(user=self.owner)
@@ -383,7 +385,7 @@ class AnalyticsTests(TestCase):
         req.refresh_from_db()
         self.assertEqual(req.requested_quantity, Decimal('15.00'))
         # Attributed to branch manager
-        self.assertEqual(req.user, self.manager)
+        self.assertEqual(req.user, sat_manager)
 
 
 

@@ -72,45 +72,40 @@ class ProcessPrescriptionView(APIView):
                 
             prescription.save()
 
-            # Create/update a Pending RestockRequest in the Restock Action Queue for the Business Owner to approve
+            # Create/update a Pending RestockRequest in the Restock Action Queue for the Business Owner to approve (satellite branches only)
             try:
                 req_qty = prescription.recommended_quantity
-                if req_qty and req_qty > Decimal('0.00'):
-                    # Attribution: attribute to the branch's Branch Manager
-                    if getattr(request.user, 'role', '') == 'Branch Manager':
+                dest_branch = prescription.branch
+                is_dest_hub = bool(dest_branch and (dest_branch.main_hub or dest_branch.branch_ID == 1 or 'ibaan' in dest_branch.name.lower()))
+                if req_qty and req_qty > Decimal('0.00') and not is_dest_hub and prescription.product:
+                    # Attribution: attribute to the satellite branch's Branch Manager
+                    if getattr(request.user, 'role', '') == 'Branch Manager' and getattr(request.user, 'branch', None) == dest_branch:
                         requester_user = request.user
                     else:
-                        requester_user = User.objects.filter(branch=prescription.branch, role='Branch Manager').first() or request.user
+                        requester_user = User.objects.filter(branch=dest_branch, role='Branch Manager').first() or request.user
 
-                    main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first() or prescription.branch
+                    main_hub = Branch.objects.filter(Q(main_hub=True) | Q(branch_ID=1) | Q(name__icontains='ibaan')).first() or dest_branch
 
                     filter_kwargs = {
-                        'destination_branch': prescription.branch,
+                        'destination_branch': dest_branch,
+                        'product': prescription.product,
                         'status': 'Pending'
                     }
-                    if prescription.product:
-                        filter_kwargs['product'] = prescription.product
-                    elif prescription.ingredient:
-                        filter_kwargs['ingredient'] = prescription.ingredient
-                    else:
-                        filter_kwargs = None
 
-                    if filter_kwargs:
-                        existing_req = RestockRequest.objects.filter(**filter_kwargs).first()
-                        if existing_req:
-                            existing_req.requested_quantity = req_qty
-                            existing_req.user = requester_user
-                            existing_req.save()
-                        else:
-                            RestockRequest.objects.create(
-                                product=prescription.product,
-                                ingredient=prescription.ingredient,
-                                user=requester_user,
-                                source_branch=main_hub,
-                                destination_branch=prescription.branch,
-                                requested_quantity=req_qty,
-                                status='Pending'
-                            )
+                    existing_req = RestockRequest.objects.filter(**filter_kwargs).first()
+                    if existing_req:
+                        existing_req.requested_quantity = req_qty
+                        existing_req.user = requester_user
+                        existing_req.save()
+                    else:
+                        RestockRequest.objects.create(
+                            product=prescription.product,
+                            user=requester_user,
+                            source_branch=main_hub,
+                            destination_branch=dest_branch,
+                            requested_quantity=req_qty,
+                            status='Pending'
+                        )
             except Exception:
                 pass
 

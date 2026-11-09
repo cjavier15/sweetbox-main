@@ -1286,11 +1286,11 @@
         });
     });
 
-    window.currentUserRole = '';
-    window.currentUserBranchId = null;
-    window.currentUserBranchName = '';
-    window.isOwner = false;
-    window.isOwnerOrHub = false;
+    window.currentUserRole = "{{ request.user.role|default:'' }}";
+    window.currentUserBranchId = {{ request.user.branch.branch_ID|default:'null' }};
+    window.currentUserBranchName = "{{ request.user.branch.name|default:''|escapejs }}";
+    window.isOwner = ("{{ request.user.role }}" === "Business Owner" || {{ request.user.is_superuser|yesno:"true,false" }} || "{{ request.user.role }}" === "System Administrator");
+    window.isOwnerOrHub = (window.isOwner || window.currentUserBranchId === 1 || (window.currentUserBranchName || '').toLowerCase().includes('ibaan'));
     window.cachedProductWatch = [];
 
     async function initializeRBACUI() {
@@ -1298,11 +1298,13 @@
         try {
             const response = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
             const user = await response.json();
-            window.currentUserRole = user.role;
-            window.currentUserBranchId = user.branch_id;
-            window.currentUserBranchName = user.branch;
-            window.isOwner = (user.role === 'Business Owner' || user.is_superuser || user.role === 'System Administrator');
-            window.isOwnerOrHub = (window.isOwner || user.branch_id === 1 || (user.branch && user.branch.toLowerCase().includes('ibaan')));
+            if (user && user.role) {
+                window.currentUserRole = user.role;
+                window.currentUserBranchId = user.branch_id;
+                window.currentUserBranchName = user.branch || '';
+                window.isOwner = (user.role === 'Business Owner' || user.is_superuser || user.role === 'System Administrator');
+                window.isOwnerOrHub = (window.isOwner || user.branch_id === 1 || (user.branch && user.branch.toLowerCase().includes('ibaan')));
+            }
             
             const branchFilter = document.getElementById('branch-filter');
             const produceBranchSelect = document.getElementById('produce-branch-id');
@@ -2852,31 +2854,26 @@
             Boolean(window.isOwner)
         );
 
-        const pendingList = (pendingRequests || []).filter(p => p.status === 'Pending' || !p.status);
-
         // 1. Business Owner & System Administrator View (The Approver)
         if (isOwnerOrAdmin) {
+            // Strictly filter for pending product dispatches from satellite branches
+            const pendingList = (pendingRequests || []).filter(p => (p.status === 'Pending' || !p.status) && (p.type === 'Product' || p.item_type === 'Product Dispatch' || p.item_type === 'product'));
+
             if (pendingList.length === 0) {
                 container.innerHTML = '<div class="p-4 text-center text-muted">All branch restock requests have been reviewed.</div>';
                 return;
             }
 
             container.innerHTML = pendingList.map(req => {
-                const isProduct = (req.type === 'Product' || req.item_type === 'Product Dispatch' || req.item_type === 'product');
-                const typeBadge = isProduct 
-                    ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product Dispatch</span>` 
-                    : `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 me-1"><i class="fas fa-seedling me-1"></i>Ingredient Procurement</span>`;
-                
+                const typeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product Dispatch</span>`;
                 const hubAvail = (req.hub_available !== undefined && req.hub_available !== null) ? Number(req.hub_available) : 0;
                 const requestedQty = Number(req.requested_quantity || req.qty || 0);
-                const hubAvailBadge = isProduct 
-                    ? `<span class="badge ${hubAvail >= requestedQty ? 'bg-success bg-opacity-10 text-success border border-success border-opacity-25' : 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25'} ms-1"><i class="fas fa-warehouse me-1"></i>Hub Avail: ${hubAvail}</span>` 
-                    : '';
+                const hubAvailBadge = `<span class="badge ${hubAvail >= requestedQty ? 'bg-success bg-opacity-10 text-success border border-success border-opacity-25' : 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25'} ms-1"><i class="fas fa-warehouse me-1"></i>Hub Avail: ${hubAvail}</span>`;
 
                 const itemName = req.item_name || req.item || 'Unknown Item';
                 const requestedBy = req.requested_by_name || req.user || 'Branch Manager';
                 const destBranch = req.branch_name || req.destination || 'Branch';
-                const unit = req.unit || (isProduct ? 'pcs' : 'units');
+                const unit = req.unit || 'pcs';
 
                 return `
                 <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white mb-2 rounded shadow-sm border-start border-warning border-4">
@@ -2902,23 +2899,31 @@
             return;
         }
 
-        // 2. Branch Manager View (The Requester)
+        // 2. Satellite Branch Manager View (The Requester)
+        // Hub Manager and non-satellite users do NOT submit restock requests
+        const isSatellite = (
+            window.currentUserBranchId && 
+            window.currentUserBranchId !== 1 && 
+            !(window.currentUserBranchName || '').toLowerCase().includes('ibaan')
+        );
+
+        if (!isSatellite) {
+            container.innerHTML = '<div class="p-4 text-center text-muted">Restock requests are strictly reserved for satellite branch dispatches.</div>';
+            return;
+        }
+
+        const pendingList = (pendingRequests || []).filter(p => (p.status === 'Pending' || !p.status) && (p.type === 'Product' || p.item_type === 'Product Dispatch' || p.item_type === 'product'));
         const branchPending = pendingList.filter(p => {
-            if (!window.currentUserBranchId) return true;
             return String(p.branch_id) === String(window.currentUserBranchId) || String(p.destination) === String(window.currentUserBranchName);
         });
 
         let pendingHtml = '';
         if (branchPending.length > 0) {
             pendingHtml = branchPending.map(req => {
-                const isProduct = (req.type === 'Product' || req.item_type === 'Product Dispatch' || req.item_type === 'product');
-                const typeBadge = isProduct 
-                    ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product Dispatch</span>` 
-                    : `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 me-1"><i class="fas fa-seedling me-1"></i>Ingredient Procurement</span>`;
-                
+                const typeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product Dispatch</span>`;
                 const itemName = req.item_name || req.item || 'Unknown Item';
                 const requestedQty = Number(req.requested_quantity || req.qty || 0);
-                const unit = req.unit || (isProduct ? 'pcs' : 'units');
+                const unit = req.unit || 'pcs';
                 const destBranch = req.branch_name || req.destination || 'Branch';
 
                 return `
@@ -2942,20 +2947,18 @@
             }).join('');
         }
 
-        // Below that, show their branch's low/critical stock items (that do not yet have a pending request) with the Submit Request button
+        // Below that, show their branch's low/critical Cake & Pastry products with Submit Request button
         const pendingItemNames = new Set(branchPending.map(p => (p.item_name || p.item || '').toLowerCase().trim()));
         const unsubmittedQueue = (queue || []).filter(q => {
+            const isProd = (q.type === 'Product' || q.item_type === 'product');
             const itemName = (q.item || '').toLowerCase().trim();
-            return !pendingItemNames.has(itemName);
+            return isProd && !pendingItemNames.has(itemName);
         });
 
         let suggestHtml = '';
         if (unsubmittedQueue.length > 0) {
             suggestHtml = unsubmittedQueue.map(q => {
-                const itemType = (q.type === 'Product' || q.item_type === 'product') ? 'product' : 'ingredient';
-                const typeBadge = itemType === 'product'
-                    ? `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product</span>`
-                    : `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 me-1"><i class="fas fa-seedling me-1"></i>Ingredient</span>`;
+                const typeBadge = `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1"><i class="fas fa-box me-1"></i>Product</span>`;
 
                 return `
                 <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light mb-2 rounded border">
@@ -2964,12 +2967,12 @@
                             ${typeBadge}
                             <h6 class="fw-bold mb-0 text-title">${q.item}</h6>
                         </div>
-                        <small class="text-muted"><i class="fas fa-store me-1"></i>${q.branch} | Supplier: ${q.supplier || 'Main Commissary'}</small>
+                        <small class="text-muted"><i class="fas fa-store me-1"></i>${q.branch} | Supplier: ${q.supplier || 'Ibaan (Main Hub)'}</small>
                     </div>
                     <div class="text-end me-4">
                         <div class="fw-bold text-title tabular-nums">Suggest: ${q.order_amount}</div>
                     </div>
-                    <button class="btn btn-sm btn-sb-gold fw-bold text-dark px-3 shadow-sm" onclick="submitRestock('${q.item.replace(/'/g, "\\'")}', ${parseFloat(q.order_amount)}, '${q.branch_id}', '${itemType}')"><i class="fas fa-paper-plane me-1"></i>Submit Request</button>
+                    <button class="btn btn-sm btn-sb-gold fw-bold text-dark px-3 shadow-sm" onclick="submitRestock('${q.item.replace(/'/g, "\\'")}', ${parseFloat(q.order_amount)}, '${q.branch_id}', 'product')"><i class="fas fa-paper-plane me-1"></i>Submit Request</button>
                 </div>`;
             }).join('');
         }

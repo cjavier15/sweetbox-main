@@ -276,6 +276,31 @@ class InventoryTests(TestCase):
         self.assertEqual(res.status_code, 403)
         self.assertIn("Business Owners approve restock requests rather than submitting them.", res.data['error'])
 
+    def test_hub_cannot_request_product_restock(self):
+        """Main Hub produces products and cannot request product restock dispatches."""
+        self.client.force_authenticate(user=self.hub_manager)
+        payload = {
+            'product_name': 'Chocolate Cake',
+            'quantity': 5,
+            'branch_id': self.hub.branch_ID
+        }
+        res = self.client.post('/api/inventory/restock/submit/', payload, format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("Main Hub (Ibaan) produces products on-site", res.data['error'])
+
+    def test_owner_restock_dashboard_has_no_suggestions_and_only_satellite_dispatches(self):
+        """Owner's dashboard has empty restock_queue and pending_restocks contains only satellite dispatches."""
+        self.client.force_authenticate(user=self.owner)
+        res = self.client.get('/api/inventory/stock/?branch=all')
+        self.assertEqual(res.status_code, 200)
+        # Owner restock queue has zero suggestions (Owner never submits requests)
+        self.assertEqual(len(res.data.get('restock_queue', [])), 0)
+
+        # All pending restocks must be Product Dispatches for satellite branches
+        for req in res.data.get('pending_restocks', []):
+            self.assertEqual(req['item_type'], 'Product Dispatch')
+            self.assertNotEqual(req['branch_id'], self.hub.branch_ID)
+
     def test_submit_restock_deduplicates_and_updates_qty(self):
         """Submitting duplicate restock request updates requested_quantity on existing pending request."""
         self.client.force_authenticate(user=self.manager)
