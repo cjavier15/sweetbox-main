@@ -432,7 +432,7 @@
             div.innerHTML = `
                 <div class="d-inline-block p-3 rounded-3 text-white text-start shadow-sm" style="background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%); max-width: 85%;">
                     <div class="small fw-bold mb-1" style="color: var(--sb-gold-light); font-size: 0.72rem;"><i class="fas fa-user me-1"></i> You</div>
-                    <div class="lh-base" style="font-size: 0.88rem;">${escapeHtml(query)}</div>
+                    <div class="lh-base" style="font-size: 0.88rem; overflow-wrap: anywhere; word-break: break-word;">${escapeHtml(query)}</div>
                 </div>`;
             messages.appendChild(div);
         }
@@ -445,14 +445,14 @@
             div.className = 'text-start animate-fade-in mb-2';
             div.innerHTML = `
                 <div class="d-inline-block p-3 rounded-3 bg-white shadow-sm border text-start" style="max-width: 90%; border-left: 4px solid var(--sb-gold) !important; border-color: var(--sb-border-subtle);">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
                         <span class="small fw-bold" style="color: var(--sb-espresso);"><i class="fas fa-robot text-gold me-1"></i> Gemini Analyst</span>
                         <div>
                             <span class="badge" style="background: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-size: 0.65rem;">Grounded Telemetry</span>
                             ${timeLabel}
                         </div>
                     </div>
-                    <div class="text-body lh-base" style="font-size: 0.88rem;">${formatAiReply(reply)}</div>
+                    <div class="text-body lh-base" style="font-size: 0.88rem; overflow-wrap: anywhere; word-break: break-word;">${formatAiReply(reply)}</div>
                 </div>`;
             messages.appendChild(div);
         }

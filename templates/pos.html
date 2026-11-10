@@ -418,7 +418,7 @@
     <!-- Right Panel: Cart & Billing -->
     <div class="col-12 col-lg-4 d-none d-lg-block" id="pos-cart-col">
         <div class="card sb-card border-0 h-100 shadow-sm d-flex flex-column">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 py-md-3 border-bottom" style="border-color: var(--sb-border-subtle) !important;">
+            <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 py-md-3 border-bottom" style="border-color: var(--sb-border-subtle) !important;">
                 <div class="d-flex align-items-center gap-2">
                     <button class="btn btn-sm btn-outline-secondary d-lg-none px-2 py-1" onclick="switchPosMobileView('menu')" title="Back to Menu">
                         <i class="fas fa-arrow-left"></i>
@@ -567,7 +567,7 @@
                         <h4 class="fw-bold mb-0 text-title">Sweet Box</h4>
                         <small class="text-muted" id="receipt-date"></small>
                     </div>
-                    <div class="d-flex justify-content-between mb-3 pb-2 border-bottom small">
+                    <div class="d-flex flex-wrap justify-content-between gap-2 mb-3 pb-2 border-bottom small">
                         <div><span class="text-muted">TXN ID:</span><br><strong id="receipt-txn" class="tabular-nums"></strong></div>
                         <div class="text-end"><span class="text-muted">Cashier:</span><br><strong id="receipt-cashier"></strong></div>
                     </div>
@@ -580,7 +580,7 @@
                     </div>
                     <div class="text-center mt-3 small text-muted" id="receipt-payment-method"></div>
                 </div>
-                <div class="d-flex gap-2 mt-3">
+                <div class="d-flex flex-column flex-sm-row gap-2 mt-3">
                     <button class="btn btn-outline-dark w-100 fw-bold" onclick="printReceipt()"><i class="fas fa-print me-1"></i> Print</button>
                     <button class="btn btn-sb-outline-gold w-100 fw-bold" onclick="downloadPDF()"><i class="fas fa-file-pdf me-1"></i> Save PDF</button>
                 </div>

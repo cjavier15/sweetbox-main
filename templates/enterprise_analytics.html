@@ -31,58 +31,58 @@
 <!-- Scorecards -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
-            <div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between">
+            <div class="min-w-0">
+                <div class="d-flex justify-content-between align-items-center gap-1 mb-2">
                     <div class="sb-kpi-icon"><i class="fas fa-chart-line"></i></div>
                     <span class="kpi-trend trend-up" id="kpi-rev-trend">+0.0%</span>
                 </div>
                 <div class="sb-kpi-label">Total Revenue</div>
-                <div class="sb-kpi-value tabular-nums my-1" id="kpi-revenue" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">₱0.00</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-revenue">₱0.00</div>
             </div>
-            <div class="sb-kpi-subtext mt-2" id="kpi-rev-prev" style="font-size: 0.8rem; font-weight: 600;">vs. ₱0.00 previous period · <span id="kpi-txns-sub">0 txns</span></div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-rev-prev">vs. ₱0.00 previous period · <span id="kpi-txns-sub">0 txns</span></div>
         </div>
     </div>
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
-            <div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between">
+            <div class="min-w-0">
+                <div class="d-flex justify-content-between align-items-center gap-1 mb-2">
                     <div class="sb-kpi-icon"><i class="fas fa-scale-balanced"></i></div>
                     <span class="kpi-trend trend-up" id="kpi-margin-pct-badge">0.0% Margin</span>
                 </div>
                 <div class="sb-kpi-label">Gross Margin (BOM)</div>
-                <div class="sb-kpi-value tabular-nums my-1" id="kpi-gross-margin" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">₱0.00</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-gross-margin">₱0.00</div>
             </div>
-            <div class="sb-kpi-subtext mt-2" id="kpi-cogs-subtext" style="font-size: 0.8rem; font-weight: 600;">BOM COGS: ₱0.00</div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-cogs-subtext">BOM COGS: ₱0.00</div>
             <span id="kpi-transactions" class="d-none">0</span>
             <span id="kpi-txn-trend" class="d-none">+0.0%</span>
         </div>
     </div>
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
-            <div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between">
+            <div class="min-w-0">
+                <div class="d-flex justify-content-between align-items-center gap-1 mb-2">
                     <div class="sb-kpi-icon"><i class="fas fa-arrows-rotate"></i></div>
                     <span class="kpi-trend trend-up" id="kpi-gmroi-badge">GMROI: 0.0</span>
                 </div>
                 <div class="sb-kpi-label">Inventory Turnover</div>
-                <div class="sb-kpi-value tabular-nums my-1" id="kpi-turnover" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">0.0x</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-turnover">0.0x</div>
             </div>
-            <div class="sb-kpi-subtext mt-2" id="kpi-inv-val-subtext" style="font-size: 0.8rem; font-weight: 600;">Inventory Value: ₱0.00</div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-inv-val-subtext">Inventory Value: ₱0.00</div>
             <span id="kpi-gmroi" class="d-none">GMROI: 0.0</span>
         </div>
     </div>
     <div class="col-6 col-xl-3">
-        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between" style="padding: 1.3rem 1.45rem;">
-            <div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="sb-kpi-card h-100 d-flex flex-column justify-content-between">
+            <div class="min-w-0">
+                <div class="d-flex justify-content-between align-items-center gap-1 mb-2">
                     <div class="sb-kpi-icon" style="background: rgba(44, 24, 16, 0.08); color: var(--sb-espresso);"><i class="fas fa-boxes-stacked"></i></div>
                     <span class="kpi-trend trend-up" id="kpi-offline-badge">All Active</span>
                 </div>
                 <div class="sb-kpi-label">Depleted & Dead Stock</div>
-                <div class="sb-kpi-value tabular-nums my-1" id="kpi-stockouts" style="font-size: 2.05rem; font-weight: 800; line-height: 1.1;">0 Depleted</div>
+                <div class="sb-kpi-value tabular-nums my-1" id="kpi-stockouts">0 Items</div>
             </div>
-            <div class="sb-kpi-subtext mt-2" id="kpi-dead-stock-subtext" style="font-size: 0.8rem; font-weight: 600;">Dead Stock Risk: ₱0.00</div>
+            <div class="sb-kpi-subtext mt-2" id="kpi-dead-stock-subtext">Dead Stock Risk: ₱0.00</div>
             <span id="kpi-branches" class="d-none">0 / 0</span>
         </div>
     </div>
@@ -92,19 +92,19 @@
 <div class="row g-3 mb-4">
     <div class="col-lg-8">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                 <div>
                     <h6 class="fw-bold text-espresso mb-0">Sales Overview</h6>
                 </div>
                 <span class="badge bg-warning text-dark"><i class="fas fa-signal me-1"></i> Live Metric</span>
             </div>
-            <div style="height: clamp(240px, 35vh, 260px); min-height: 240px;" class="mt-2"><canvas id="dailySalesChart"></canvas></div>
+            <div style="position: relative; height: clamp(240px, 35vh, 260px); min-height: 240px;" class="mt-2"><canvas id="dailySalesChart"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4">
         <div class="card shadow-sm border-0 h-100 p-3">
             <h6 class="fw-bold text-espresso mb-2">Payment Methods</h6>
-            <div style="height: clamp(240px, 35vh, 260px); min-height: 240px;" class="d-flex justify-content-center align-items-center">
+            <div style="position: relative; height: clamp(240px, 35vh, 260px); min-height: 240px;" class="d-flex justify-content-center align-items-center">
                 <canvas id="paymentMethodChart"></canvas>
             </div>
         </div>
@@ -115,7 +115,7 @@
 <div class="row g-3 mb-4">
     <div class="col-12">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                 <div>
                     <h6 class="fw-bold text-espresso mb-0">Branch Sales vs Target</h6>
                 </div>
@@ -123,7 +123,7 @@
                     <i class="bi bi-pencil-square"></i> Edit Targets
                 </button>
             </div>
-            <div style="height: clamp(240px, 35vh, 290px); min-height: 240px;" class="mt-2"><canvas id="branchTargetChart"></canvas></div>
+            <div style="position: relative; height: clamp(240px, 35vh, 290px); min-height: 240px;" class="mt-2"><canvas id="branchTargetChart"></canvas></div>
         </div>
     </div>
 </div>
@@ -137,7 +137,6 @@
                     <h6 class="fw-bold text-espresso mb-0 d-flex align-items-center gap-2">
                         <i class="fas fa-table-cells text-warning"></i> Cross-Branch KPI & Financial Ledger
                     </h6>
-                    <small class="text-muted-warm">Multi-branch financial performance, inventory turnover, GMROI, and target fulfillment</small>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-dark fw-semibold d-flex align-items-center gap-1 shadow-sm" onclick="openEditTargetsModal()">
                     <i class="bi bi-pencil-square"></i> Edit Quota Targets
@@ -174,7 +173,7 @@
 <div class="row g-3 mb-4">
     <div class="col-lg-4">
         <div class="card shadow-sm border-0 h-100 p-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                 <div>
                     <h6 class="fw-bold text-espresso mb-0">Branch Performance Ranking</h6>
                 </div>
@@ -201,7 +200,7 @@
                         Best: <strong id="cnt-best-selling">0</strong>
                     </span>
                     <span class="badge bg-primary bg-opacity-25 text-primary border border-primary-subtle px-2 py-1 small">
-                        Std: <strong id="cnt-standard">0</strong>
+                        Standard: <strong id="cnt-standard">0</strong>
                     </span>
                     <span class="badge bg-warning bg-opacity-25 text-dark border border-warning-subtle px-2 py-1 small">
                         Seasonal: <strong id="cnt-seasonal">0</strong>
@@ -229,7 +228,7 @@
                         Slow-Moving (≤10)
                     </button>
                 </div>
-                <div class="input-group input-group-sm" style="max-width: 200px;">
+                <div class="input-group input-group-sm flex-grow-1 flex-sm-grow-0" style="max-width: 220px;">
                     <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
                     <input type="text" id="product-matrix-search" class="form-control border-start-0" placeholder="Filter items..." oninput="onProductSearchChange()">
                 </div>
@@ -239,7 +238,6 @@
                 <table class="table table-hover align-middle small mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>#</th>
                             <th>Product Name</th>
                             <th>Category</th>
                             <th class="text-end">Units</th>
@@ -291,7 +289,7 @@
 
             <!-- Reviewed & Overridden Prescriptions Table -->
             <div class="card border-0 shadow-sm bg-white overflow-hidden">
-                <div class="card-header bg-white py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="card-header bg-white py-2 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <span class="fw-bold text-espresso small"><i class="fas fa-history me-1 text-gold"></i> Reviewed & Overridden Prescription History</span>
                     <span class="badge bg-light text-dark border" id="ai-pending-badge">0 Records</span>
                 </div>
@@ -353,7 +351,7 @@
 <div class="row mt-4">
     <div class="col-12">
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+            <div class="card-header bg-dark text-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
                 <span class="fw-bold"><i class="fas fa-calendar-alt text-warning me-2"></i> AI Context: Local Events & Variables</span>
                 <button class="btn btn-sm btn-warning fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#eventModal">+ Add Event</button>
             </div>
@@ -470,7 +468,7 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light small text-espresso">
                                 <tr>
-                                    <th style="min-width: 170px;">Branch Name</th>
+                                    <th>Branch Name</th>
                                     <th style="min-width: 130px;">Actual Revenue</th>
                                     <th style="min-width: 170px;">Base Monthly Target (₱)</th>
                                     <th style="min-width: 160px;">Target Preview (<span id="modal-timeframe-label">This Month</span>)</th>
@@ -627,7 +625,7 @@
             if (elGmroi) elGmroi.innerText = `GMROI: ${sc.gmroi || 0}`;
 
             const elStockouts = document.getElementById('kpi-stockouts');
-            if (elStockouts) elStockouts.innerText = `${stockoutsVal} Depleted`;
+            if (elStockouts) elStockouts.innerText = `${stockoutsVal} Items`;
             const elDeadSub = document.getElementById('kpi-dead-stock-subtext');
             if (elDeadSub) elDeadSub.innerText = `Dead Stock Risk: ₱${deadStockVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
@@ -795,7 +793,7 @@
             const achievePct = b.achievement_pct !== undefined ? b.achievement_pct : (targetVal > 0 ? ((b.actual / targetVal) * 100).toFixed(1) : 0);
             return `
             <div class="mb-3">
-                <div class="d-flex justify-content-between align-items-end mb-1">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-1 mb-1">
                     <span class="fw-bold theme-text">
                         <span class="badge rounded-circle bg-light text-muted me-2" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;">${idx + 1}</span> 
                         ${branchName}
@@ -848,7 +846,7 @@
             return `
             <tr>
                 <td>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex flex-wrap align-items-center gap-1">
                         <span class="fw-bold text-espresso">${bName}</span>
                         ${isHub ? '<span class="badge" style="background-color: var(--sb-gold); color: #3E2419;">Main Hub</span>' : ''}
                     </div>
@@ -929,7 +927,7 @@
         }
 
         if (!products.length) {
-            tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No products found matching the specified classification filter.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No products found matching the specified classification filter.</td></tr>';
             return;
         }
 
@@ -954,8 +952,7 @@
 
             return `
             <tr>
-                <td class="text-muted fw-bold">${p.rank || (idx + 1)}</td>
-                <td class="fw-bold theme-text">${p.name}</td>
+                <td class="theme-text"><span class="badge bg-light text-dark border me-2">#${p.rank || (idx + 1)}</span><strong>${p.name}</strong></td>
                 <td><span class="badge" style="${badgeStyle}">${p.category}</span></td>
                 <td class="text-end tabular-nums">${Number(p.units || 0).toLocaleString()}</td>
                 <td class="text-end fw-bold tabular-nums">₱${Number(p.revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>

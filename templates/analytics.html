@@ -4,7 +4,7 @@
 <div class="row justify-content-center">
     <div class="col-12 col-md-10 col-lg-9">
         <div class="card sb-card border-0 shadow-sm overflow-hidden" style="border-radius: var(--sb-radius-lg);">
-            <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center text-white" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); border-bottom: 2px solid var(--sb-gold);">
+            <div class="card-header py-3 px-3 px-sm-4 d-flex flex-wrap justify-content-between align-items-center gap-2 text-white" style="background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%); border-bottom: 2px solid var(--sb-gold);">
                 <div class="d-flex align-items-center gap-3">
                     <div class="sb-brand-logo" style="width: 38px; height: 38px; font-size: 1.1rem; background: rgba(212, 154, 61, 0.2); border: 1.5px solid var(--sb-gold);"><i class="fas fa-brain text-gold"></i></div>
                     <div>
@@ -103,7 +103,7 @@
         div.innerHTML = `
             <div class="d-inline-block p-3 rounded-3 text-white text-start shadow-sm" style="background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%); max-width: 85%;">
                 <div class="small fw-bold mb-1" style="color: var(--sb-gold-light); font-size: 0.72rem;"><i class="fas fa-user me-1"></i> You</div>
-                <div class="lh-base" style="font-size: 0.88rem;">${escapeHtml(query)}</div>
+                <div class="lh-base" style="font-size: 0.88rem; overflow-wrap: anywhere; word-break: break-word;">${escapeHtml(query)}</div>
             </div>`;
         messages.appendChild(div);
     }
@@ -116,14 +116,14 @@
         div.className = 'text-start animate-fade-in mb-2';
         div.innerHTML = `
             <div class="d-inline-block p-3 rounded-3 bg-white shadow-sm border text-start" style="max-width: 90%; border-left: 4px solid var(--sb-gold) !important; border-color: var(--sb-border-subtle);">
-                <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
                     <span class="small fw-bold" style="color: var(--sb-espresso);"><i class="fas fa-robot text-gold me-1"></i> Gemini Analyst</span>
                     <div>
                         <span class="badge" style="background: var(--sb-gold-subtle); color: var(--sb-espresso-dark); font-size: 0.65rem;">Grounded Telemetry</span>
                         ${timeLabel}
                     </div>
                 </div>
-                <div class="text-body lh-base" style="font-size: 0.88rem;">${formatAiReply(reply)}</div>
+                <div class="text-body lh-base" style="font-size: 0.88rem; overflow-wrap: anywhere; word-break: break-word;">${formatAiReply(reply)}</div>
             </div>`;
         messages.appendChild(div);
     }
