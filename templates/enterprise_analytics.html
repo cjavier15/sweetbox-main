@@ -195,17 +195,17 @@
                     </h6>
                 </div>
                 <!-- Tier Summary Counters -->
-                <div class="d-flex flex-wrap align-items-center gap-1" id="tier-counter-badges">
-                    <span class="badge bg-success bg-opacity-25 text-success border border-success-subtle px-2 py-1 small">
+                <div class="d-flex flex-wrap align-items-center gap-2" id="tier-counter-badges">
+                    <span class="badge bg-success bg-opacity-25 text-success border border-success-subtle small gap-1">
                         Best: <strong id="cnt-best-selling">0</strong>
                     </span>
-                    <span class="badge bg-primary bg-opacity-25 text-primary border border-primary-subtle px-2 py-1 small">
+                    <span class="badge bg-primary bg-opacity-25 text-primary border border-primary-subtle small gap-1">
                         Standard: <strong id="cnt-standard">0</strong>
                     </span>
-                    <span class="badge bg-warning bg-opacity-25 text-dark border border-warning-subtle px-2 py-1 small">
+                    <span class="badge bg-warning bg-opacity-25 text-dark border border-warning-subtle small gap-1">
                         Seasonal: <strong id="cnt-seasonal">0</strong>
                     </span>
-                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger-subtle px-2 py-1 small">
+                    <span class="badge bg-danger bg-opacity-25 text-danger border border-danger-subtle small gap-1">
                         Slow: <strong id="cnt-slow-moving">0</strong>
                     </span>
                 </div>
@@ -213,18 +213,18 @@
 
             <!-- Tier Filter Pills & Search Bar -->
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
-                <div class="d-flex align-items-center gap-1 overflow-x-auto sb-mobile-scroll-row pb-1 text-nowrap flex-nowrap flex-sm-wrap" id="product-tier-pills">
-                    <button type="button" class="btn btn-sm btn-outline-dark filter-tier-btn active px-2" data-tier="All" onclick="filterProductsByTier('All', this)">All</button>
-                    <button type="button" class="btn btn-sm btn-outline-success filter-tier-btn px-2" data-tier="Best-Selling" onclick="filterProductsByTier('Best-Selling', this)">
+                <div class="d-flex flex-wrap align-items-center gap-2" id="product-tier-pills">
+                    <button type="button" class="btn btn-sm btn-outline-dark filter-tier-btn active" data-tier="All" onclick="filterProductsByTier('All', this)">All</button>
+                    <button type="button" class="btn btn-sm btn-outline-success filter-tier-btn" data-tier="Best-Selling" onclick="filterProductsByTier('Best-Selling', this)">
                         Best-Selling (≥50)
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary filter-tier-btn px-2" data-tier="Standard" onclick="filterProductsByTier('Standard', this)">
+                    <button type="button" class="btn btn-sm btn-outline-primary filter-tier-btn" data-tier="Standard" onclick="filterProductsByTier('Standard', this)">
                         Standard (11-49)
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-warning text-dark filter-tier-btn px-2" data-tier="Seasonal" onclick="filterProductsByTier('Seasonal', this)">
+                    <button type="button" class="btn btn-sm btn-outline-warning text-dark filter-tier-btn" data-tier="Seasonal" onclick="filterProductsByTier('Seasonal', this)">
                         Seasonal
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger filter-tier-btn px-2" data-tier="Slow-Moving" onclick="filterProductsByTier('Slow-Moving', this)">
+                    <button type="button" class="btn btn-sm btn-outline-danger filter-tier-btn" data-tier="Slow-Moving" onclick="filterProductsByTier('Slow-Moving', this)">
                         Slow-Moving (≤10)
                     </button>
                 </div>

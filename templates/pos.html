@@ -11,6 +11,8 @@
         border: 1px solid rgba(212, 154, 61, 0.25);
         border-radius: var(--sb-radius-lg);
         box-shadow: var(--sb-shadow-sm);
+        flex-shrink: 0 !important;
+        min-height: max-content;
     }
     .pos-theme {
         background: linear-gradient(135deg, var(--sb-espresso-dark) 0%, var(--sb-espresso) 100%);
@@ -83,13 +85,33 @@
         border: 1px solid var(--sb-border-subtle);
         background: #FFFFFF;
         color: var(--sb-espresso);
-        border-radius: 50rem;
-        padding: 5px 12px;
-        font-size: 0.8rem;
+        font-size: 0.84rem;
         font-weight: 600;
-        white-space: nowrap;
         transition: var(--sb-transition);
         cursor: pointer;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.45rem;
+        min-height: 38px !important;
+        height: auto !important;
+        padding: 0.42rem 0.95rem !important;
+        line-height: 1.2 !important;
+        border-radius: 999px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        box-sizing: border-box !important;
+        vertical-align: middle;
+    }
+    .pos-pill-tab .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.75rem;
+        line-height: 1;
+        border-radius: 999px;
+        margin: 0 !important;
     }
     .pos-pill-tab:hover {
         border-color: var(--sb-gold);
@@ -106,13 +128,21 @@
         border: 1px solid rgba(212, 154, 61, 0.25);
         background: #FAF7F2;
         color: var(--sb-espresso);
-        border-radius: 50rem;
-        padding: 3px 10px;
-        font-size: 0.74rem;
         font-weight: 500;
-        white-space: nowrap;
         transition: var(--sb-transition);
         cursor: pointer;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 34px !important;
+        height: auto !important;
+        padding: 0.35rem 0.85rem !important;
+        font-size: 0.84rem !important;
+        line-height: 1.2 !important;
+        border-radius: 999px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        box-sizing: border-box !important;
     }
     .pos-subcat-pill:hover {
         background: var(--sb-gold-subtle);
@@ -126,14 +156,21 @@
         border-color: var(--sb-gold) !important;
     }
     .size-pill-btn {
-        padding: 2px 7px;
-        font-size: 0.72rem;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 1.2 !important;
+        height: auto !important;
         font-weight: 600;
         border-radius: 6px;
         border: 1px solid var(--sb-border-subtle);
         background: #FFFFFF;
         color: var(--sb-espresso);
         transition: all 0.15s ease;
+        white-space: nowrap !important;
+        font-size: 0.72rem !important;
+        padding: 0.25rem 0.65rem !important;
+        min-height: 26px !important;
     }
     .size-pill-btn:hover:not(.disabled-pill) {
         border-color: var(--sb-gold);
@@ -152,12 +189,6 @@
         color: #9CA3AF;
         border-color: #E5E7EB;
         cursor: not-allowed;
-    }
-    .size-pill-btn {
-        white-space: nowrap !important;
-        font-size: 0.72rem !important;
-        padding: 3px 8px !important;
-        min-height: 26px !important;
     }
     #product-catalog-container {
         display: grid !important;
@@ -203,26 +234,46 @@
         min-height: 2.5em;
         margin-bottom: 6px;
     }
+    .pos-top-bar {
+        flex-shrink: 0 !important;
+        min-height: max-content;
+    }
     .pos-dept-bar,
     .pos-subcat-bar {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch;
-        gap: 6px !important;
-        padding-bottom: 4px !important;
-        scrollbar-width: none;
+        display: flex;
+        flex-wrap: wrap !important;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+        margin-bottom: 0.5rem;
+        flex-shrink: 0 !important;
+        min-height: max-content;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
     }
-    .pos-dept-bar::-webkit-scrollbar,
-    .pos-subcat-bar::-webkit-scrollbar {
-        display: none;
+    .pos-dept-bar {
+        display: flex !important;
     }
     .pos-dept-bar > *,
     .pos-subcat-bar > *,
     .pos-pill-tab,
     .pos-subcat-pill {
         flex: 0 0 auto !important;
+        flex-shrink: 0 !important;
         white-space: nowrap !important;
+    }
+    .pos-card-cat-badge,
+    .pos-product-card .badge:not(.rounded-circle) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.2;
+        height: auto;
+        min-height: 26px;
+        padding: 0.25rem 0.65rem;
+        max-width: 100%;
+        flex-shrink: 0;
     }
     .pos-floating-cart-bar {
         position: fixed;
@@ -244,12 +295,17 @@
     }
     @media (min-width: 1200px) and (min-height: 680px) {
         #pos-product-col .card-body {
+            height: calc(100vh - 180px);
             max-height: calc(100vh - 180px);
-            overflow-y: hidden;
+            overflow: hidden;
         }
         #product-catalog-container {
-            max-height: calc(100vh - 310px) !important;
+            flex: 1 1 0% !important;
+            min-height: 0 !important;
+            max-height: none !important;
             overflow-y: auto !important;
+            overflow-x: hidden !important;
+            padding-top: 0.25rem;
         }
         #pos-cart-col .card {
             max-height: calc(100vh - 180px);
@@ -272,6 +328,7 @@
             min-height: unset !important;
         }
         #product-catalog-container {
+            flex: 0 0 auto !important;
             max-height: none !important;
             overflow: visible !important;
             min-height: 320px !important;
@@ -367,7 +424,7 @@
         <div class="card sb-card border-0 h-100 shadow-sm">
             <div class="card-body p-2 p-md-3 d-flex flex-column" id="pos-product-card-body">
                 <!-- Enhanced Search Bar + Quick Filters -->
-                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap flex-sm-nowrap">
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap flex-sm-nowrap pos-top-bar" id="pos-search-row">
                     <div class="input-group flex-grow-1 shadow-xs rounded" style="min-width: 0;">
                         <span class="input-group-text bg-white border-end-0" style="border-color: var(--sb-border-subtle);"><i class="fas fa-search text-muted"></i></span>
                         <input type="text" class="form-control border-start-0 border-end-0" placeholder="Search menu items, sizes, or categories..." id="search-input" oninput="filterProducts()" style="min-width: 0;">
@@ -384,31 +441,31 @@
                 </div>
 
                 <!-- Tier 1: Department Tabs -->
-                <div class="pos-dept-bar d-flex gap-1 overflow-x-auto pb-1 mb-1 no-scrollbar sb-mobile-scroll-row" id="pos-department-pills">
+                <div class="pos-dept-bar pos-top-bar" id="pos-department-pills">
                     <button type="button" class="btn pos-pill-tab active" data-dept="all" onclick="setDepartmentFilter('all', this)">
-                        All Menu <span class="badge bg-light text-dark ms-1" id="dept-count-all">0</span>
+                        All Menu <span class="badge bg-light text-dark" id="dept-count-all">0</span>
                     </button>
                     <button type="button" class="btn pos-pill-tab" data-dept="cakes" onclick="setDepartmentFilter('cakes', this)">
-                        🎂 Cakes <span class="badge bg-light text-dark ms-1" id="dept-count-cakes">0</span>
+                        🎂 Cakes <span class="badge bg-light text-dark" id="dept-count-cakes">0</span>
                     </button>
                     <button type="button" class="btn pos-pill-tab" data-dept="pastries" onclick="setDepartmentFilter('pastries', this)">
-                        🥐 Pastries <span class="badge bg-light text-dark ms-1" id="dept-count-pastries">0</span>
+                        🥐 Pastries <span class="badge bg-light text-dark" id="dept-count-pastries">0</span>
                     </button>
                     <button type="button" class="btn pos-pill-tab" data-dept="beverages" onclick="setDepartmentFilter('beverages', this)">
-                        ☕ Beverages <span class="badge bg-light text-dark ms-1" id="dept-count-beverages">0</span>
+                        ☕ Beverages <span class="badge bg-light text-dark" id="dept-count-beverages">0</span>
                     </button>
                     <button type="button" class="btn pos-pill-tab" data-dept="foods" onclick="setDepartmentFilter('foods', this)">
-                        🍔 Foods & Snacks <span class="badge bg-light text-dark ms-1" id="dept-count-foods">0</span><span class="d-none" id="dept-count-food">0</span>
+                        🍔 Foods & Snacks <span class="badge bg-light text-dark" id="dept-count-foods">0</span><span class="d-none" id="dept-count-food">0</span>
                     </button>
                 </div>
 
                 <!-- Tier 2: Sub-Category Filter Pills -->
-                <div class="pos-subcat-bar d-flex gap-1 overflow-x-auto pb-2 mb-2 no-scrollbar sb-mobile-scroll-row" id="pos-subcategory-pills" style="display: none;">
+                <div class="pos-subcat-bar pos-top-bar" id="pos-subcategory-pills" style="display: none;">
                     <!-- Injected dynamically by JS -->
                 </div>
 
                 <!-- Product Cards Catalog Grid -->
-                <div class="overflow-auto flex-grow-1 pb-5 mb-4 pb-md-0 mb-md-0" id="product-catalog-container">
+                <div class="pb-5 mb-4 pb-md-0 mb-md-0" id="product-catalog-container" style="flex: 1 1 0%; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-top: 0.25rem;">
                     <!-- Products dynamically injected here -->
                 </div>
             </div>
@@ -786,7 +843,7 @@
                      data-stock="${activeV.stock}">
                     <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between h-100">
                         <div>
-                            <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
+                            <span class="badge pos-card-cat-badge mb-1" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;"><span class="text-truncate">${g.category_name}</span></span>
                             <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
                         </div>
                         <div class="my-1">
@@ -794,7 +851,7 @@
                             <span class="badge ${badgeClass}" style="font-size: 0.72rem;">${stockText}</span>
                         </div>
                         <div class="d-flex flex-wrap gap-1 justify-content-center my-2" style="min-height: 28px;">
-                            <span class="badge bg-light text-muted border" style="font-size: 0.72rem; padding: 4px 8px;">Standard</span>
+                            <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">Standard</span>
                         </div>
                         <button type="button" 
                                 class="btn btn-sm btn-sb-gold fw-bold w-100 py-1 d-flex align-items-center justify-content-center gap-1 shadow-xs mt-auto ${isOutOfStock ? 'disabled' : ''}"
@@ -827,7 +884,7 @@
                      data-stock="${activeV.stock}">
                     <div class="card-body text-center p-2 p-md-3 d-flex flex-column justify-content-between h-100">
                         <div>
-                            <span class="badge mb-1 text-truncate" style="max-width: 100%; background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;">${g.category_name}</span>
+                            <span class="badge pos-card-cat-badge mb-1" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3); font-size: 0.72rem;"><span class="text-truncate">${g.category_name}</span></span>
                             <h6 class="card-title fw-bold text-title mb-1 fs-6 pos-card-title" title="${g.base_name}">${g.base_name}</h6>
                         </div>
                         <div class="my-1">

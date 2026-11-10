@@ -457,7 +457,14 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     border-radius: var(--sb-radius-md);
     font-size: 0.825rem;
     font-weight: 600;
-    padding: 6px 14px;
+    padding: 0.35rem 0.85rem;
+    min-height: 32px;
+    height: auto;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
     border: 1px solid var(--sb-border-subtle);
     color: var(--sb-text-body);
     background: var(--sb-bg-surface);
@@ -548,6 +555,15 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     font-size: 0.9rem;
     padding: 0.55rem 0.85rem;
     transition: var(--sb-transition);
+}
+
+.form-select {
+    padding-right: 2.25rem;
+}
+
+.form-select.form-select-sm {
+    padding: 0.3rem 2rem 0.3rem 0.65rem;
+    font-size: 0.85rem;
 }
 
 .form-control:focus, .form-select:focus {
@@ -1420,6 +1436,12 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     .sb-kpi-card-split .sb-kpi-icon {
         margin-left: 0.45rem !important;
     }
+    .sb-kpi-card-split .kpi-label,
+    .sb-kpi-card-split .sb-kpi-label {
+        font-size: 0.64rem !important;
+        letter-spacing: 0.02em;
+        line-height: 1.18;
+    }
     .kpi-trend {
         font-size: 0.68rem !important;
         padding: 0.2rem 0.45rem !important;
@@ -1664,4 +1686,125 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 .pos-product-card[hidden] {
     display: none !important;
 }
+
+/* ==========================================================================
+   POS TOP BARS, FILTER PILLS & BADGE VERTICAL CENTERING
+   ========================================================================== */
+.pos-header,
+.pos-top-bar {
+    flex-shrink: 0 !important;
+    min-height: max-content;
+}
+
+.pos-dept-bar,
+.pos-subcat-bar {
+    display: flex;
+    flex-wrap: wrap !important;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    margin-bottom: 0.5rem;
+    flex-shrink: 0 !important;
+    min-height: max-content;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+.pos-dept-bar {
+    display: flex !important;
+}
+
+.pos-pill-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.45rem;
+    min-height: 38px !important;
+    height: auto !important;
+    padding: 0.42rem 0.95rem !important;
+    line-height: 1.2 !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+    vertical-align: middle;
+}
+
+.pos-pill-tab .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 999px;
+    margin: 0 !important;
+}
+
+.pos-subcat-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 34px !important;
+    height: auto !important;
+    padding: 0.35rem 0.85rem !important;
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.pos-card-cat-badge,
+.pos-product-card .badge:not(.rounded-circle),
+.filter-pill-btn,
+.filter-tier-btn,
+#tier-counter-badges .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+    height: auto;
+    min-height: 26px;
+    padding: 0.25rem 0.65rem;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.filter-pill-btn,
+.filter-tier-btn {
+    white-space: nowrap;
+    border-radius: 999px;
+    min-height: 30px;
+    padding: 0.3rem 0.75rem;
+}
+
+.filter-pill-btn .badge.rounded-circle,
+.filter-tier-btn .badge.rounded-circle {
+    min-height: 0 !important;
+    padding: 0 !important;
+}
+
+/* Keep split KPI card numbers horizontally baseline-aligned whenever labels wrap */
+@media (max-width: 1399.98px) {
+    .sb-kpi-card-split > .d-flex > div:first-child {
+        justify-content: space-between !important;
+        align-self: stretch;
+    }
+    .sb-kpi-card-split .kpi-label,
+    .sb-kpi-card-split .sb-kpi-label {
+        margin-bottom: 0.25rem;
+    }
+    .sb-kpi-card-split .stat-value,
+    .sb-kpi-card-split .sb-kpi-value {
+        margin-top: auto !important;
+    }
+}
+
+.sb-mobile-header .navbar-brand {
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 1.15;
 }
