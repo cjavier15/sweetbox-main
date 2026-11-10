@@ -5,9 +5,10 @@ from accounts.models import User, Branch, AuditLog
 from pos.models import Product, ProductCategory
 from inventory.models import (
     Ingredient, IngredientStock, ProductStock, BillOfMaterial, 
-    RestockRequest, ProductTransfer, StockAdjustment
+    RestockRequest, ProductTransfer, StockAdjustment, ConstraintParameter
 )
 from analytics.models import PrescriptiveOutput
+from analytics.services import _generate_rule_based_prescriptions, _generate_satellite_prescriptions
 
 class InventoryTests(TestCase):
     def setUp(self):
@@ -786,5 +787,198 @@ class InventoryTests(TestCase):
         # Ensure Chocolate Cake prescription was excluded due to deduplication
         choc_prescriptions = [p for p in prescriptions if 'chocolate' in p.get('title', '').lower() or 'chocolate' in p.get('recommendation', '').lower()]
         self.assertEqual(len(choc_prescriptions), 0)
+
+    def test_live_stock_view_includes_constraint_defaults_and_persisted_values(self):
+        """Test LiveStockView attaches default and persisted ConstraintParameter fields on inventory and product_watch items."""
+        ps = ProductStock.objects.create(
+            branch=self.branch, product=self.product,
+            quantity_available=Decimal('3.00'), reorder_threshold=Decimal('7.00')
+        )
+        cp_flour = ConstraintParameter.objects.create(
+            branch=self.hub, ingredient=self.flour,
+            lead_time_days=4, min_order_quantity=Decimal('10.00'),
+            max_order_quantity=Decimal('40.00'), production_limit=Decimal('35.00'),
+            capacity_limit=Decimal('120.00')
+        )
+
+        self.client.force_authenticate(user=self.owner)
+        res = self.client.get('/api/inventory/stock/?branch=all')
+        self.assertEqual(res.status_code, 200)
+
+        flour_row = next(x for x in res.data['inventory'] if x['id'] == self.flour_stock.ingredient_inventory_ID)
+        sugar_row = next(x for x in res.data['inventory'] if x['id'] == self.sugar_stock.ingredient_inventory_ID)
+        cake_row = next(x for x in res.data['product_watch'] if x['id'] == ps.product_inventory_ID)
+
+        # Persisted ConstraintParameter for flour
+        self.assertEqual(flour_row['constraint_id'], cp_flour.constraint_ID)
+        self.assertEqual(flour_row['lead_time_days'], 4)
+        self.assertEqual(flour_row['min_order_quantity'], 10.0)
+        self.assertEqual(flour_row['max_order_quantity'], 40.0)
+        self.assertEqual(flour_row['production_limit'], 35.0)
+        self.assertEqual(flour_row['capacity_limit'], 120.0)
+        self.assertEqual(flour_row['reorder_threshold'], 10.0)
+
+        # Defaults when ConstraintParameter does not exist (sugar ingredient & cake product)
+        for row, expected_thresh in [(sugar_row, 10.0), (cake_row, 7.0)]:
+            self.assertIsNone(row['constraint_id'])
+            self.assertEqual(row['lead_time_days'], 2)
+            self.assertEqual(row['min_order_quantity'], 5.0)
+            self.assertEqual(row['max_order_quantity'], 25.0)
+            self.assertEqual(row['production_limit'], 20.0)
+            self.assertEqual(row['capacity_limit'], 30.0)
+            self.assertEqual(row['reorder_threshold'], expected_thresh)
+
+    def test_update_constraint_parameters_permissions_and_persistence(self):
+        """Test RBAC, atomic updates, audit logging, and product/ingredient target resolution."""
+        sys_admin = User.objects.create(
+            name="SysAdmin", email="sysadmin_inv@sweetbox.ph", role="System Administrator", is_active=True
+        )
+        ps = ProductStock.objects.create(
+            branch=self.branch, product=self.product,
+            quantity_available=Decimal('4.00'), reorder_threshold=Decimal('5.00')
+        )
+
+        # Staff -> 403
+        self.client.force_authenticate(user=self.staff)
+        res_staff = self.client.post('/api/inventory/constraints/update/', {
+            'product_stock_id': ps.product_inventory_ID,
+            'reorder_threshold': 6,
+            'lead_time_days': 2,
+            'min_order_quantity': 4,
+            'max_order_quantity': 12,
+            'production_limit': 10,
+            'capacity_limit': 20
+        }, format='json')
+        self.assertEqual(res_staff.status_code, 403)
+
+        # Satellite manager attempting to edit Hub ingredient -> 403
+        self.client.force_authenticate(user=self.manager)
+        res_cross = self.client.post('/api/inventory/constraints/update/', {
+            'ingredient_stock_id': self.flour_stock.ingredient_inventory_ID,
+            'reorder_threshold': 12,
+            'lead_time_days': 3,
+            'min_order_quantity': 6,
+            'max_order_quantity': 30,
+            'production_limit': 25,
+            'capacity_limit': 60
+        }, format='json')
+        self.assertEqual(res_cross.status_code, 403)
+
+        # Satellite manager updating own branch product -> 200
+        res_mgr = self.client.post('/api/inventory/constraints/update/', {
+            'product_stock_id': ps.product_inventory_ID,
+            'reorder_threshold': 8.00,
+            'lead_time_days': 3,
+            'min_order_quantity': 4.00,
+            'max_order_quantity': 16.00,
+            'production_limit': 12.00,
+            'capacity_limit': 24.00
+        }, format='json')
+        self.assertEqual(res_mgr.status_code, 200)
+        ps.refresh_from_db()
+        self.assertEqual(ps.reorder_threshold, Decimal('8.00'))
+        cp_prod = ConstraintParameter.objects.get(branch=self.branch, product=self.product)
+        self.assertEqual(cp_prod.lead_time_days, 3)
+        self.assertEqual(cp_prod.min_order_quantity, Decimal('4.00'))
+        self.assertEqual(cp_prod.max_order_quantity, Decimal('16.00'))
+        self.assertEqual(cp_prod.production_limit, Decimal('12.00'))
+        self.assertEqual(cp_prod.capacity_limit, Decimal('24.00'))
+
+        # Verify AuditLog contract
+        audit = AuditLog.objects.filter(action='Updated AI Constraint Parameters', module='Inventory').last()
+        self.assertIsNotNone(audit)
+        self.assertIn('Chocolate Cake', audit.details)
+
+        # System Administrator updating Hub ingredient via branch_id + ingredient_id -> 200
+        self.client.force_authenticate(user=sys_admin)
+        res_admin = self.client.post('/api/inventory/constraints/update/', {
+            'branch_id': self.hub.branch_ID,
+            'ingredient_id': self.flour.ingredient_ID,
+            'reorder_threshold': 15.00,
+            'lead_time_days': 5,
+            'min_order_quantity': 8.00,
+            'max_order_quantity': 35.00,
+            'production_limit': 30.00,
+            'capacity_limit': 100.00
+        }, format='json')
+        self.assertEqual(res_admin.status_code, 200)
+        self.flour_stock.refresh_from_db()
+        self.assertEqual(self.flour_stock.reorder_threshold, Decimal('15.00'))
+        cp_ing = ConstraintParameter.objects.get(branch=self.hub, ingredient=self.flour)
+        self.assertEqual(cp_ing.lead_time_days, 5)
+        self.assertEqual(cp_ing.capacity_limit, Decimal('100.00'))
+
+    def test_update_constraint_parameters_validation_rejects_invalid_bounds(self):
+        """Test strict validation on lead time, positivity, MOQ <= Max Order <= Capacity Limit."""
+        self.client.force_authenticate(user=self.owner)
+        base = {
+            'ingredient_stock_id': self.flour_stock.ingredient_inventory_ID,
+            'reorder_threshold': 10,
+            'lead_time_days': 2,
+            'min_order_quantity': 5,
+            'max_order_quantity': 25,
+            'production_limit': 20,
+            'capacity_limit': 30
+        }
+
+        invalid_cases = [
+            {'reorder_threshold': -1},
+            {'lead_time_days': 0},
+            {'lead_time_days': 2.5},
+            {'min_order_quantity': 0},
+            {'min_order_quantity': 30, 'max_order_quantity': 25}, # max < min
+            {'production_limit': 0},
+            {'max_order_quantity': 35, 'capacity_limit': 30}, # capacity < max
+        ]
+        for patch in invalid_cases:
+            payload = {**base, **patch}
+            res = self.client.post('/api/inventory/constraints/update/', payload, format='json')
+            self.assertEqual(res.status_code, 400, f"Expected 400 for patch {patch}, got {res.status_code}")
+
+    def test_constraint_sensitivity_immediately_affects_ai_analysis(self):
+        """Phase 5 verification: Updating ConstraintParameter immediately changes bounded AI prescription qty."""
+        self.flour_stock.quantity_available = Decimal('2.00')
+        self.flour_stock.reorder_threshold = Decimal('10.00')
+        self.flour_stock.save()
+
+        self.client.force_authenticate(user=self.owner)
+        # Tightly constrain flour to max_order=12, capacity=10 -> available space = 10 - 2 = 8
+        res_upd = self.client.post('/api/inventory/constraints/update/', {
+            'ingredient_stock_id': self.flour_stock.ingredient_inventory_ID,
+            'reorder_threshold': 10.00,
+            'lead_time_days': 3,
+            'min_order_quantity': 4.00,
+            'max_order_quantity': 12.00,
+            'production_limit': 20.00,
+            'capacity_limit': 12.00
+        }, format='json')
+        self.assertEqual(res_upd.status_code, 200)
+
+        res_ing = _generate_rule_based_prescriptions(self.hub, [self.flour_stock])
+        po = PrescriptiveOutput.objects.get(prescriptive_output_ID=res_ing['outputs'][0])
+        # Room available is 12 - 2 = 10.00; unbounded demand (15 days * burn) exceeds 10, so bounded qty must be 10.00
+        self.assertGreaterEqual(float(po.recommended_quantity), 4.0)
+        self.assertLessEqual(float(po.recommended_quantity), 10.0)
+
+        # Satellite product constraint sensitivity check
+        ps = ProductStock.objects.create(
+            branch=self.branch, product=self.product,
+            quantity_available=Decimal('2.00'), reorder_threshold=Decimal('10.00')
+        )
+        res_prod_upd = self.client.post('/api/inventory/constraints/update/', {
+            'product_stock_id': ps.product_inventory_ID,
+            'reorder_threshold': 10.00,
+            'lead_time_days': 2,
+            'min_order_quantity': 3.00,
+            'max_order_quantity': 9.00,
+            'production_limit': 8.00,
+            'capacity_limit': 12.00
+        }, format='json')
+        self.assertEqual(res_prod_upd.status_code, 200)
+
+        res_sat = _generate_satellite_prescriptions(self.branch)
+        po_sat = PrescriptiveOutput.objects.get(prescriptive_output_ID=res_sat['outputs'][0])
+        self.assertGreaterEqual(float(po_sat.recommended_quantity), 3.0)
+        self.assertLessEqual(float(po_sat.recommended_quantity), 8.0)
 
 

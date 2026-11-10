@@ -289,20 +289,54 @@
         let currentBranchId = 1;
         let currentUserData = null;
         let chatHistoryLoaded = false;
+        window.__sbUnloading = false;
+        window.__currentUserPromise = null;
+
+        window.addEventListener('beforeunload', () => { window.__sbUnloading = true; });
+        window.addEventListener('pagehide', () => { window.__sbUnloading = true; });
+
+        window.fetchCurrentUser = async function(forceRefresh = false) {
+            if (currentUserData && !forceRefresh) return currentUserData;
+            if (window.__currentUserPromise && !forceRefresh) return window.__currentUserPromise;
+
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                const err = new Error('Missing access token');
+                err.status = 401;
+                throw err;
+            }
+
+            const pending = (async () => {
+                const response = await fetch('/api/analytics/current-user/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const err = new Error('Backend rejected token');
+                    err.status = response.status;
+                    throw err;
+                }
+                const data = await response.json();
+                currentUserData = data;
+                return data;
+            })();
+
+            window.__currentUserPromise = pending;
+            try {
+                return await pending;
+            } catch (err) {
+                if (window.__currentUserPromise === pending) {
+                    window.__currentUserPromise = null;
+                }
+                throw err;
+            }
+        };
 
         async function enforceRBAC() {
             const token = localStorage.getItem('access_token');
             if (!token) { window.location.href = '/login/'; return; }
 
             try {
-                const response = await fetch('/api/analytics/current-user/', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!response.ok) throw new Error("Backend rejected token");
-                
-                const data = await response.json();
-                currentUserData = data;
+                const data = await window.fetchCurrentUser();
                 const role = data.role;
                 currentBranchId = data.branch_id || 1;
                 window.currentBranchId = currentBranchId;
@@ -402,9 +436,14 @@
                 }
 
             } catch (error) {
+                if (window.__sbUnloading || (error && error.name === 'AbortError')) {
+                    return;
+                }
                 console.error("RBAC Security Error:", error);
-                localStorage.removeItem('access_token');
-                window.location.href = '/login/';
+                if (error && (error.status === 401 || error.status === 403)) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/login/';
+                }
             }
         }
 

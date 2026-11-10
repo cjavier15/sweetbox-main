@@ -1,5 +1,5 @@
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -50,6 +50,15 @@ class LiveStockView(APIView):
         kpis = {'in_stock': 0, 'low_stock': 0, 'critical': 0, 'expiring': 0}
         seven_days = timezone.now() + timedelta(days=7)
         thirty_days = timezone.now() + timedelta(days=30)
+
+        # Pre-fetch ConstraintParameters into fast O(1) lookup maps
+        ing_constraint_map = {}
+        prod_constraint_map = {}
+        for cp in ConstraintParameter.objects.order_by('constraint_ID'):
+            if cp.ingredient_id is not None:
+                ing_constraint_map[(cp.branch_id, cp.ingredient_id)] = cp
+            elif cp.product_id is not None:
+                prod_constraint_map[(cp.branch_id, cp.product_id)] = cp
         
         # 1. Process Raw Ingredients (Hub & Enterprise Only)
         for stock in stocks:
@@ -76,6 +85,7 @@ class LiveStockView(APIView):
             raw_expiry_str = stock.expiry_date.strftime('%Y-%m-%d') if stock.expiry_date else ""
             is_crit_or_oos = status_flag in ["Critical", "Out of Stock"]
             is_exp_soon = (status_flag == "Expiring Soon") or bool(stock.expiry_date and stock.expiry_date <= seven_days)
+            cp = ing_constraint_map.get((stock.branch_id, stock.ingredient_id))
             
             inventory_data.append({
                 "id": stock.ingredient_inventory_ID,
@@ -84,13 +94,20 @@ class LiveStockView(APIView):
                 "category": ing_category,
                 "category_id": stock.ingredient.category_id,
                 "unit": unit, "cost_per_unit": cost, "quantity": qty, "threshold": threshold,
+                "reorder_threshold": threshold,
                 "branch": stock.branch.name, "branch_id": stock.branch.branch_ID,
                 "batch_number": stock.batch_number or "",
                 "raw_expiry": raw_expiry_str,
                 "expiry": raw_expiry_str if raw_expiry_str else "N/A", 
                 "status": status_flag,
                 "is_critical_or_oos": is_crit_or_oos,
-                "is_expiring_soon": is_exp_soon
+                "is_expiring_soon": is_exp_soon,
+                "constraint_id": cp.constraint_ID if cp else None,
+                "lead_time_days": int(cp.lead_time_days) if cp else 2,
+                "min_order_quantity": float(cp.min_order_quantity) if cp else 5.0,
+                "max_order_quantity": float(cp.max_order_quantity) if cp else 25.0,
+                "production_limit": float(cp.production_limit) if cp else 20.0,
+                "capacity_limit": float(cp.capacity_limit) if cp else 30.0
             })
 
         # 2. Process Products (Product Availability)
@@ -169,6 +186,7 @@ class LiveStockView(APIView):
 
             raw_prod_expiry = p_stock.expiry_date.strftime('%Y-%m-%d') if p_stock.expiry_date else ""
             is_crit_or_oos = status_flag in ["Critical", "Out of Stock"]
+            cp = prod_constraint_map.get((p_stock.branch_id, p_stock.product_id))
             product_watch_data.append({
                 "id": p_stock.product_inventory_ID,
                 "product_id": p_stock.product.product_ID,
@@ -178,6 +196,7 @@ class LiveStockView(APIView):
                 "price": float(p_stock.product.price),
                 "quantity": int(qty),
                 "threshold": threshold,
+                "reorder_threshold": threshold,
                 "branch": p_stock.branch.name,
                 "branch_id": p_stock.branch.branch_ID,
                 "batch_number": p_stock.batch_number or "",
@@ -186,7 +205,13 @@ class LiveStockView(APIView):
                 "status": status_flag,
                 "is_critical_or_oos": is_crit_or_oos,
                 "is_made_to_order": not is_cp,
-                "product_type": "Made-to-Order" if not is_cp else "Pre-Made"
+                "product_type": "Made-to-Order" if not is_cp else "Pre-Made",
+                "constraint_id": cp.constraint_ID if cp else None,
+                "lead_time_days": int(cp.lead_time_days) if cp else 2,
+                "min_order_quantity": float(cp.min_order_quantity) if cp else 5.0,
+                "max_order_quantity": float(cp.max_order_quantity) if cp else 25.0,
+                "production_limit": float(cp.production_limit) if cp else 20.0,
+                "capacity_limit": float(cp.capacity_limit) if cp else 30.0
             })
 
         # Restock queue is strictly reserved for submitted RestockRequest records
@@ -2266,3 +2291,261 @@ class BranchProductAssignmentView(APIView):
 
         else:
             return Response({"error": f"Unknown action '{action}'. Valid actions: toggle_product, assign_category, apply_hub_spoke_default."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdateConstraintParameterView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _parse_int(val, field_name):
+        if isinstance(val, bool):
+            raise ValueError(f"{field_name} must be a whole integer.")
+        if isinstance(val, int):
+            return val
+        s = str(val).strip()
+        if not re.fullmatch(r'-?\d+', s):
+            raise ValueError(f"{field_name} must be a whole integer.")
+        return int(s)
+
+    @staticmethod
+    def _parse_decimal(val, field_name):
+        if isinstance(val, bool):
+            raise ValueError(f"{field_name} must be a valid number.")
+        try:
+            d = Decimal(str(val).strip())
+        except (InvalidOperation, ValueError, TypeError):
+            raise ValueError(f"{field_name} must be a valid number.")
+        if not d.is_finite():
+            raise ValueError(f"{field_name} must be a finite number.")
+        return d
+
+    @db_transaction.atomic
+    def post(self, request):
+        user = request.user
+        user_role = getattr(user, 'role', '')
+        allowed_roles = {'Business Owner', 'Branch Manager', 'Admin', 'ADMIN', 'System Administrator'}
+        is_privileged = bool(user.is_superuser or user_role in {'Business Owner', 'Admin', 'ADMIN', 'System Administrator'})
+
+        if not (is_privileged or user_role == 'Branch Manager'):
+            return Response(
+                {"error": "Access Denied: Only Business Owners, Branch Managers, and System Administrators can update AI constraint parameters."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        data = request.data or {}
+        branch_id_raw = data.get('branch_id')
+        ing_stock_id = data.get('ingredient_stock_id')
+        prod_stock_id = data.get('product_stock_id')
+        ing_id = data.get('ingredient_id')
+        prod_id = data.get('product_id')
+        item_type_hint = str(data.get('item_type') or '').strip().lower()
+        item_id_hint = data.get('item_id')
+
+        if item_type_hint == 'ingredient' and item_id_hint and not ing_stock_id:
+            ing_stock_id = item_id_hint
+        elif item_type_hint == 'product' and item_id_hint and not prod_stock_id:
+            prod_stock_id = item_id_hint
+
+        has_ing_ref = bool(ing_stock_id or ing_id)
+        has_prod_ref = bool(prod_stock_id or prod_id)
+        if has_ing_ref and has_prod_ref:
+            return Response(
+                {"error": "Specify either an ingredient or a product target, not both."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not has_ing_ref and not has_prod_ref:
+            return Response(
+                {"error": "An ingredient_stock_id / ingredient_id or product_stock_id / product_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Resolve target stock record
+        stock = None
+        item_type = None
+        if ing_stock_id:
+            stock = IngredientStock.objects.select_for_update().select_related('branch', 'ingredient').filter(
+                ingredient_inventory_ID=ing_stock_id
+            ).first()
+            if not stock:
+                return Response({"error": "Ingredient stock record not found."}, status=status.HTTP_404_NOT_FOUND)
+            item_type = 'ingredient'
+        elif prod_stock_id:
+            stock = ProductStock.objects.select_for_update().select_related('branch', 'product').filter(
+                product_inventory_ID=prod_stock_id
+            ).first()
+            if not stock:
+                return Response({"error": "Product stock record not found."}, status=status.HTTP_404_NOT_FOUND)
+            item_type = 'product'
+        else:
+            # Resolve by branch_id + ingredient_id/product_id
+            resolved_branch_id = branch_id_raw if branch_id_raw not in (None, '', 'all') else getattr(user, 'branch_id', None)
+            if not resolved_branch_id:
+                return Response({"error": "branch_id is required when targeting by ingredient_id or product_id."}, status=status.HTTP_400_BAD_REQUEST)
+            if ing_id:
+                stock = IngredientStock.objects.select_for_update().select_related('branch', 'ingredient').filter(
+                    branch_id=resolved_branch_id, ingredient_id=ing_id
+                ).first()
+                if not stock:
+                    return Response({"error": "Ingredient stock record not found for this branch."}, status=status.HTTP_404_NOT_FOUND)
+                item_type = 'ingredient'
+            else:
+                stock = ProductStock.objects.select_for_update().select_related('branch', 'product').filter(
+                    branch_id=resolved_branch_id, product_id=prod_id
+                ).first()
+                if not stock:
+                    return Response({"error": "Product stock record not found for this branch."}, status=status.HTTP_404_NOT_FOUND)
+                item_type = 'product'
+
+        branch = stock.branch
+        if branch_id_raw not in (None, '', 'all'):
+            try:
+                explicit_bid = int(str(branch_id_raw).strip())
+            except Exception:
+                return Response({"error": "Invalid branch_id provided."}, status=status.HTTP_400_BAD_REQUEST)
+            if explicit_bid != branch.branch_ID:
+                return Response({"error": "Provided branch_id does not match the selected stock record's branch."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Branch isolation check for non-privileged roles (Branch Manager)
+        if not is_privileged:
+            if not user.branch_id or branch.branch_ID != user.branch_id:
+                return Response(
+                    {"error": "Access Denied: You can only update AI constraints for your assigned branch."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        if item_type == 'ingredient':
+            target_lookup = {'ingredient': stock.ingredient, 'product': None}
+            item_name = stock.ingredient.ingredient_name
+        else:
+            target_lookup = {'product': stock.product, 'ingredient': None}
+            item_name = stock.product.product_name
+
+        constraint_keys = (
+            'reorder_threshold', 'threshold', 'lead_time_days',
+            'min_order_quantity', 'max_order_quantity',
+            'production_limit', 'capacity_limit'
+        )
+        if not any(k in data and data.get(k) not in (None, '') for k in constraint_keys):
+            return Response({"error": "At least one constraint field or reorder_threshold must be provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_qs = ConstraintParameter.objects.select_for_update().filter(branch=branch, **target_lookup).order_by('constraint_ID')
+        existing_cp = existing_qs.last()
+
+        # Parse & strictly validate values
+        try:
+            raw_thresh = data.get('reorder_threshold', data.get('threshold'))
+            if raw_thresh in (None, ''):
+                reorder_threshold = Decimal(stock.reorder_threshold)
+            else:
+                reorder_threshold = self._parse_decimal(raw_thresh, 'reorder_threshold')
+
+            raw_lead = data.get('lead_time_days')
+            if raw_lead in (None, ''):
+                lead_time_days = int(existing_cp.lead_time_days) if existing_cp else 2
+            else:
+                lead_time_days = self._parse_int(raw_lead, 'lead_time_days')
+
+            raw_min = data.get('min_order_quantity')
+            if raw_min in (None, ''):
+                min_order_quantity = Decimal(existing_cp.min_order_quantity) if existing_cp else Decimal('5.00')
+            else:
+                min_order_quantity = self._parse_decimal(raw_min, 'min_order_quantity')
+
+            raw_max = data.get('max_order_quantity')
+            if raw_max in (None, ''):
+                max_order_quantity = Decimal(existing_cp.max_order_quantity) if existing_cp else Decimal('25.00')
+            else:
+                max_order_quantity = self._parse_decimal(raw_max, 'max_order_quantity')
+
+            raw_prod = data.get('production_limit')
+            if raw_prod in (None, ''):
+                production_limit = Decimal(existing_cp.production_limit) if existing_cp else Decimal('20.00')
+            else:
+                production_limit = self._parse_decimal(raw_prod, 'production_limit')
+
+            raw_cap = data.get('capacity_limit')
+            if raw_cap in (None, ''):
+                capacity_limit = Decimal(existing_cp.capacity_limit) if existing_cp else Decimal('30.00')
+            else:
+                capacity_limit = self._parse_decimal(raw_cap, 'capacity_limit')
+        except ValueError as ve:
+            return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+
+        max_decimal = Decimal('9999999.99')
+        if reorder_threshold < Decimal('0.00') or reorder_threshold > max_decimal:
+            return Response({"error": "reorder_threshold must be non-negative and within valid bounds."}, status=status.HTTP_400_BAD_REQUEST)
+        if lead_time_days < 1 or lead_time_days > 3650:
+            return Response({"error": "lead_time_days must be an integer >= 1 (up to 3650 days)."}, status=status.HTTP_400_BAD_REQUEST)
+        if min_order_quantity <= Decimal('0.00') or min_order_quantity > max_decimal:
+            return Response({"error": "min_order_quantity must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+        if max_order_quantity < min_order_quantity or max_order_quantity > max_decimal:
+            return Response({"error": "max_order_quantity must be greater than or equal to min_order_quantity."}, status=status.HTTP_400_BAD_REQUEST)
+        if production_limit <= Decimal('0.00') or production_limit > max_decimal:
+            return Response({"error": "production_limit must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+        if capacity_limit < max_order_quantity or capacity_limit > max_decimal:
+            return Response({"error": "capacity_limit must be greater than or equal to max_order_quantity."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Quantize after positivity checks so values like 0.001 do not silently become 0.00
+        reorder_threshold_q = reorder_threshold.quantize(Decimal('0.01'))
+        min_order_q = min_order_quantity.quantize(Decimal('0.01'))
+        max_order_q = max_order_quantity.quantize(Decimal('0.01'))
+        prod_limit_q = production_limit.quantize(Decimal('0.01'))
+        cap_limit_q = capacity_limit.quantize(Decimal('0.01'))
+
+        if min_order_q <= Decimal('0.00') or prod_limit_q <= Decimal('0.00'):
+            return Response({"error": "min_order_quantity and production_limit must remain greater than zero at 2 decimal precision."}, status=status.HTTP_400_BAD_REQUEST)
+        if max_order_q < min_order_q or cap_limit_q < max_order_q:
+            return Response({"error": "Constraint ordering violated: require MOQ <= Max Order <= Capacity Limit."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Persist reorder threshold on stock record
+        stock.reorder_threshold = reorder_threshold_q
+        stock.save(update_fields=['reorder_threshold'])
+
+        # Deduplicate legacy duplicate constraint rows if any exist before update_or_create
+        if existing_qs.count() > 1 and existing_cp is not None:
+            existing_qs.exclude(pk=existing_cp.pk).delete()
+
+        cp, _ = ConstraintParameter.objects.update_or_create(
+            branch=branch,
+            **target_lookup,
+            defaults={
+                'lead_time_days': lead_time_days,
+                'min_order_quantity': min_order_q,
+                'max_order_quantity': max_order_q,
+                'production_limit': prod_limit_q,
+                'capacity_limit': cap_limit_q,
+            }
+        )
+
+        AuditLog.objects.create(
+            user=user,
+            action='Updated AI Constraint Parameters',
+            module='Inventory',
+            details=(
+                f"Updated {item_type} constraints for '{item_name}' at {branch.name}: "
+                f"Reorder Threshold={float(reorder_threshold_q):.2f}, Lead Time={lead_time_days}d, "
+                f"MOQ={float(min_order_q):.2f}, Max Order={float(max_order_q):.2f}, "
+                f"Production Limit={float(prod_limit_q):.2f}, Capacity Limit={float(cap_limit_q):.2f}."
+            )
+        )
+
+        return Response({
+            "message": f"Successfully updated AI constraints for '{item_name}' at {branch.name}.",
+            "constraint_id": cp.constraint_ID,
+            "branch_id": branch.branch_ID,
+            "branch": branch.name,
+            "item_type": item_type,
+            "item_name": item_name,
+            "ingredient_stock_id": stock.ingredient_inventory_ID if item_type == 'ingredient' else None,
+            "product_stock_id": stock.product_inventory_ID if item_type == 'product' else None,
+            "ingredient_id": stock.ingredient_id if item_type == 'ingredient' else None,
+            "product_id": stock.product_id if item_type == 'product' else None,
+            "reorder_threshold": float(stock.reorder_threshold),
+            "threshold": float(stock.reorder_threshold),
+            "lead_time_days": int(cp.lead_time_days),
+            "min_order_quantity": float(cp.min_order_quantity),
+            "max_order_quantity": float(cp.max_order_quantity),
+            "production_limit": float(cp.production_limit),
+            "capacity_limit": float(cp.capacity_limit),
+            "latest_update": cp.latest_update.isoformat() if cp.latest_update else None,
+        }, status=status.HTTP_200_OK)

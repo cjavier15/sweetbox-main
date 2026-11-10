@@ -706,13 +706,22 @@
     async function fetchUserContext() {
         const token = localStorage.getItem('access_token');
         try {
-            const response = await fetch('/api/analytics/current-user/', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await response.json();
-            document.getElementById('cashier-name').innerText = data.name;
-            document.getElementById('receipt-cashier').innerText = data.name;
-            document.getElementById('branch-display').innerText = data.branch;
+            let data = null;
+            if (typeof window.fetchCurrentUser === 'function') {
+                data = await window.fetchCurrentUser();
+            } else {
+                const response = await fetch('/api/analytics/current-user/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) data = await response.json();
+            }
+            if (!data) return;
+            const cashierEl = document.getElementById('cashier-name');
+            if (cashierEl) cashierEl.innerText = data.name;
+            const receiptCashierEl = document.getElementById('receipt-cashier');
+            if (receiptCashierEl) receiptCashierEl.innerText = data.name;
+            const branchEl = document.getElementById('branch-display');
+            if (branchEl) branchEl.innerText = data.branch;
         } catch (e) {}
     }
 
@@ -921,7 +930,9 @@
         if (priceEl) priceEl.innerText = `₱${variant.price.toFixed(2)}`;
         if (stockEl) {
             const isOutOfStock = variant.stock <= 0;
-            stockEl.className = `badge ${isOutOfStock ? 'badge-critical' : 'badge-instock'}`;
+            stockEl.classList.add('badge');
+            stockEl.classList.remove('badge-critical', 'badge-instock');
+            stockEl.classList.add(isOutOfStock ? 'badge-critical' : 'badge-instock');
             stockEl.innerText = isOutOfStock ? 'Out of Stock' : `${variant.stock} in stock`;
         }
 

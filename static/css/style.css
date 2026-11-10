@@ -24,6 +24,7 @@ html, body {
     
     /* Warm Golds & Ambers */
     --sb-gold-deep: #B47818;
+    --sb-gold-dark: #9A6312;
     --sb-gold: #D49A3D;
     --sb-gold-hover: #BF8529;
     --sb-gold-light: #EBBF6D;
@@ -36,6 +37,7 @@ html, body {
     --sb-bg-surface-elevated: #FFFDF9;
     --sb-bg-surface-subtle: #F5EFE6;
     --sb-border-subtle: #E8DCCB;
+    --sb-border: #E8DCCB;
     --sb-border-focus: #D49A3D;
 
     /* Typographic Colors */
@@ -43,6 +45,7 @@ html, body {
     --sb-text-body: #4A3931;
     --sb-text-muted: #826E65;
     --sb-text-inverse: #FAF7F2;
+    --sb-text-subtle: rgba(250, 247, 242, 0.78);
 
     /* Enterprise Semantic Signals (High readability & soft saturation) */
     --sb-success: #059669;
@@ -128,8 +131,10 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
 /* Tabular Numbers for Metrics (Ensures zero misalignment & figures pop) */
 .tabular-nums, .stat-value, .metric-figure {
     font-family: 'Plus Jakarta Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1, 'zero' 1;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.01em;
+    word-spacing: 0.08em;
     white-space: nowrap;
 }
 
@@ -382,6 +387,19 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     display: inline-flex;
     align-items: center;
     gap: 3px;
+    width: fit-content;
+    max-width: 100%;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.sb-kpi-card .flex-column > .kpi-trend,
+.sb-kpi-card.flex-column > .kpi-trend,
+.sb-kpi-card .flex-column > .sb-kpi-subtext,
+.sb-kpi-card.flex-column > .sb-kpi-subtext {
+    align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
 }
 
 .kpi-trend.trend-up {
@@ -1408,7 +1426,8 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
         font-size: clamp(1.08rem, 4.2vw, 1.35rem) !important;
         font-weight: 800;
         line-height: 1.1 !important;
-        letter-spacing: -0.03em;
+        letter-spacing: -0.02em;
+        word-spacing: 0.08em;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1446,9 +1465,13 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
         font-size: 0.68rem !important;
         padding: 0.2rem 0.45rem !important;
         white-space: nowrap;
-        max-width: calc(100% - 40px);
+        width: fit-content;
+        max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    .sb-kpi-card .d-flex > .kpi-trend {
+        max-width: calc(100% - 40px);
     }
     .sb-kpi-subtext {
         font-size: 0.7rem !important;

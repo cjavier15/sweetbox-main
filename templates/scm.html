@@ -123,6 +123,26 @@
             padding: 0.25rem 0.65rem;
         }
     }
+    .adj-tab-pill {
+        border: 1px solid rgba(212, 154, 61, 0.35);
+        background: var(--sb-bg-app);
+        color: var(--sb-text-title);
+        border-radius: 999px;
+        padding: 0.5rem 0.95rem;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    .adj-tab-pill:hover {
+        background: var(--sb-gold-subtle);
+        border-color: var(--sb-gold);
+        color: var(--sb-espresso-dark);
+    }
+    .adj-tab-pill.active {
+        background: linear-gradient(135deg, var(--sb-espresso) 0%, var(--sb-brown) 100%) !important;
+        color: var(--sb-gold-light) !important;
+        border-color: var(--sb-espresso) !important;
+        box-shadow: var(--sb-shadow-xs);
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
@@ -467,7 +487,7 @@
                     <button class="btn btn-sm btn-sb-outline-gold fw-bold px-3" id="pw-prev-btn" onclick="pwPrevPage()" disabled>
                         <i class="fas fa-chevron-left me-1"></i> Prev
                     </button>
-                    <span class="small fw-bold px-2 tabular-nums" id="pw-page-indicator">Page 1 of 1</span>
+                    <span class="small fw-bold px-2" id="pw-page-indicator">Page 1 of 1</span>
                     <button class="btn btn-sm btn-sb-outline-gold fw-bold px-3" id="pw-next-btn" onclick="pwNextPage()" disabled>
                         Next <i class="fas fa-chevron-right ms-1"></i>
                     </button>
@@ -1005,21 +1025,35 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" style="background-color: var(--sb-bg-app);">
+                <!-- Shared Overview Banner -->
+                <div class="mb-3 p-3 rounded border d-flex justify-content-between align-items-center flex-wrap gap-2" style="background-color: var(--sb-bg-surface);">
+                    <div>
+                        <span class="badge mb-1" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark);" id="adj-item-type-badge">Ingredient</span>
+                        <h5 class="fw-bold mb-0 text-title" id="adj-item-subtitle">Item Name</h5>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); font-size: 0.9rem;" id="adj-current-qty">Current Stock: 0</span>
+                        <div class="text-muted small mt-1" id="adj-current-branch">Branch: --</div>
+                    </div>
+                </div>
+
+                <!-- 2-Pill Toggle / Tab Header -->
+                <div class="d-flex flex-wrap gap-2 mb-3 p-2 rounded border" id="adj-modal-tab-bar" role="tablist" style="background-color: var(--sb-bg-surface);">
+                    <button type="button" id="tab-btn-stock-adjust" class="btn btn-sm fw-bold flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2 adj-tab-pill active"
+                            onclick="switchAdjustModalTab('adjust')" role="tab" aria-selected="true">
+                        <span>📦 Stock Adjustment</span>
+                    </button>
+                    <button type="button" id="tab-btn-ai-constraints" class="btn btn-sm fw-bold flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2 adj-tab-pill"
+                            onclick="switchAdjustModalTab('constraints')" role="tab" aria-selected="false">
+                        <span>🤖 AI Constraints (MOQ &amp; Capacity)</span>
+                    </button>
+                </div>
+
+                <!-- TAB 1: Existing Stock Adjustment Form -->
+                <div id="adj-panel-stock">
                 <form id="adjustForm" onsubmit="submitStockAdjustment(event)">
                     <input type="hidden" id="adj-item-type">
                     <input type="hidden" id="adj-item-id">
-                    
-                    <!-- Overview Banner -->
-                    <div class="mb-3 p-3 rounded border d-flex justify-content-between align-items-center flex-wrap gap-2" style="background-color: var(--sb-bg-surface);">
-                        <div>
-                            <span class="badge mb-1" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark);" id="adj-item-type-badge">Ingredient</span>
-                            <h5 class="fw-bold mb-0 text-title" id="adj-item-subtitle">Item Name</h5>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso); font-size: 0.9rem;" id="adj-current-qty">Current Stock: 0</span>
-                            <div class="text-muted small mt-1" id="adj-current-branch">Branch: --</div>
-                        </div>
-                    </div>
 
                     <!-- Section 1: Item Attributes & Metrics -->
                     <div class="card border-0 shadow-sm p-3 mb-3" style="background: var(--sb-bg-surface);">
@@ -1147,6 +1181,113 @@
                         <i class="fas fa-save"></i> Save Changes & Apply Adjustment
                     </button>
                 </form>
+                </div>
+
+                <!-- TAB 2: AI Constraint Parameters Form -->
+                <div id="adj-panel-constraints" class="d-none">
+                    <form id="constraintsForm" onsubmit="saveAIConstraints(event)">
+                        <input type="hidden" id="cp-item-type">
+                        <input type="hidden" id="cp-stock-id">
+                        <input type="hidden" id="cp-branch-id">
+                        <input type="hidden" id="cp-target-id">
+                        <input type="hidden" id="cp-current-stock" value="0">
+                        <input type="hidden" id="cp-item-unit" value="units">
+
+                        <div class="card border-0 shadow-sm p-3 mb-3" style="background: var(--sb-bg-surface);">
+                            <h6 class="fw-bold text-title mb-3 d-flex align-items-center gap-2">
+                                <i class="fas fa-robot text-gold"></i> AI Operational Constraints &amp; Capacity Bounds
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label for="cp-reorder-threshold" class="form-label fw-bold text-title small mb-1">Reorder Alert Threshold</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0" max="9999999" id="cp-reorder-threshold" class="form-control"
+                                               placeholder="e.g., 5.00"
+                                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                               oninput="updateConstraintsFeasibilityPreview()" required>
+                                        <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
+                                    </div>
+                                    <div class="form-text small">Triggers Low Stock alert &amp; AI analysis candidate selection.</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="cp-lead-time" class="form-label fw-bold text-title small mb-1">Supplier Lead Time (Days)</label>
+                                    <div class="input-group">
+                                        <input type="number" step="1" min="1" max="3650" id="cp-lead-time" class="form-control"
+                                               placeholder="e.g., 2"
+                                               onkeydown="return !['e','E','+','-','.'].includes(event.key)"
+                                               oninput="updateConstraintsFeasibilityPreview()" required>
+                                        <span class="input-group-text bg-light text-muted small">days</span>
+                                    </div>
+                                    <div class="form-text small">Buffer days included in AI demand runway computation.</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="cp-min-order" class="form-label fw-bold text-title small mb-1">Min Order Quantity — MOQ</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0.01" max="9999999" id="cp-min-order" class="form-control"
+                                               placeholder="e.g., 5.00"
+                                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                               oninput="updateConstraintsFeasibilityPreview()" required>
+                                        <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
+                                    </div>
+                                    <div class="form-text small">Lower bound enforced by the AI prescription model.</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="cp-max-order" class="form-label fw-bold text-title small mb-1">Max Order Quantity</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0.01" max="9999999" id="cp-max-order" class="form-control"
+                                               placeholder="e.g., 25.00"
+                                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                               oninput="updateConstraintsFeasibilityPreview()" required>
+                                        <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
+                                    </div>
+                                    <div class="form-text small">Supplier order cap (&ge; MOQ).</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="cp-production-limit" class="form-label fw-bold text-title small mb-1">Daily Production Limit</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0.01" max="9999999" id="cp-production-limit" class="form-control"
+                                               placeholder="e.g., 20.00"
+                                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                               oninput="updateConstraintsFeasibilityPreview()" required>
+                                        <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
+                                    </div>
+                                    <div class="form-text small">Commissary throughput ceiling per day (&gt; 0).</div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label for="cp-capacity-limit" class="form-label fw-bold text-title small mb-1">Max Storage Capacity Limit</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" min="0.01" max="9999999" id="cp-capacity-limit" class="form-control"
+                                               placeholder="e.g., 30.00"
+                                               onkeydown="return !['e','E','+','-'].includes(event.key)"
+                                               oninput="updateConstraintsFeasibilityPreview()" required>
+                                        <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
+                                    </div>
+                                    <div class="form-text small">Physical branch shelf/storage cap (&ge; Max Order).</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Validation Alert -->
+                        <div id="cp-validation-error" class="alert alert-danger py-2 px-3 small d-none mb-3" role="alert"></div>
+
+                        <!-- AI Feasibility Formula Helper Note -->
+                        <div id="cp-feasibility-box" class="p-3 rounded border mb-3" style="background-color: var(--sb-bg-surface); border-left: 4px solid var(--sb-gold) !important;">
+                            <div class="small fw-bold text-title mb-1 d-flex align-items-center gap-2">
+                                <i class="fas fa-square-root-variable text-gold"></i> AI Feasibility Formula
+                            </div>
+                            <div class="small text-muted mb-2 font-monospace" style="font-size: 0.78rem; overflow-wrap: anywhere;">
+                                Available Space = max(0, Capacity Limit &minus; Current Stock) | Bounded AI Order = [MOQ .. min(Max Order, Available Space)]
+                            </div>
+                            <div id="cp-feasibility-live" class="small fw-semibold" style="color: var(--sb-espresso-dark);">
+                                Available Space: -- | Bounded AI Order: --
+                            </div>
+                        </div>
+
+                        <button type="submit" id="btn-save-constraints" class="btn btn-sb-gold w-100 fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2">
+                            <i class="fas fa-robot"></i> Save AI Constraints
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -1303,8 +1444,14 @@
     async function initializeRBACUI() {
         const token = localStorage.getItem('access_token');
         try {
-            const response = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
-            const user = await response.json();
+            let user = null;
+            if (typeof window.fetchCurrentUser === 'function') {
+                user = await window.fetchCurrentUser();
+            } else {
+                const response = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (response.ok) user = await response.json();
+            }
+            if (!user) return;
             if (user && user.role) {
                 window.currentUserRole = user.role;
                 window.currentUserBranchId = user.branch_id;
@@ -3223,6 +3370,84 @@
         }
     });
 
+    window.fetchStockData = loadSCMData;
+
+    window.switchAdjustModalTab = function(tabName) {
+        const stockPanel = document.getElementById('adj-panel-stock');
+        const constPanel = document.getElementById('adj-panel-constraints');
+        const btnStock = document.getElementById('tab-btn-stock-adjust');
+        const btnConst = document.getElementById('tab-btn-ai-constraints');
+
+        if (tabName === 'constraints') {
+            if (stockPanel) stockPanel.classList.add('d-none');
+            if (constPanel) constPanel.classList.remove('d-none');
+            if (btnStock) {
+                btnStock.classList.remove('active');
+                btnStock.setAttribute('aria-selected', 'false');
+            }
+            if (btnConst) {
+                btnConst.classList.add('active');
+                btnConst.setAttribute('aria-selected', 'true');
+            }
+            updateConstraintsFeasibilityPreview();
+        } else {
+            if (stockPanel) stockPanel.classList.remove('d-none');
+            if (constPanel) constPanel.classList.add('d-none');
+            if (btnStock) {
+                btnStock.classList.add('active');
+                btnStock.setAttribute('aria-selected', 'true');
+            }
+            if (btnConst) {
+                btnConst.classList.remove('active');
+                btnConst.setAttribute('aria-selected', 'false');
+            }
+        }
+    };
+
+    window.updateConstraintsFeasibilityPreview = function() {
+        const currentStock = parseFloat(document.getElementById('cp-current-stock')?.value || 0) || 0;
+        const unitLabel = document.getElementById('cp-item-unit')?.value || 'units';
+        const moq = parseFloat(document.getElementById('cp-min-order')?.value);
+        const maxOrder = parseFloat(document.getElementById('cp-max-order')?.value);
+        const prodLimit = parseFloat(document.getElementById('cp-production-limit')?.value);
+        const capLimit = parseFloat(document.getElementById('cp-capacity-limit')?.value);
+        const leadTime = parseFloat(document.getElementById('cp-lead-time')?.value);
+        const threshold = parseFloat(document.getElementById('cp-reorder-threshold')?.value);
+
+        const errEl = document.getElementById('cp-validation-error');
+        const liveEl = document.getElementById('cp-feasibility-live');
+
+        const errs = [];
+        if (isNaN(threshold) || threshold < 0) errs.push('Reorder Alert Threshold must be \u2265 0.');
+        if (isNaN(leadTime) || leadTime < 1 || !Number.isInteger(leadTime)) errs.push('Supplier Lead Time must be a whole integer \u2265 1 day.');
+        if (isNaN(moq) || moq <= 0) errs.push('Min Order Quantity (MOQ) must be > 0.');
+        if (isNaN(maxOrder) || (!isNaN(moq) && maxOrder < moq)) errs.push('Max Order Quantity must be \u2265 MOQ.');
+        if (isNaN(prodLimit) || prodLimit <= 0) errs.push('Daily Production Limit must be > 0.');
+        if (isNaN(capLimit) || (!isNaN(maxOrder) && capLimit < maxOrder)) errs.push('Max Storage Capacity Limit must be \u2265 Max Order Quantity.');
+
+        if (errEl) {
+            if (errs.length > 0) {
+                errEl.textContent = errs[0];
+                errEl.classList.remove('d-none');
+            } else {
+                errEl.textContent = '';
+                errEl.classList.add('d-none');
+            }
+        }
+
+        if (liveEl) {
+            const safeCap = isNaN(capLimit) ? 0 : capLimit;
+            const safeMoq = isNaN(moq) ? 0 : moq;
+            const safeMax = isNaN(maxOrder) ? 0 : maxOrder;
+            const availSpace = Math.max(0, safeCap - currentStock);
+            const upperBound = Math.min(safeMax, availSpace);
+            const rangeText = availSpace <= 0
+                ? `0.00 ${unitLabel} (Storage at/above capacity)`
+                : `[${safeMoq.toFixed(2)} .. ${upperBound.toFixed(2)} ${unitLabel}]`;
+            liveEl.innerHTML = `<span class="text-muted">Live Calc:</span> Available Space = <strong>${availSpace.toFixed(2)} ${window.escapeHtml(unitLabel)}</strong> <span class="mx-1 text-muted">|</span> Bounded AI Order = <strong>${window.escapeHtml(rangeText)}</strong>`;
+        }
+    };
+
     window.openAdjustModal = function(type, id, name, currentQty) {
         if (type === 'ingredient') {
             const isBranchHub = (window.currentUserBranchId === 1 || (window.currentUserBranchName && window.currentUserBranchName.toLowerCase().includes('ibaan')) || window.isOwnerOrHub);
@@ -3246,6 +3471,8 @@
         const itemQty = item ? item.quantity : currentQty;
         const itemUnit = (item && item.unit) ? item.unit : (type === 'ingredient' ? 'kg' : 'units');
         const itemBranch = item ? item.branch : (window.currentUserBranchName || 'Main Hub');
+        const itemBranchId = item ? item.branch_id : (window.currentUserBranchId || '');
+        const itemTargetId = item ? (type === 'ingredient' ? item.ingredient_id : item.product_id) : '';
 
         const titleEl = document.getElementById('adj-modal-title');
         if (titleEl) {
@@ -3327,6 +3554,43 @@
             directInput.value = itemQty;
             updateDirectDeltaHint();
         }
+
+        // Populate Tab 2: AI Constraints
+        const canEditConstraints = (
+            window.currentUserRole === 'Business Owner' ||
+            window.currentUserRole === 'Branch Manager' ||
+            window.currentUserRole === 'Admin' ||
+            window.currentUserRole === 'System Administrator' ||
+            Boolean(window.isOwner)
+        );
+        const tabBtnConstraints = document.getElementById('tab-btn-ai-constraints');
+        if (tabBtnConstraints) {
+            tabBtnConstraints.classList.toggle('d-none', !canEditConstraints);
+        }
+
+        document.getElementById('cp-item-type').value = type;
+        document.getElementById('cp-stock-id').value = id;
+        document.getElementById('cp-branch-id').value = itemBranchId;
+        document.getElementById('cp-target-id').value = itemTargetId;
+        document.getElementById('cp-current-stock').value = Number(itemQty) || 0;
+        document.getElementById('cp-item-unit').value = itemUnit;
+
+        document.querySelectorAll('#constraintsForm .cp-unit-suffix').forEach(el => {
+            el.textContent = itemUnit;
+        });
+
+        const threshVal = (item && item.reorder_threshold !== undefined)
+            ? item.reorder_threshold
+            : ((item && item.threshold !== undefined) ? item.threshold : 5);
+        document.getElementById('cp-reorder-threshold').value = threshVal;
+        document.getElementById('cp-lead-time').value = (item && item.lead_time_days !== undefined) ? item.lead_time_days : 2;
+        document.getElementById('cp-min-order').value = (item && item.min_order_quantity !== undefined) ? item.min_order_quantity : 5;
+        document.getElementById('cp-max-order').value = (item && item.max_order_quantity !== undefined) ? item.max_order_quantity : 25;
+        document.getElementById('cp-production-limit').value = (item && item.production_limit !== undefined) ? item.production_limit : 20;
+        document.getElementById('cp-capacity-limit').value = (item && item.capacity_limit !== undefined) ? item.capacity_limit : 30;
+
+        switchAdjustModalTab('adjust');
+        updateConstraintsFeasibilityPreview();
 
         const modalEl = document.getElementById('stockAdjustModal');
         if (modalEl) new bootstrap.Modal(modalEl).show();
@@ -3525,6 +3789,105 @@
             }
         } catch (error) {
             alert("Network Error: Could not execute adjustment.");
+        } finally {
+            if (btn) {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+        }
+    };
+
+    window.saveAIConstraints = async function(event) {
+        event.preventDefault();
+
+        const itemType = document.getElementById('cp-item-type').value;
+        const stockId = parseInt(document.getElementById('cp-stock-id').value, 10);
+        const branchIdVal = document.getElementById('cp-branch-id').value;
+        const targetIdVal = document.getElementById('cp-target-id').value;
+
+        const reorderThreshold = parseFloat(document.getElementById('cp-reorder-threshold').value);
+        const leadTimeRaw = document.getElementById('cp-lead-time').value.trim();
+        const leadTimeDays = Number(leadTimeRaw);
+        const minOrderQty = parseFloat(document.getElementById('cp-min-order').value);
+        const maxOrderQty = parseFloat(document.getElementById('cp-max-order').value);
+        const productionLimit = parseFloat(document.getElementById('cp-production-limit').value);
+        const capacityLimit = parseFloat(document.getElementById('cp-capacity-limit').value);
+
+        const showErr = (msg) => {
+            if (window.showSweetAlert) window.showSweetAlert(msg, 'error');
+            else alert(msg);
+        };
+
+        if (isNaN(reorderThreshold) || reorderThreshold < 0) {
+            return showErr('Reorder Alert Threshold must be a non-negative number.');
+        }
+        if (!/^\d+$/.test(leadTimeRaw) || leadTimeDays < 1) {
+            return showErr('Supplier Lead Time must be a whole integer of at least 1 day.');
+        }
+        if (isNaN(minOrderQty) || minOrderQty <= 0) {
+            return showErr('Min Order Quantity (MOQ) must be greater than zero.');
+        }
+        if (isNaN(maxOrderQty) || maxOrderQty < minOrderQty) {
+            return showErr('Max Order Quantity must be greater than or equal to MOQ.');
+        }
+        if (isNaN(productionLimit) || productionLimit <= 0) {
+            return showErr('Daily Production Limit must be greater than zero.');
+        }
+        if (isNaN(capacityLimit) || capacityLimit < maxOrderQty) {
+            return showErr('Max Storage Capacity Limit must be greater than or equal to Max Order Quantity.');
+        }
+
+        const payload = {
+            reorder_threshold: reorderThreshold,
+            lead_time_days: leadTimeDays,
+            min_order_quantity: minOrderQty,
+            max_order_quantity: maxOrderQty,
+            production_limit: productionLimit,
+            capacity_limit: capacityLimit
+        };
+        if (branchIdVal) {
+            payload.branch_id = parseInt(branchIdVal, 10);
+        }
+        if (itemType === 'ingredient') {
+            payload.ingredient_stock_id = stockId;
+            if (targetIdVal) payload.ingredient_id = parseInt(targetIdVal, 10);
+        } else {
+            payload.product_stock_id = stockId;
+            if (targetIdVal) payload.product_id = parseInt(targetIdVal, 10);
+        }
+
+        const btn = document.getElementById('btn-save-constraints');
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving AI Constraints...';
+            btn.disabled = true;
+        }
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('/api/inventory/constraints/update/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (response.ok) {
+                const msg = data.message || 'AI constraint parameters saved successfully.';
+                if (window.showSweetAlert) window.showSweetAlert(msg, 'success');
+                else alert(msg);
+
+                const modalEl = document.getElementById('stockAdjustModal');
+                const modalInstance = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+                if (modalInstance) modalInstance.hide();
+                await fetchStockData();
+            } else {
+                showErr(`Constraint Update Failed: ${data.error || 'Server error'}`);
+            }
+        } catch (error) {
+            showErr('Network Error: Could not update AI constraints.');
         } finally {
             if (btn) {
                 btn.innerHTML = origHtml;

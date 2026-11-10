@@ -54,8 +54,10 @@
                 <div class="sb-kpi-value tabular-nums my-1" id="kpi-gross-margin">₱0.00</div>
             </div>
             <div class="sb-kpi-subtext mt-2" id="kpi-cogs-subtext">BOM COGS: ₱0.00</div>
-            <span id="kpi-transactions" class="d-none">0</span>
-            <span id="kpi-txn-trend" class="d-none">+0.0%</span>
+            <div class="d-none" hidden aria-hidden="true">
+                <span id="kpi-transactions" class="d-none">0</span>
+                <span id="kpi-txn-trend" class="d-none">+0.0%</span>
+            </div>
         </div>
     </div>
     <div class="col-6 col-xl-3">
@@ -69,7 +71,9 @@
                 <div class="sb-kpi-value tabular-nums my-1" id="kpi-turnover">0.0x</div>
             </div>
             <div class="sb-kpi-subtext mt-2" id="kpi-inv-val-subtext">Inventory Value: ₱0.00</div>
-            <span id="kpi-gmroi" class="d-none">GMROI: 0.0</span>
+            <div class="d-none" hidden aria-hidden="true">
+                <span id="kpi-gmroi" class="d-none">GMROI: 0.0</span>
+            </div>
         </div>
     </div>
     <div class="col-6 col-xl-3">
@@ -83,7 +87,9 @@
                 <div class="sb-kpi-value tabular-nums my-1" id="kpi-stockouts">0 Items</div>
             </div>
             <div class="sb-kpi-subtext mt-2" id="kpi-dead-stock-subtext">Dead Stock Risk: ₱0.00</div>
-            <span id="kpi-branches" class="d-none">0 / 0</span>
+            <div class="d-none" hidden aria-hidden="true">
+                <span id="kpi-branches" class="d-none">0 / 0</span>
+            </div>
         </div>
     </div>
 </div>
@@ -605,7 +611,9 @@
             const elGMPct = document.getElementById('kpi-margin-pct-badge');
             if (elGMPct) {
                 elGMPct.innerText = `${gmPct}% Margin`;
-                elGMPct.className = Number(gmPct) >= 50 ? 'kpi-trend trend-up' : 'kpi-trend trend-down';
+                elGMPct.classList.add('kpi-trend');
+                elGMPct.classList.remove('trend-up', 'trend-down', 'trend-neutral');
+                elGMPct.classList.add(Number(gmPct) >= 50 ? 'trend-up' : 'trend-down');
             }
             const elCogsSub = document.getElementById('kpi-cogs-subtext');
             if (elCogsSub) elCogsSub.innerText = `BOM COGS: ₱${cogsVal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -635,7 +643,9 @@
             const badge = document.getElementById('kpi-offline-badge');
             if (badge) {
                 badge.innerText = offline > 0 ? `${offline} offline` : 'All Active';
-                badge.className = offline > 0 ? 'kpi-trend trend-down' : 'kpi-trend trend-up';
+                badge.classList.add('kpi-trend');
+                badge.classList.remove('trend-up', 'trend-down', 'trend-neutral');
+                badge.classList.add(offline > 0 ? 'trend-down' : 'trend-up');
             }
 
             // 2. Render Charts
@@ -768,8 +778,11 @@
 
     function updateTrendBadge(elementId, value) {
         const el = document.getElementById(elementId);
+        if (!el) return;
         el.innerText = value > 0 ? `↗ +${value}%` : value < 0 ? `↘ ${value}%` : '0%';
-        el.className = `kpi-trend ${value >= 0 ? 'trend-up' : 'trend-down'}`;
+        el.classList.add('kpi-trend');
+        el.classList.remove('trend-up', 'trend-down', 'trend-neutral');
+        el.classList.add(value >= 0 ? 'trend-up' : 'trend-down');
     }
 
     function destroyCharts() {
@@ -1456,9 +1469,14 @@
     document.addEventListener("DOMContentLoaded", async () => {
         const token = localStorage.getItem('access_token');
         try {
-            const userRes = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (userRes.ok) {
-                const user = await userRes.json();
+            let user = null;
+            if (typeof window.fetchCurrentUser === 'function') {
+                user = await window.fetchCurrentUser();
+            } else {
+                const userRes = await fetch('/api/analytics/current-user/', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (userRes.ok) user = await userRes.json();
+            }
+            if (user) {
                 currentUserRole = user.role;
                 isOwner = (user.role === 'Business Owner' || user.is_superuser);
                 if (!isOwner && user.branch_id) {

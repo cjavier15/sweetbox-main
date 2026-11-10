@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="sb_diagram" name="Figure 1: Conceptual Framework">
-        <mxGraphModel dx="1071" dy="809" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1260" pageHeight="820" background="#FFFFFF" math="0" shadow="0">
+        <mxGraphModel dx="1414" dy="609" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1260" pageHeight="820" background="#FFFFFF" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -22,6 +22,9 @@
                 <mxCell id="c_process" parent="1" style="swimlane;startSize=28;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" value="PROCESS: Business Analytics &amp; Decision Engine" vertex="1">
                     <mxGeometry height="680" width="380" x="440" y="70" as="geometry"/>
                 </mxCell>
+                <mxCell id="1seoctyxrbQ5vT4W-Fm1-1" parent="c_process" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b style=&quot;color: rgb(63, 63, 63); scrollbar-color: rgba(168, 169, 170, 0.52) rgb(18, 19, 20); text-align: center;&quot;&gt;Centralized MySQL Database&lt;/b&gt;&lt;br style=&quot;color: rgb(63, 63, 63); scrollbar-color: rgba(168, 169, 170, 0.52) rgb(18, 19, 20); font-weight: 700; text-align: center;&quot;&gt;&lt;span style=&quot;color: rgb(0, 0, 0); text-align: center;&quot;&gt;&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;•&amp;nbsp;&lt;/span&gt;Master Data&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0); text-align: center;&quot;&gt;• Transactions&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0); text-align: center;&quot;&gt;• Inventory Stocks&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;color: rgb(0, 0, 0); text-align: center;&quot;&gt;Constraints&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0); text-align: center;&quot;&gt;• Prescriptions&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;color: rgb(0, 0, 0); text-align: center;&quot;&gt;• Cold Archives&lt;/span&gt;&lt;/div&gt;" vertex="1">
+                    <mxGeometry height="90" width="340" x="20" y="471" as="geometry"/>
+                </mxCell>
                 <mxCell id="pr_etl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=center;spacing=4;" value="&lt;b&gt;Data Integration &amp; ETL Pipeline:&lt;/b&gt;&lt;br/&gt;OpenPyXL 3.1.5 &amp; Django ORM Aggregation • Axios Polling&lt;br/&gt;Batch Schema Validation • Automated Data Archiving" vertex="1">
                     <mxGeometry height="65" width="340" x="460" y="110" as="geometry"/>
                 </mxCell>
@@ -33,9 +36,6 @@
                 </mxCell>
                 <mxCell id="pr_bound" parent="1" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=0;align=left;spacing=4;" value="&lt;b&gt;Constraint Bounding &amp; Fallback:&lt;/b&gt;&lt;br/&gt;• Physical Storage Capacity Clamping&lt;br/&gt;• Supplier Minimum Order Quantity (MOQ)&lt;br/&gt;• Rule-Based Deterministic Replenishment Fallback" vertex="1">
                     <mxGeometry height="90" width="340" x="460" y="430" as="geometry"/>
-                </mxCell>
-                <mxCell id="pr_db" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=14;strokeWidth=1.5;fontFamily=Helvetica;fontSize=10;fontStyle=1;align=center;" value="&lt;b&gt;Centralized MySQL 8.0 Database&lt;/b&gt;&lt;br/&gt;Master Data • Transactions • Inventory Stocks&lt;br/&gt;Constraints • Prescriptions • Cold Archives" vertex="1">
-                    <mxGeometry height="85" width="300" x="480" y="545" as="geometry"/>
                 </mxCell>
                 <mxCell id="c_output" parent="1" style="swimlane;startSize=28;strokeWidth=1.5;fontFamily=Helvetica;fontSize=12;fontStyle=1;collapsible=0;html=1;rounded=1;arcSize=6;" value="OUTPUT: Operational Intelligence &amp; Decision Support" vertex="1">
                     <mxGeometry height="680" width="350" x="870" y="70" as="geometry"/>

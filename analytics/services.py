@@ -150,7 +150,7 @@ def _generate_rule_based_prescriptions(branch, low_stocks, hist_consumption=None
     output_ids = []
     for stock in low_stocks:
         ingredient = stock.ingredient
-        constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).first()
+        constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).order_by('-constraint_ID').first()
         min_qty = float(constraint.min_order_quantity) if constraint else 0.0
         max_supplier_qty = float(constraint.max_order_quantity) if constraint else 9999.0
         capacity_limit = float(constraint.capacity_limit) if constraint else 9999.0
@@ -252,6 +252,7 @@ def _generate_satellite_prescriptions(branch):
 
     for stock in low_prod_stocks:
         prod = stock.product
+        constraint = ConstraintParameter.objects.filter(branch=branch, product=prod).order_by('-constraint_ID').first()
         current_stock = float(stock.quantity_available)
         threshold = float(stock.reorder_threshold)
         daily_vel = velocity_map.get(prod.product_ID, 0.0)
@@ -259,16 +260,33 @@ def _generate_satellite_prescriptions(branch):
             daily_vel = max(round(threshold / 5.0, 2), 0.50)
 
         days_runway = round(current_stock / daily_vel, 1) if daily_vel > 0 else 0.0
-        needed = round((target_coverage_days * daily_vel * event_multiplier) - current_stock)
-        recommended_qty = float(max(needed, 5.0))
-        if recommended_qty > 50.0:
-            recommended_qty = 50.0
+        if constraint:
+            lead_time = float(constraint.lead_time_days or 2)
+            cov_days = max(target_coverage_days, lead_time + 5.0)
+            needed = round((cov_days * daily_vel * event_multiplier) - current_stock)
+            min_qty = float(constraint.min_order_quantity)
+            max_order = float(constraint.max_order_quantity)
+            prod_limit = float(constraint.production_limit)
+            cap_limit = float(constraint.capacity_limit)
+            room_available = max(0.0, cap_limit - current_stock)
+            upper_bound = min(max_order, prod_limit, room_available)
+            recommended_qty = float(min(max(float(needed), min_qty), upper_bound))
+            if recommended_qty <= 0:
+                recommended_qty = max(min_qty, 1.0)
+        else:
+            cov_days = target_coverage_days
+            needed = round((target_coverage_days * daily_vel * event_multiplier) - current_stock)
+            recommended_qty = float(max(needed, 5.0))
+            if recommended_qty > 50.0:
+                recommended_qty = 50.0
 
         unit_cost = recipe_costs.get(prod.product_ID, float(prod.price) * 0.35)
         estimated_cost = round(recommended_qty * unit_cost, 2)
 
         data_pipeline.append({
             'product': prod,
+            'constraint': constraint,
+            'cov_days': cov_days,
             'current_stock': current_stock,
             'threshold': threshold,
             'daily_vel': daily_vel,
@@ -291,9 +309,19 @@ def _generate_satellite_prescriptions(branch):
     
     Low-Stock Products & Sales Telemetry:
     """ + "\n".join([
-        f"- {d['product'].product_name}: Current Stock: {d['current_stock']:.0f} units, "
-        f"Reorder Threshold: {d['threshold']:.0f} units, Daily Sales Velocity: {d['daily_vel']:.1f} units/day, "
-        f"Runway: {d['days_runway']:.1f} days, Recommended Batch: {d['recommended_qty']:.0f} units, Unit Cost: ₱{d['unit_cost']:.2f}"
+        (
+            f"- {d['product'].product_name}: Current Stock: {d['current_stock']:.0f} units, "
+            f"Reorder Threshold: {d['threshold']:.0f} units, Daily Sales Velocity: {d['daily_vel']:.1f} units/day, "
+            f"Runway: {d['days_runway']:.1f} days, Recommended Batch: {d['recommended_qty']:.0f} units, Unit Cost: ₱{d['unit_cost']:.2f}"
+            + (
+                f", Constraints: [MOQ: {float(d['constraint'].min_order_quantity):.2f}, "
+                f"Max Order: {float(d['constraint'].max_order_quantity):.2f}, "
+                f"Prod Limit: {float(d['constraint'].production_limit):.2f}, "
+                f"Capacity: {float(d['constraint'].capacity_limit):.2f}, "
+                f"Lead Time: {d['constraint'].lead_time_days}d]"
+                if d.get('constraint') else ""
+            )
+        )
         for d in data_pipeline
     ]) + """
     
@@ -311,12 +339,25 @@ def _generate_satellite_prescriptions(branch):
         if raw_ai_text:
             clean_text = _clean_json_text(raw_ai_text)
             ai_data = json.loads(clean_text)
+            pipeline_by_prod_id = {d['product'].product_ID: d for d in data_pipeline}
             for item in ai_data:
                 prod_obj = Product.objects.filter(product_name=item['product']).first()
                 if not prod_obj:
                     continue
+                d_info = pipeline_by_prod_id.get(prod_obj.product_ID)
+                constraint = d_info['constraint'] if d_info else ConstraintParameter.objects.filter(branch=branch, product=prod_obj).order_by('-constraint_ID').first()
                 qty = float(item['recommended_qty'])
-                if qty <= 0:
+                if constraint:
+                    curr_s = d_info['current_stock'] if d_info else 0.0
+                    min_q = float(constraint.min_order_quantity)
+                    max_q = float(constraint.max_order_quantity)
+                    prod_lim = float(constraint.production_limit)
+                    cap_lim = float(constraint.capacity_limit)
+                    room_avail = max(0.0, cap_lim - curr_s)
+                    qty = float(min(max(qty, min_q), max_q, prod_lim, room_avail))
+                    if qty <= 0:
+                        qty = max(min_q, 1.0)
+                elif qty <= 0:
                     qty = 5.0
                 cost = float(item.get('estimated_cost', qty * recipe_costs.get(prod_obj.product_ID, float(prod_obj.price) * 0.35)))
                 rec_text = _clean_db_text(f"Dispatch transfer {int(qty)} units of {prod_obj.product_name} from Ibaan (Main Hub) to {branch.name}")
@@ -325,6 +366,7 @@ def _generate_satellite_prescriptions(branch):
                 record = PrescriptiveOutput.objects.create(
                     branch=branch,
                     product=prod_obj,
+                    constraint=constraint,
                     output_type='Dispatch Transfer Prescription',
                     recommendation=rec_text,
                     justification=just_text,
@@ -342,18 +384,22 @@ def _generate_satellite_prescriptions(branch):
     event_clause = f" accounting for {', '.join(impact_events)} ({int((event_multiplier - 1.0) * 100)}% demand surge)" if impact_events and event_multiplier > 1.0 else ""
     for d in data_pipeline:
         prod = d['product']
+        constraint = d.get('constraint')
         qty = d['recommended_qty']
         cost = d['estimated_cost']
+        cov_d = d.get('cov_days', target_coverage_days)
+        cap_clause = f", bounded within storage capacity ({float(constraint.capacity_limit):.2f} units)" if constraint else ""
         justification = (
             f"Historical sales velocity is {d['daily_vel']:.1f} units/day at {branch.name}. "
             f"Current display stock of {d['current_stock']:.0f} units provides only {d['days_runway']:.1f} days runway "
             f"(threshold: {d['threshold']:.0f} units). "
-            f"Recommended dispatch transfer of {int(qty)} units from Ibaan Commissary secures a {target_coverage_days:.0f}-day sales buffer{event_clause}. "
+            f"Recommended dispatch transfer of {int(qty)} units from Ibaan Commissary secures a {cov_d:.0f}-day sales buffer{event_clause}{cap_clause}. "
             f"Estimated commissary transfer cost: ₱{cost:,.2f}."
         )
         record = PrescriptiveOutput.objects.create(
             branch=branch,
             product=prod,
+            constraint=constraint,
             output_type='Dispatch Transfer Prescription',
             recommendation=f"Dispatch transfer {int(qty)} units of {prod.product_name} from Ibaan (Main Hub) to {branch.name}",
             justification=_clean_db_text(justification),
@@ -398,7 +444,7 @@ def generate_restock_directive(branch):
     data_pipeline = []
     for stock in low_stocks:
         ingredient = stock.ingredient
-        constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).first()
+        constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).order_by('-constraint_ID').first()
         ing_hist = hist_consumption.get(ingredient.ingredient_ID, {})
         daily_burn = ing_hist.get('daily_burn', 0.0)
         if daily_burn <= 0.0:
@@ -426,7 +472,7 @@ def generate_restock_directive(branch):
             f"- {item['Ingredient']}: Current Stock: {item['Current_Stock']:.2f} {item['Unit']}, "
             f"Reorder Threshold: {item['Reorder_Threshold']:.2f} {item['Unit']}, "
             f"Historical Daily Burn: {item['Historical_Daily_Burn']:.2f} {item['Unit']}/day, "
-            f"Runway Remaining: {item['Days_Runway_Remaining']:.1f} days, "
+            f"Runway Remaining: {item['Days_Runway_Remaining']:.1f} days, Lead Time: {item['Lead_Time_Days']:.0f} days, "
             f"Supplier Limits: [Min: {item['Min_Supplier_Order']:.2f}, Max: {item['Max_Supplier_Order']:.2f}], "
             f"Storage Limit: {item['Storage_Capacity_Limit']:.2f} {item['Unit']}, "
             f"Cost/Unit: ₱{item['Cost_Per_Unit']:.2f}"
@@ -470,7 +516,7 @@ def generate_restock_directive(branch):
             
             for item in ai_data:
                 ingredient = Ingredient.objects.get(ingredient_name=item['ingredient'])
-                constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).first()
+                constraint = ConstraintParameter.objects.filter(branch=branch, ingredient=ingredient).order_by('-constraint_ID').first()
                 stock_record = IngredientStock.objects.filter(branch=branch, ingredient=ingredient).first()
                 
                 raw_qty = float(item['recommended_qty'])
@@ -519,20 +565,30 @@ def generate_restock_directive(branch):
             boms = list(p.bom_ingredients.select_related('ingredient').all())
             if not boms:
                 continue
+            prod_cp = ConstraintParameter.objects.filter(branch=branch, product=p).order_by('-constraint_ID').first()
             p_threshold = float(ps.reorder_threshold)
             p_qty = float(ps.quantity_available)
             batch_qty = max(round(p_threshold * 2 - p_qty), 10.0)
+            if prod_cp:
+                min_q = float(prod_cp.min_order_quantity)
+                max_batch = min(float(prod_cp.production_limit), float(prod_cp.max_order_quantity))
+                room_avail = max(0.0, float(prod_cp.capacity_limit) - p_qty)
+                batch_qty = min(max(batch_qty, min_q), max_batch, room_avail)
+                if batch_qty <= 0:
+                    batch_qty = max(min_q, 1.0)
             recipe_cost = sum(float(b.quantity_required) * float(b.ingredient.cost_per_unit) for b in boms)
             est_cost = round(batch_qty * recipe_cost, 2)
+            cap_note = f", constrained within daily production limit ({float(prod_cp.production_limit):.0f}) and storage capacity ({float(prod_cp.capacity_limit):.0f})" if prod_cp else ""
             
             prod_rec = PrescriptiveOutput.objects.create(
                 branch=branch,
                 product=p,
+                constraint=prod_cp,
                 output_type='Production Target',
                 recommendation=f"Commissary batch production of {int(batch_qty)} units of {p.product_name}",
                 justification=_clean_db_text(
                     f"Commissary display stock is low ({p_qty:.0f} units remaining, threshold: {p_threshold:.0f} units). "
-                    f"Batch production of {int(batch_qty)} units satisfies network demand across Ibaan and satellite branches. "
+                    f"Batch production of {int(batch_qty)} units satisfies network demand across Ibaan and satellite branches{cap_note}. "
                     f"Estimated BOM ingredient production cost: ₱{est_cost:,.2f}."
                 ),
                 recommended_quantity=Decimal(str(batch_qty)),
