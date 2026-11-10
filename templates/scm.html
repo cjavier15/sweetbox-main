@@ -588,12 +588,26 @@
         </div>
 
         <!-- AI Recommendations Grid -->
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
             <h6 class="fw-bold text-title mb-0 d-flex align-items-center gap-2">
-                <i class="fas fa-wand-magic-sparkles text-gold"></i> AI Prescriptive Recommendations
+                <i class="fas fa-wand-magic-sparkles text-gold"></i> Restock Recommendations
             </h6>
             <button class="btn btn-sm btn-sb-gold fw-bold shadow-sm d-inline-flex align-items-center gap-2" id="btn-run-ai" onclick="generatePrescriptions()">
                 <i class="fas fa-magic"></i> Run AI Analysis
+            </button>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="pa-filter-pills">
+            <button type="button" class="filter-pill-btn active" data-filter="all" onclick="setPrescriptiveFilter('all', this)">
+                All Directives <span class="badge-pill-count" id="pa-count-all">0</span>
+            </button>
+            <button type="button" class="filter-pill-btn" data-filter="procure" onclick="setPrescriptiveFilter('procure', this)">
+                <i class="fas fa-boxes-packing text-success"></i> Procure <span class="badge-pill-count" id="pa-count-procure">0</span>
+            </button>
+            <button type="button" class="filter-pill-btn" data-filter="produce" onclick="setPrescriptiveFilter('produce', this)">
+                <i class="fas fa-kitchen-set text-warning"></i> Produce <span class="badge-pill-count" id="pa-count-produce">0</span>
+            </button>
+            <button type="button" class="filter-pill-btn" data-filter="dispatch" onclick="setPrescriptiveFilter('dispatch', this)">
+                <i class="fas fa-truck-fast text-primary"></i> Dispatch <span class="badge-pill-count" id="pa-count-dispatch">0</span>
             </button>
         </div>
         <div class="row g-3 mb-5" id="prescriptive-actions-container">
@@ -1198,8 +1212,8 @@
                                 <i class="fas fa-sliders text-gold"></i> Reorder &amp; Storage Limits
                             </h6>
                             <div class="row g-3">
-                                <div class="col-12 col-md-6">
-                                    <label for="cp-reorder-threshold" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Low Stock Alert Level</label>
+                                <div class="col-12 col-md-6" id="cp-group-reorder-threshold">
+                                    <label id="cp-label-reorder-threshold" for="cp-reorder-threshold" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Low Stock Alert Level</label>
                                     <div class="input-group">
                                         <input type="number" step="0.01" min="0" max="9999999" id="cp-reorder-threshold" class="form-control"
                                                placeholder="e.g., 5.00"
@@ -1208,8 +1222,8 @@
                                         <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
                                     </div>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="cp-lead-time" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Delivery Lead Time</label>
+                                <div class="col-12 col-md-6" id="cp-group-lead-time">
+                                    <label id="cp-label-lead-time" for="cp-lead-time" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Supplier Lead Time (Days)</label>
                                     <div class="input-group">
                                         <input type="number" step="1" min="1" max="3650" id="cp-lead-time" class="form-control"
                                                placeholder="e.g., 2"
@@ -1218,8 +1232,8 @@
                                         <span class="input-group-text bg-light text-muted small">days</span>
                                     </div>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="cp-min-order" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Minimum Order</label>
+                                <div class="col-12 col-md-6" id="cp-group-min-order">
+                                    <label id="cp-label-min-order" for="cp-min-order" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Minimum Order (MOQ)</label>
                                     <div class="input-group">
                                         <input type="number" step="0.01" min="0.01" max="9999999" id="cp-min-order" class="form-control"
                                                placeholder="e.g., 5.00"
@@ -1228,8 +1242,8 @@
                                         <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
                                     </div>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="cp-max-order" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Maximum Order</label>
+                                <div class="col-12 col-md-6" id="cp-group-max-order">
+                                    <label id="cp-label-max-order" for="cp-max-order" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Maximum Order</label>
                                     <div class="input-group">
                                         <input type="number" step="0.01" min="0.01" max="9999999" id="cp-max-order" class="form-control"
                                                placeholder="e.g., 25.00"
@@ -1238,8 +1252,8 @@
                                         <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
                                     </div>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="cp-production-limit" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Daily Kitchen Limit</label>
+                                <div class="col-12 col-md-6" id="cp-group-production-limit">
+                                    <label id="cp-label-production-limit" for="cp-production-limit" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Daily Kitchen Limit</label>
                                     <div class="input-group">
                                         <input type="number" step="0.01" min="0.01" max="9999999" id="cp-production-limit" class="form-control"
                                                placeholder="e.g., 20.00"
@@ -1248,8 +1262,8 @@
                                         <span class="input-group-text bg-light text-muted small cp-unit-suffix">units</span>
                                     </div>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label for="cp-capacity-limit" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Max Storage Capacity</label>
+                                <div class="col-12 col-md-6" id="cp-group-capacity-limit">
+                                    <label id="cp-label-capacity-limit" for="cp-capacity-limit" class="form-label text-title" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem;">Max Storeroom Capacity</label>
                                     <div class="input-group">
                                         <input type="number" step="0.01" min="0.01" max="9999999" id="cp-capacity-limit" class="form-control"
                                                placeholder="e.g., 30.00"
@@ -2006,7 +2020,7 @@
 
             renderRestockQueue(data.restock_queue, data.pending_restocks);
             
-            if (data.prescriptive_actions) renderPrescriptiveActions(data.prescriptive_actions, data.ai_eval_metrics);
+            renderPrescriptiveActions(data.prescriptive_actions || [], data.ai_eval_metrics);
 
             // Hub-and-Spoke Transparency & Tab Visibility Handling
             const noticeEl = document.getElementById('satellite-hub-notice');
@@ -2093,61 +2107,150 @@
         }
     };
 
-    function renderPrescriptiveActions(actions, aiMetrics) {
+    window.paSelectedFilter = 'all';
+    window.cachedPrescriptiveActions = [];
+
+    function resolveDirectiveMeta(a) {
+        const cat = (a && a.directive_category)
+            ? String(a.directive_category).toLowerCase()
+            : (() => {
+                const t = String(a?.output_type || a?.title || '').toLowerCase();
+                if (t.includes('production')) return 'produce';
+                if (t.includes('dispatch') || t.includes('transfer')) return 'dispatch';
+                return 'procure';
+            })();
+        if (cat === 'produce') {
+            return {
+                category: 'produce',
+                label: (a && a.directive_badge) || 'Kitchen Production',
+                icon: 'fa-kitchen-set',
+                badgeStyle: 'background-color: #FEF3C7; color: #92400E; border: 1px solid rgba(217, 119, 6, 0.35);',
+                borderColor: '#D97706'
+            };
+        }
+        if (cat === 'dispatch') {
+            return {
+                category: 'dispatch',
+                label: (a && a.directive_badge) || 'Branch Dispatch',
+                icon: 'fa-truck-fast',
+                badgeStyle: 'background-color: #E0E7FF; color: #3730A3; border: 1px solid rgba(79, 70, 229, 0.3);',
+                borderColor: '#4F46E5'
+            };
+        }
+        return {
+            category: 'procure',
+            label: (a && a.directive_badge) || 'Procure Ingredient',
+            icon: 'fa-boxes-packing',
+            badgeStyle: 'background-color: #D1FAE5; color: #065F46; border: 1px solid rgba(5, 150, 105, 0.3);',
+            borderColor: '#059669'
+        };
+    }
+
+    window.setPrescriptiveFilter = function(filterKey, btn) {
+        window.paSelectedFilter = filterKey || 'all';
+        document.querySelectorAll('#pa-filter-pills .filter-pill-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.filter === window.paSelectedFilter);
+        });
+        renderFilteredPrescriptiveCards();
+    };
+
+    function renderFilteredPrescriptiveCards() {
         const container = document.getElementById('prescriptive-actions-container');
         if (!container) return;
-        
-        if (!actions || actions.length === 0) {
+
+        const allActions = window.cachedPrescriptiveActions || [];
+        const activeFilter = window.paSelectedFilter || 'all';
+        const filtered = activeFilter === 'all'
+            ? allActions
+            : allActions.filter(a => resolveDirectiveMeta(a).category === activeFilter);
+
+        if (allActions.length === 0) {
             container.innerHTML = '<div class="col-12 p-4 text-center text-muted bg-light rounded border">No pending AI prescriptions require review.</div>';
-        } else {
-            container.innerHTML = actions.map(a => {
-                const recQty = Number(a.recommended_quantity || 0);
-                const recDate = a.recommended_date || "N/A";
-                const estCost = Number(a.estimated_cost || 0);
-                const just = a.justification || a.impact || "Evaluated by AI constraint model.";
+            return;
+        }
+        if (filtered.length === 0) {
+            const labelMap = { procure: 'Procure', produce: 'Produce', dispatch: 'Dispatch' };
+            const filterName = labelMap[activeFilter] || activeFilter;
+            container.innerHTML = `<div class="col-12 p-4 text-center text-muted bg-light rounded border">No <strong>${filterName}</strong> directives currently pending review.</div>`;
+            return;
+        }
 
-                return `
-                <div class="col-md-6">
-                    <div class="card shadow-sm border-0 action-card border-${a.color} h-100 p-3 d-flex flex-column">
-                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                            <div class="d-flex align-items-center flex-wrap gap-1 min-w-0">
-                                ${a.branch ? `<span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);"><i class="fas fa-store me-1"></i>${a.branch}</span>` : ''}
-                                <strong class="text-${a.color}">${a.title}</strong>
-                            </div>
-                            <span class="badge bg-${a.color} ${a.color === 'warning' ? 'text-dark' : ''}">${a.status}</span>
-                        </div>
-                        <p class="fw-bold mb-2">${a.description}</p>
+        container.innerHTML = filtered.map(a => {
+            const meta = resolveDirectiveMeta(a);
+            const recQty = Number(a.recommended_quantity || 0);
+            const recDate = a.recommended_date || "N/A";
+            const estCost = Number(a.estimated_cost || 0);
+            const just = a.justification || a.impact || "Evaluated by AI constraint model.";
+            const isFlagged = String(a.status || '').includes('Flagged');
+            const leftBorder = isFlagged ? '#DC2626' : meta.borderColor;
 
-                        <!-- Key Prescriptive Attributes -->
-                        <div class="d-flex flex-wrap gap-2 mb-2">
-                            <span class="badge bg-light text-dark border">
-                                <i class="fas fa-boxes me-1 text-gold"></i>Recommended Qty: <strong>${recQty.toLocaleString()}</strong>
+            return `
+            <div class="col-md-6" data-directive-category="${meta.category}">
+                <div class="card shadow-sm border-0 action-card h-100 p-3 d-flex flex-column" style="border-left-color: ${leftBorder} !important;">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <div class="d-flex align-items-center flex-wrap gap-1 min-w-0">
+                            <span class="badge fw-bold d-inline-flex align-items-center gap-1" style="${meta.badgeStyle}">
+                                <i class="fas ${meta.icon}"></i>${meta.label}
                             </span>
-                            <span class="badge bg-light text-dark border">
-                                <i class="fas fa-calendar-day me-1 text-primary"></i>Order by: <strong>${recDate}</strong>
-                            </span>
-                            <span class="badge bg-light text-dark border">
-                                <i class="fas fa-coins me-1 text-warning"></i>Est. Cost: <strong>₱${estCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
-                            </span>
+                            ${a.branch ? `<span class="badge" style="background-color: var(--sb-gold-subtle); color: var(--sb-espresso-dark); border: 1px solid rgba(212,154,61,0.3);"><i class="fas fa-store me-1"></i>${a.branch}</span>` : ''}
                         </div>
+                        <span class="badge bg-${a.color} ${a.color === 'warning' ? 'text-dark' : ''}">${a.status}</span>
+                    </div>
+                    <p class="fw-bold mb-2">${a.description}</p>
 
-                        <!-- Plain-Language Constraint Justification -->
-                        <div class="p-2 rounded bg-light border-start border-3 border-warning small text-muted mb-3">
-                            <i class="fas fa-circle-info text-warning me-1"></i><strong>Justification:</strong> ${just}
-                        </div>
+                    <!-- Key Prescriptive Attributes -->
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <span class="badge bg-light text-dark border">
+                            <i class="fas fa-boxes me-1 text-gold"></i>Recommended Qty: <strong>${recQty.toLocaleString()}</strong>
+                        </span>
+                        <span class="badge bg-light text-dark border">
+                            <i class="fas fa-calendar-day me-1 text-primary"></i>Order by: <strong>${recDate}</strong>
+                        </span>
+                        <span class="badge bg-light text-dark border">
+                            <i class="fas fa-coins me-1 text-warning"></i>Est. Cost: <strong>₱${estCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                        </span>
+                    </div>
 
-                        <div class="mt-auto d-flex flex-wrap justify-content-end gap-2 pt-2 border-top">
-                            <button class="btn btn-sm btn-success fw-bold px-3" onclick="executePrescription(${a.id}, 'Approve')">
-                                <i class="fas fa-check me-1"></i>Approve
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger fw-bold px-3" onclick="openOverrideModal(${a.id})">
-                                <i class="fas fa-sliders me-1"></i>Override
-                            </button>
-                        </div>
+                    <!-- Plain-Language Constraint Justification -->
+                    <div class="p-2 rounded bg-light border-start border-3 border-warning small text-muted mb-3">
+                        <i class="fas fa-circle-info text-warning me-1"></i><strong>Justification:</strong> ${just}
+                    </div>
+
+                    <div class="mt-auto d-flex flex-wrap justify-content-end gap-2 pt-2 border-top">
+                        <button class="btn btn-sm btn-success fw-bold px-3" onclick="executePrescription(${a.id}, 'Approve')">
+                            <i class="fas fa-check me-1"></i>Approve
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger fw-bold px-3" onclick="openOverrideModal(${a.id})">
+                            <i class="fas fa-sliders me-1"></i>Override
+                        </button>
                     </div>
                 </div>
-            `;}).join('');
-        }
+            </div>
+        `;}).join('');
+    }
+
+    function renderPrescriptiveActions(actions, aiMetrics) {
+        window.cachedPrescriptiveActions = actions || [];
+        const counts = { all: window.cachedPrescriptiveActions.length, procure: 0, produce: 0, dispatch: 0 };
+        window.cachedPrescriptiveActions.forEach(a => {
+            const cat = resolveDirectiveMeta(a).category;
+            if (Object.prototype.hasOwnProperty.call(counts, cat)) counts[cat]++;
+        });
+
+        const elAll = document.getElementById('pa-count-all');
+        if (elAll) elAll.innerText = counts.all;
+        const elProc = document.getElementById('pa-count-procure');
+        if (elProc) elProc.innerText = counts.procure;
+        const elProd = document.getElementById('pa-count-produce');
+        if (elProd) elProd.innerText = counts.produce;
+        const elDisp = document.getElementById('pa-count-dispatch');
+        if (elDisp) elDisp.innerText = counts.dispatch;
+
+        document.querySelectorAll('#pa-filter-pills .filter-pill-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.filter === (window.paSelectedFilter || 'all'));
+        });
+
+        renderFilteredPrescriptiveCards();
 
         // Render AI Prescriptive Evaluation & Override Audit
         renderSCMAIEvaluation(aiMetrics);
@@ -2227,14 +2330,14 @@
                 const count = data.outputs ? data.outputs.length : 0;
                 const msg = data.message || `AI Analysis Complete! ${count} restock prescription(s) generated.`;
                 alert(msg);
-                loadSCMData(); 
+                await loadSCMData(); 
             } else {
                 alert(`AI Error: ${data.error || data.message}`);
             }
         } catch (error) {
             alert("Network Error during AI execution.");
         } finally {
-            btn.innerHTML = '<i class="fas fa-magic me-2"></i>Run AI Analysis';
+            btn.innerHTML = '<i class="fas fa-magic"></i> Run AI Analysis';
             btn.disabled = false;
         }
     };
@@ -3386,6 +3489,7 @@
     };
 
     window.updateConstraintsFeasibilityPreview = function() {
+        const isIngredient = (document.getElementById('cp-item-type')?.value === 'ingredient');
         const moq = parseFloat(document.getElementById('cp-min-order')?.value);
         const maxOrder = parseFloat(document.getElementById('cp-max-order')?.value);
         const prodLimit = parseFloat(document.getElementById('cp-production-limit')?.value);
@@ -3394,14 +3498,18 @@
         const threshold = parseFloat(document.getElementById('cp-reorder-threshold')?.value);
 
         const errEl = document.getElementById('cp-validation-error');
+        const leadLabel = isIngredient ? 'Supplier Lead Time' : 'Prep / Transfer Lead Time';
+        const minLabel = isIngredient ? 'Minimum Order (MOQ)' : 'Min Batch / Transfer Qty';
+        const maxLabel = isIngredient ? 'Maximum Order' : 'Max Batch / Transfer Qty';
+        const capLabel = isIngredient ? 'Max Storeroom Capacity' : 'Max Chiller Capacity';
 
         const errs = [];
         if (isNaN(threshold) || threshold < 0) errs.push('Low Stock Alert Level must be \u2265 0.');
-        if (isNaN(leadTime) || leadTime < 1 || !Number.isInteger(leadTime)) errs.push('Delivery Lead Time must be a whole integer \u2265 1 day.');
-        if (isNaN(moq) || moq <= 0) errs.push('Minimum Order must be > 0.');
-        if (isNaN(maxOrder) || (!isNaN(moq) && maxOrder < moq)) errs.push('Maximum Order must be \u2265 Minimum Order.');
-        if (isNaN(prodLimit) || prodLimit <= 0) errs.push('Daily Kitchen Limit must be > 0.');
-        if (isNaN(capLimit) || (!isNaN(maxOrder) && capLimit < maxOrder)) errs.push('Max Storage Capacity must be \u2265 Maximum Order.');
+        if (isNaN(leadTime) || leadTime < 1 || !Number.isInteger(leadTime)) errs.push(`${leadLabel} must be a whole integer \u2265 1 day.`);
+        if (isNaN(moq) || moq <= 0) errs.push(`${minLabel} must be > 0.`);
+        if (isNaN(maxOrder) || (!isNaN(moq) && maxOrder < moq)) errs.push(`${maxLabel} must be \u2265 ${minLabel}.`);
+        if (!isIngredient && (isNaN(prodLimit) || prodLimit <= 0)) errs.push('Daily Kitchen Limit must be > 0.');
+        if (isNaN(capLimit) || (!isNaN(maxOrder) && capLimit < maxOrder)) errs.push(`${capLabel} must be \u2265 ${maxLabel}.`);
 
         if (errEl) {
             if (errs.length > 0) {
@@ -3428,9 +3536,9 @@
 
         let item = null;
         if (type === 'ingredient') {
-            item = (window.cachedInventory || []).find(x => x.id === id);
+            item = (window.cachedInventory || []).find(x => Number(x.id) === Number(id));
         } else {
-            item = (window.cachedProductWatch || []).find(x => x.id === id);
+            item = (window.cachedProductWatch || []).find(x => Number(x.id) === Number(id));
         }
 
         const itemName = item ? (item.ingredient_name || item.product_name) : name;
@@ -3442,7 +3550,7 @@
 
         const titleEl = document.getElementById('adj-modal-title');
         if (titleEl) {
-            titleEl.innerHTML = `<i class="fas fa-sliders text-gold"></i> Edit & Adjust ${type === 'ingredient' ? 'Ingredient' : 'Product'}: ${itemName}`;
+            titleEl.innerHTML = `<i class="fas fa-sliders text-gold"></i> Adjust ${type === 'ingredient' ? 'Ingredient' : 'Product'}: ${itemName}`;
         }
         const badgeEl = document.getElementById('adj-item-type-badge');
         if (badgeEl) {
@@ -3541,6 +3649,38 @@
         document.getElementById('cp-current-stock').value = Number(itemQty) || 0;
         document.getElementById('cp-item-unit').value = itemUnit;
 
+        const isIngredient = (type === 'ingredient');
+        const prodGroup = document.getElementById('cp-group-production-limit');
+        const prodInput = document.getElementById('cp-production-limit');
+        if (prodGroup) {
+            prodGroup.classList.toggle('d-none', isIngredient);
+        }
+        if (prodInput) {
+            prodInput.required = !isIngredient;
+        }
+
+        const cpLabels = isIngredient
+            ? {
+                  'cp-label-reorder-threshold': 'Low Stock Alert Level',
+                  'cp-label-lead-time': 'Supplier Lead Time (Days)',
+                  'cp-label-min-order': 'Minimum Order (MOQ)',
+                  'cp-label-max-order': 'Maximum Order',
+                  'cp-label-production-limit': 'Daily Kitchen Limit',
+                  'cp-label-capacity-limit': 'Max Storeroom Capacity',
+              }
+            : {
+                  'cp-label-reorder-threshold': 'Low Stock Alert Level',
+                  'cp-label-lead-time': 'Prep / Transfer Lead Time (Days)',
+                  'cp-label-min-order': 'Min Batch / Transfer Qty',
+                  'cp-label-max-order': 'Max Batch / Transfer Qty',
+                  'cp-label-production-limit': 'Daily Kitchen Limit',
+                  'cp-label-capacity-limit': 'Max Chiller Capacity',
+              };
+        Object.entries(cpLabels).forEach(([lblId, text]) => {
+            const lblEl = document.getElementById(lblId);
+            if (lblEl) lblEl.textContent = text;
+        });
+
         document.querySelectorAll('#constraintsForm .cp-unit-suffix').forEach(el => {
             el.textContent = itemUnit;
         });
@@ -3552,7 +3692,7 @@
         document.getElementById('cp-lead-time').value = (item && item.lead_time_days !== undefined) ? item.lead_time_days : 2;
         document.getElementById('cp-min-order').value = (item && item.min_order_quantity !== undefined) ? item.min_order_quantity : 5;
         document.getElementById('cp-max-order').value = (item && item.max_order_quantity !== undefined) ? item.max_order_quantity : 25;
-        document.getElementById('cp-production-limit').value = (item && item.production_limit !== undefined) ? item.production_limit : 20;
+        document.getElementById('cp-production-limit').value = (item && item.production_limit !== undefined && Number(item.production_limit) > 0) ? item.production_limit : 20;
         document.getElementById('cp-capacity-limit').value = (item && item.capacity_limit !== undefined) ? item.capacity_limit : 30;
 
         switchAdjustModalTab('adjust');
@@ -3767,6 +3907,7 @@
         event.preventDefault();
 
         const itemType = document.getElementById('cp-item-type').value;
+        const isIngredient = (itemType === 'ingredient');
         const stockId = parseInt(document.getElementById('cp-stock-id').value, 10);
         const branchIdVal = document.getElementById('cp-branch-id').value;
         const targetIdVal = document.getElementById('cp-target-id').value;
@@ -3776,8 +3917,16 @@
         const leadTimeDays = Number(leadTimeRaw);
         const minOrderQty = parseFloat(document.getElementById('cp-min-order').value);
         const maxOrderQty = parseFloat(document.getElementById('cp-max-order').value);
-        const productionLimit = parseFloat(document.getElementById('cp-production-limit').value);
+        let productionLimit = parseFloat(document.getElementById('cp-production-limit').value);
+        if (isIngredient && (isNaN(productionLimit) || productionLimit <= 0)) {
+            productionLimit = 20;
+        }
         const capacityLimit = parseFloat(document.getElementById('cp-capacity-limit').value);
+
+        const leadLabel = isIngredient ? 'Supplier Lead Time' : 'Prep / Transfer Lead Time';
+        const minLabel = isIngredient ? 'Minimum Order (MOQ)' : 'Min Batch / Transfer Qty';
+        const maxLabel = isIngredient ? 'Maximum Order' : 'Max Batch / Transfer Qty';
+        const capLabel = isIngredient ? 'Max Storeroom Capacity' : 'Max Chiller Capacity';
 
         const showErr = (msg) => {
             if (window.showSweetAlert) window.showSweetAlert(msg, 'error');
@@ -3788,19 +3937,19 @@
             return showErr('Low Stock Alert Level must be a non-negative number.');
         }
         if (!/^\d+$/.test(leadTimeRaw) || leadTimeDays < 1) {
-            return showErr('Delivery Lead Time must be a whole integer of at least 1 day.');
+            return showErr(`${leadLabel} must be a whole integer of at least 1 day.`);
         }
         if (isNaN(minOrderQty) || minOrderQty <= 0) {
-            return showErr('Minimum Order must be greater than zero.');
+            return showErr(`${minLabel} must be greater than zero.`);
         }
         if (isNaN(maxOrderQty) || maxOrderQty < minOrderQty) {
-            return showErr('Maximum Order must be greater than or equal to Minimum Order.');
+            return showErr(`${maxLabel} must be greater than or equal to ${minLabel}.`);
         }
-        if (isNaN(productionLimit) || productionLimit <= 0) {
+        if (!isIngredient && (isNaN(productionLimit) || productionLimit <= 0)) {
             return showErr('Daily Kitchen Limit must be greater than zero.');
         }
         if (isNaN(capacityLimit) || capacityLimit < maxOrderQty) {
-            return showErr('Max Storage Capacity must be greater than or equal to Maximum Order.');
+            return showErr(`${capLabel} must be greater than or equal to ${maxLabel}.`);
         }
 
         const payload = {

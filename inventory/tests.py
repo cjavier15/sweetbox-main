@@ -8,7 +8,11 @@ from inventory.models import (
     RestockRequest, ProductTransfer, StockAdjustment, ConstraintParameter
 )
 from analytics.models import PrescriptiveOutput
-from analytics.services import _generate_rule_based_prescriptions, _generate_satellite_prescriptions
+from analytics.services import (
+    _generate_rule_based_prescriptions,
+    _generate_satellite_prescriptions,
+    generate_restock_directive,
+)
 
 class InventoryTests(TestCase):
     def setUp(self):
@@ -980,5 +984,89 @@ class InventoryTests(TestCase):
         po_sat = PrescriptiveOutput.objects.get(prescriptive_output_ID=res_sat['outputs'][0])
         self.assertGreaterEqual(float(po_sat.recommended_quantity), 3.0)
         self.assertLessEqual(float(po_sat.recommended_quantity), 8.0)
+
+    def test_prescriptive_directive_classification_and_balanced_hub_mix(self):
+        """Ensure All Branches and Ibaan Main Hub Views serialize balanced procure/produce/dispatch directives without duplication."""
+        self.flour_stock.quantity_available = Decimal('2.00')
+        self.flour_stock.reorder_threshold = Decimal('10.00')
+        self.flour_stock.save()
+
+        # Low finished cake stock at Ibaan Main Hub (with BOM)
+        ProductStock.objects.create(
+            branch=self.hub, product=self.product,
+            quantity_available=Decimal('1.00'), reorder_threshold=Decimal('6.00')
+        )
+
+        # Low finished cake stock at satellite branch (different product so RestockRequest seed doesn't mask it)
+        strawberry_cake = Product.objects.create(
+            category=self.category, product_name="Strawberry Cake", price=620.00, is_active=True
+        )
+        ProductStock.objects.create(
+            branch=self.branch, product=strawberry_cake,
+            quantity_available=Decimal('1.00'), reorder_threshold=Decimal('5.00')
+        )
+
+        self.client.force_authenticate(user=self.owner)
+
+        for url in ['/api/inventory/stock/?branch=all', f'/api/inventory/stock/?branch={self.hub.branch_ID}']:
+            res = self.client.get(url)
+            self.assertEqual(res.status_code, 200)
+            actions = res.data.get('prescriptive_actions', [])
+            cats = {a.get('directive_category') for a in actions}
+            badges = {a.get('directive_badge') for a in actions}
+            self.assertEqual(cats, {'procure', 'produce', 'dispatch'}, f"Missing category on {url}: {cats}")
+            self.assertEqual(badges, {'Procure Ingredient', 'Kitchen Production', 'Branch Dispatch'})
+
+        # Running Run AI Analysis twice should update pending prescriptions in-place without duplicates
+        res_ai_1 = self.client.post('/api/analytics/restock-directive/', {'branch_id': 'all'}, format='json')
+        self.assertEqual(res_ai_1.status_code, 200)
+        count_after_first = PrescriptiveOutput.objects.filter(status='Pending Review').count()
+
+        res_ai_2 = self.client.post('/api/analytics/restock-directive/', {'branch_id': 'all'}, format='json')
+        self.assertEqual(res_ai_2.status_code, 200)
+        count_after_second = PrescriptiveOutput.objects.filter(status='Pending Review').count()
+        self.assertEqual(count_after_first, count_after_second)
+
+    def test_prescriptive_classification_rules_and_satellite_isolation(self):
+        """Verify product outputs at Hub classify as produce while satellite outputs classify as dispatch, with satellite isolation."""
+        extra_cake = Product.objects.create(
+            category=self.category, product_name="Mocha Cake", price=550.00, is_active=True
+        )
+        po_hub_prod = PrescriptiveOutput.objects.create(
+            branch=self.hub,
+            product=extra_cake,
+            output_type='Restock Prescription',
+            recommendation='Replenish Mocha Cake commissary display',
+            justification='Low hub cake inventory',
+            recommended_quantity=Decimal('6.00'),
+            status='Pending Review',
+        )
+        po_sat_prod = PrescriptiveOutput.objects.create(
+            branch=self.branch,
+            product=extra_cake,
+            output_type='Restock Prescription',
+            recommendation='Replenish Mocha Cake counter stock',
+            justification='Low satellite cake inventory',
+            recommended_quantity=Decimal('4.00'),
+            status='Pending Review',
+        )
+
+        self.client.force_authenticate(user=self.owner)
+        res_all = self.client.get('/api/inventory/stock/?branch=all')
+        self.assertEqual(res_all.status_code, 200)
+        actions_by_id = {a['id']: a for a in res_all.data['prescriptive_actions']}
+        self.assertEqual(actions_by_id[po_hub_prod.prescriptive_output_ID]['directive_category'], 'produce')
+        self.assertEqual(actions_by_id[po_hub_prod.prescriptive_output_ID]['directive_badge'], 'Kitchen Production')
+        self.assertEqual(actions_by_id[po_sat_prod.prescriptive_output_ID]['directive_category'], 'dispatch')
+        self.assertEqual(actions_by_id[po_sat_prod.prescriptive_output_ID]['directive_badge'], 'Branch Dispatch')
+
+        # Satellite view remains strictly isolated to satellite branch prescriptions
+        self.client.force_authenticate(user=self.manager)
+        res_sat_only = self.client.get(f'/api/inventory/stock/?branch={self.branch.branch_ID}')
+        self.assertEqual(res_sat_only.status_code, 200)
+        sat_ids = {a['id'] for a in res_sat_only.data['prescriptive_actions']}
+        self.assertIn(po_sat_prod.prescriptive_output_ID, sat_ids)
+        self.assertNotIn(po_hub_prod.prescriptive_output_ID, sat_ids)
+
 
 

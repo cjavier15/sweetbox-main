@@ -9,6 +9,7 @@ from django.db.models import ProtectedError, Q
 from django.utils import timezone
 from datetime import timedelta
 from analytics.models import PrescriptiveOutput
+from analytics.services import ensure_hub_balanced_prescriptions
 from .models import (
     Ingredient, IngredientStock, BillOfMaterial, ConstraintParameter, 
     ProductStock, StockAdjustment, RestockRequest, ProductTransfer
@@ -16,6 +17,41 @@ from .models import (
 from pos.models import Product, ProductCategory
 from accounts.models import Branch, AuditLog, User
 from pos.services import convert_to_ingredient_unit
+
+def _classify_prescriptive_output(p):
+    """
+    Classify a PrescriptiveOutput into normalized directive_category and badge label:
+    - ('procure', 'Procure Ingredient')
+    - ('produce', 'Kitchen Production')
+    - ('dispatch', 'Branch Dispatch')
+    """
+    out_type = (p.output_type or '').strip().lower()
+    rec_text = (p.recommendation or '').strip().lower()
+    branch_name = (p.branch.name if p.branch else '').strip().lower()
+    is_hub = bool(
+        p.branch and (
+            p.branch.main_hub
+            or p.branch.branch_ID == 1
+            or 'ibaan' in branch_name
+        )
+    )
+
+    if 'production' in out_type:
+        return 'produce', 'Kitchen Production'
+    if 'dispatch' in out_type or 'transfer' in out_type:
+        return 'dispatch', 'Branch Dispatch'
+    if p.ingredient_id is not None and p.product_id is None:
+        return 'procure', 'Procure Ingredient'
+    if p.product_id is not None:
+        if is_hub and 'dispatch' not in rec_text and 'transfer' not in rec_text:
+            return 'produce', 'Kitchen Production'
+        return 'dispatch', 'Branch Dispatch'
+    if 'commissary batch' in rec_text or 'produce' in rec_text or 'bake' in rec_text:
+        return 'produce', 'Kitchen Production'
+    if 'dispatch' in rec_text or 'transfer' in rec_text:
+        return 'dispatch', 'Branch Dispatch'
+    return 'procure', 'Procure Ingredient'
+
 
 class LiveStockView(APIView):
     permission_classes = [IsAuthenticated]
@@ -366,11 +402,35 @@ class LiveStockView(APIView):
 
         # 5. Fetch Actual AI Prescriptions
         target_branch_val = None
-        if getattr(user, 'role', '') == 'Business Owner' and branch_filter == 'all':
-            db_prescriptions = PrescriptiveOutput.objects.select_related('branch', 'product', 'ingredient').filter(status__in=['Pending Review', 'Flagged - Needs Override'])
+        is_all_owner_scope = is_owner and branch_filter == 'all'
+        active_statuses = ['Pending Review', 'Flagged - Needs Override']
+
+        if is_all_owner_scope:
+            db_prescriptions_qs = PrescriptiveOutput.objects.select_related('branch', 'product', 'ingredient').filter(
+                status__in=active_statuses
+            )
+        elif is_hub_view:
+            target_branch_val = (
+                branch_filter
+                if branch_filter != 'all'
+                else (user.branch.branch_ID if user.branch else (main_hub.branch_ID if main_hub else 1))
+            )
+            db_prescriptions_qs = PrescriptiveOutput.objects.select_related('branch', 'product', 'ingredient').filter(
+                status__in=active_statuses
+            ).filter(
+                Q(branch_id=target_branch_val)
+                | Q(output_type__icontains='Dispatch')
+                | Q(output_type__icontains='Transfer')
+                | Q(product__isnull=False, branch__main_hub=False)
+            )
         else:
             target_branch_val = branch_filter if branch_filter != 'all' else (user.branch.branch_ID if user.branch else 1)
-            db_prescriptions = PrescriptiveOutput.objects.select_related('branch', 'product', 'ingredient').filter(branch_id=target_branch_val, status__in=['Pending Review', 'Flagged - Needs Override'])
+            db_prescriptions_qs = PrescriptiveOutput.objects.select_related('branch', 'product', 'ingredient').filter(
+                branch_id=target_branch_val,
+                status__in=active_statuses
+            )
+
+        db_prescriptions = list(db_prescriptions_qs.order_by('prescriptive_output_ID'))
 
         # Exclude prescriptions for items that already have an active pending RestockRequest at that branch
         pending_product_keys = set(
@@ -382,12 +442,34 @@ class LiveStockView(APIView):
             .values_list('destination_branch_id', 'ingredient_id')
         )
 
-        prescriptive_actions = []
-        for p in db_prescriptions:
+        def _is_deduped_out(p):
             if p.product_id and (p.branch_id, p.product_id) in pending_product_keys:
-                continue
+                return True
             if p.ingredient_id and (p.branch_id, p.ingredient_id) in pending_ingredient_keys:
-                continue
+                return True
+            return False
+
+        visible_prescriptions = [p for p in db_prescriptions if not _is_deduped_out(p)]
+
+        if (is_all_owner_scope or is_hub_view) and main_hub:
+            present_cats = {_classify_prescriptive_output(p)[0] for p in visible_prescriptions}
+            missing_cats = {'procure', 'produce', 'dispatch'} - present_cats
+            if missing_cats:
+                added_ids = ensure_hub_balanced_prescriptions(main_hub, missing_cats)
+                if added_ids:
+                    seen_ids = {p.prescriptive_output_ID for p in visible_prescriptions}
+                    new_items = list(
+                        PrescriptiveOutput.objects.select_related('branch', 'product', 'ingredient')
+                        .filter(prescriptive_output_ID__in=added_ids, status__in=active_statuses)
+                        .order_by('prescriptive_output_ID')
+                    )
+                    for item in new_items:
+                        if item.prescriptive_output_ID not in seen_ids and not _is_deduped_out(item):
+                            seen_ids.add(item.prescriptive_output_ID)
+                            visible_prescriptions.append(item)
+
+        prescriptive_actions = []
+        for p in visible_prescriptions:
             rec_date = p.recommended_date.strftime('%Y-%m-%d') if p.recommended_date else (p.generated_at.date() + timedelta(days=2)).strftime('%Y-%m-%d')
             if p.estimated_cost:
                 cost_val = float(p.estimated_cost)
@@ -396,12 +478,16 @@ class LiveStockView(APIView):
             else:
                 cost_val = 1500.00
 
+            directive_category, directive_badge = _classify_prescriptive_output(p)
+
             prescriptive_actions.append({
                 "id": p.prescriptive_output_ID,
                 "branch": p.branch.name if p.branch else "Headquarters",
                 "branch_id": p.branch.branch_ID if p.branch else None,
                 "title": p.output_type,
                 "output_type": p.output_type,
+                "directive_category": directive_category,
+                "directive_badge": directive_badge,
                 "description": p.recommendation,
                 "recommendation": p.recommendation,
                 "justification": p.justification,
