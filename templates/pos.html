@@ -345,7 +345,8 @@
             padding: 8px 12px !important;
             margin-bottom: 8px !important;
         }
-        .pos-header .sb-brand-logo {
+        .pos-header .sb-brand-logo,
+        .pos-header .pos-brand-logo {
             display: none !important;
         }
         .pos-header .badge {
@@ -373,7 +374,7 @@
 <!-- Top Navigation Bar -->
 <div class="pos-header p-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2 gap-md-3">
     <div class="d-flex align-items-center gap-2 gap-md-3">
-        <span class="sb-brand-logo" style="width: 38px; height: 38px; font-size: 1rem;"><i class="fas fa-cookie-bite"></i></span>
+        <img src="{% static 'images/sweetbox_logo.png' %}" alt="Sweet Box Logo" class="pos-brand-logo rounded-circle shadow-sm flex-shrink-0" style="width: 38px; height: 38px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2);">
         <div>
             <h4 class="mb-0 fw-bold text-white d-flex align-items-center gap-2 fs-5 fs-md-4">
                 Sweet Box POS
@@ -618,8 +619,8 @@
             <div class="modal-body p-3 p-md-4" style="background-color: var(--sb-bg-app);">
                 <div id="receipt-container" class="bg-white p-3 p-md-4 rounded shadow-sm border">
                     <div class="text-center mb-3">
-                        <div class="d-inline-flex align-items-center justify-content-center p-2 rounded mb-2" style="background: var(--sb-espresso); color: var(--sb-gold); width: 44px; height: 44px;">
-                            <i class="fas fa-cookie-bite fs-4"></i>
+                        <div class="d-flex justify-content-center mb-2">
+                            <img src="{% static 'images/sweetbox_logo.png' %}" alt="Sweet Box Logo" class="rounded-circle shadow-sm" style="width: 48px; height: 48px; object-fit: cover; border: 2px solid #d99b26;">
                         </div>
                         <h4 class="fw-bold mb-0 text-title">Sweet Box</h4>
                         <small class="text-muted" id="receipt-date"></small>

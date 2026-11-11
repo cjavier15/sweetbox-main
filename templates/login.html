@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sweet Box</title>
+    <link rel="icon" type="image/png" href="{% static 'images/sweetbox_logo.png' %}">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,10 +60,8 @@
 
     <div class="login-card mx-auto">
         <div class="login-header text-center">
-            <div class="d-inline-flex align-items-center justify-content-center mb-3">
-                <span class="sb-brand-logo" style="width:48px;height:48px;font-size:1.35rem;">
-                    <i class="fas fa-cookie-bite"></i>
-                </span>
+            <div class="d-flex justify-content-center mb-1">
+                <img src="{% static 'images/sweetbox_logo.png' %}" alt="Sweet Box Logo" class="rounded-circle shadow mb-2" style="width: 64px; height: 64px; object-fit: cover; border: 3px solid #d99b26;">
             </div>
             <h3 class="fw-bold mb-1" style="background: linear-gradient(135deg, var(--sb-gold-light) 0%, var(--sb-gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Sweet Box</h3>
             <small style="color: var(--sb-text-subtle); letter-spacing: 0.03em;">Enterprise Management Platform</small>
@@ -128,7 +127,6 @@
 
             <div class="text-center mt-4 pt-3 border-top" style="border-color: var(--sb-border-subtle) !important;">
                 <small class="text-muted" style="font-size: 0.775rem;">
-                    <i class="fas fa-lock me-1 text-gold"></i> Protected by Enterprise Role-Based Access Control
                 </small>
             </div>
         </div>
@@ -201,7 +199,7 @@
         const toast = document.createElement('div');
         toast.className = `sb-alert-toast sb-toast-${type}`;
 
-        let iconHtml = '<i class="fas fa-cookie-bite"></i>';
+        let iconHtml = '<img src="{% static "images/sweetbox_logo.png" %}" alt="Sweet Box Logo" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">';
         let defaultTitle = 'Sweet Box System';
         if (type === 'success') {
             iconHtml = '<i class="fas fa-check"></i>';
